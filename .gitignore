@@ -21,3 +21,6 @@ dist/
 *.tfplan
 security/promptfoo/output*
 security/promptfoo/.promptfoo/
+backups/
+.promptfoo-audit.json
+.frontend-audit.json

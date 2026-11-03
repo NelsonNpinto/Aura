@@ -1,14 +1,13 @@
 {
   "status": 201,
-  "id": "233359b3-11b1-4e08-a414-4daca9fdef24",
-  "score": 0.749999999975,
+  "id": "8dd4422c-757f-43d4-bee5-2fc085b210bd",
+  "score": 0.5,
   "error": null,
-  "detail": null,
   "verdict": {
     "metrics": {
       "faithfulness": 1.0,
       "answer_relevancy": 0.0,
-      "llm_context_precision_with_reference": 0.9999999999,
+      "llm_context_precision_with_reference": 0.0,
       "context_recall": 1.0
     },
     "method": "RAGAS local LLM estimates"
