@@ -85,6 +85,19 @@ To stop the complete optional stack:
 docker compose -f docker-compose.yml -f docker-compose.observability.yml --profile observability down
 ```
 
+## Deploying to Vercel
+
+The repository root carries a `vercel.json` that runs the API and the interface
+as two Vercel services on one origin, so no CORS configuration is involved.
+Ollama cannot run there: point `OLLAMA_BASE_URL` at a reachable model host, or
+every model-backed page returns a connection error while evaluations, datasets,
+traces, and the dashboard keep working. The deployed bundle omits the `rag`
+extra, which takes the function from roughly 1.5 GB to 134 MB; vector search
+then embeds through Ollama instead of local weights.
+
+`docs/VERCEL.md` covers the database, migrations, environment variables, and
+exactly what degrades without a model.
+
 ## API access and failure webhook
 
 AURA publishes ports on loopback. Set `API_KEY` to require a workspace Bearer key for API endpoints; enter it in Settings for the current browser session. Health remains public. Webhooks use their separate `WEBHOOK_SECRET` and remain disabled when that secret is blank.
@@ -155,6 +168,7 @@ cd backend
 uv run python scripts/run_local_quality.py ../data/model-regression.json --model qwen2.5:0.5b --threshold 1
 
 # Gate against a saved API dataset and its baseline:
+# From the repository root:
 python3 scripts/run-dataset.py <dataset-id> --mode generate --model <installed-model>
 
 # Prompt injection checks, from the repository root:

@@ -1,5 +1,6 @@
 import axios from "axios";
-export const api = axios.create({ baseURL: "/api/v1", timeout: 1200000 });
+const timeout = Number(import.meta.env.VITE_API_TIMEOUT_MS) || 1200000;
+export const api = axios.create({ baseURL: "/api/v1", timeout });
 api.interceptors.request.use((config) => {
   const key = sessionStorage.getItem("aura-api-key");
   if (key) config.headers.Authorization = `Bearer ${key}`;

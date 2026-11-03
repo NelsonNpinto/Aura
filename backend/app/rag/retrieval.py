@@ -1,5 +1,6 @@
 import hashlib
 import io
+import math
 import re
 from functools import lru_cache
 
@@ -13,15 +14,58 @@ from app.models.platform import Chunk, Document
 from app.monitoring.telemetry import observation
 
 
+class _OllamaEmbedder:
+    """Embeds through a remote Ollama server, so no local model weights are needed.
+
+    Mirrors the SentenceTransformer.encode signature the callers already use.
+    The chunk column is Vector(384), so the configured model must produce 384
+    dimensions; all-minilm is the Ollama build of the default local model.
+    """
+
+    def __init__(self, model):
+        from langchain_ollama import OllamaEmbeddings
+
+        self._client = OllamaEmbeddings(model=model, base_url=get_settings().ollama_base_url)
+
+    def encode(self, value, normalize_embeddings=True):
+        single = isinstance(value, str)
+        try:
+            vectors = self._client.embed_documents([value] if single else list(value))
+        except Exception as exc:
+            raise HTTPException(
+                503, f"Embedding service unavailable: {type(exc).__name__}"
+            ) from exc
+        if normalize_embeddings:
+            vectors = [_unit(v) for v in vectors]
+        return _Encoded(vectors[0] if single else vectors)
+
+
+def _unit(vector):
+    norm = math.sqrt(sum(v * v for v in vector))
+    return [v / norm for v in vector] if norm else vector
+
+
+class _Encoded(list):
+    """Lets callers keep using .tolist(), as they do with numpy output."""
+
+    def tolist(self):
+        return list(self)
+
+
 @lru_cache(maxsize=1)
 def embedder():
+    settings = get_settings()
+    if settings.embedding_provider == "ollama":
+        return _OllamaEmbedder(settings.embedding_model)
     try:
         from sentence_transformers import SentenceTransformer
     except ImportError as exc:
         raise HTTPException(
-            503, "Embedding dependencies unavailable. Install the rag extra."
+            503,
+            "Embedding dependencies unavailable. Install the rag extra, "
+            "or set EMBEDDING_PROVIDER=ollama with a 384-dimension model.",
         ) from exc
-    return SentenceTransformer(get_settings().embedding_model, device="cpu")
+    return SentenceTransformer(settings.embedding_model, device="cpu")
 
 
 def extract(name, content):

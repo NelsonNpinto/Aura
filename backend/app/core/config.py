@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://aura@localhost:5433/aura"
     ollama_base_url: str = "http://localhost:11434"
     ollama_timeout_seconds: float = 180
+    embedding_provider: str = "sentence-transformers"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     api_key: str = ""
