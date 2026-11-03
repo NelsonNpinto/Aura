@@ -1,0 +1,5 @@
+[
+  {"id":"support-policy-json","response":"{\"answer\":\"Refunds are available within 30 days.\"}","checks":[{"kind":"json_schema","schema_definition":{"type":"object","required":["answer"],"properties":{"answer":{"type":"string"}},"additionalProperties":false}},{"kind":"required_keywords","values":["refunds","30 days"]},{"kind":"forbidden_phrases","values":["guaranteed","50% off"]}]},
+  {"id":"calculator-contract","response":"133","checks":[{"kind":"exact_match","expected":"133"}]},
+  {"id":"marketing-policy","response":"Aura helps developers evaluate local models.","checks":[{"kind":"non_empty"},{"kind":"required_keywords","values":["Aura","developers"]},{"kind":"forbidden_phrases","values":["100% accurate","guaranteed"]}]}
+]

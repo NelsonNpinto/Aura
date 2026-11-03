@@ -1,0 +1,170 @@
+[
+  {
+    "method": "GET",
+    "path": "/health",
+    "status": 200,
+    "elapsed_seconds": 0.1
+  },
+  {
+    "method": "GET",
+    "path": "/models",
+    "status": 200,
+    "elapsed_seconds": 0.02
+  },
+  {
+    "method": "POST",
+    "path": "/prompts",
+    "status": 201,
+    "elapsed_seconds": 0.03
+  },
+  {
+    "method": "POST",
+    "path": "/playground/generate",
+    "status": 201,
+    "elapsed_seconds": 2.23
+  },
+  {
+    "method": "POST",
+    "path": "/evaluations",
+    "status": 201,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "POST",
+    "path": "/datasets",
+    "status": 201,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "POST",
+    "path": "/datasets/204a6328-c562-43bc-ae5c-bf032e8bc989/cases",
+    "status": 201,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "POST",
+    "path": "/datasets/204a6328-c562-43bc-ae5c-bf032e8bc989/run",
+    "status": 201,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "PUT",
+    "path": "/datasets/204a6328-c562-43bc-ae5c-bf032e8bc989/baseline",
+    "status": 200,
+    "elapsed_seconds": 0.0
+  },
+  {
+    "method": "POST",
+    "path": "/datasets/204a6328-c562-43bc-ae5c-bf032e8bc989/run",
+    "status": 201,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "POST",
+    "path": "/experiments",
+    "status": 201,
+    "elapsed_seconds": 3.59
+  },
+  {
+    "method": "POST",
+    "path": "/documents?index=true",
+    "status": 201,
+    "elapsed_seconds": 20.82
+  },
+  {
+    "method": "GET",
+    "path": "/documents/4da83dcf-06ee-43c8-9f99-7f35c66c79ae/chunks",
+    "status": 200,
+    "elapsed_seconds": 0.0
+  },
+  {
+    "method": "POST",
+    "path": "/knowledge/search",
+    "status": 200,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "POST",
+    "path": "/knowledge/search",
+    "status": 200,
+    "elapsed_seconds": 0.02
+  },
+  {
+    "method": "POST",
+    "path": "/knowledge/search",
+    "status": 200,
+    "elapsed_seconds": 0.02
+  },
+  {
+    "method": "POST",
+    "path": "/knowledge/ask",
+    "status": 200,
+    "elapsed_seconds": 7.38
+  },
+  {
+    "method": "POST",
+    "path": "/judge/reviews",
+    "status": 201,
+    "elapsed_seconds": 1.41
+  },
+  {
+    "method": "GET",
+    "path": "/judge/reliability",
+    "status": 200,
+    "elapsed_seconds": 0.0
+  },
+  {
+    "method": "POST",
+    "path": "/agents/runs",
+    "status": 201,
+    "elapsed_seconds": 2.71
+  },
+  {
+    "method": "POST",
+    "path": "/security/runs",
+    "status": 201,
+    "elapsed_seconds": 17.5
+  },
+  {
+    "method": "POST",
+    "path": "/marketing/reviews",
+    "status": 201,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "POST",
+    "path": "/webhooks/ai-failure",
+    "status": 201,
+    "elapsed_seconds": 0.02
+  },
+  {
+    "method": "POST",
+    "path": "/webhooks/ai-failure",
+    "status": 200,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "GET",
+    "path": "/failures",
+    "status": 200,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "GET",
+    "path": "/traces/6b0f6cdd-01ff-471e-bac1-ced734a194d6",
+    "status": 200,
+    "elapsed_seconds": 0.01
+  },
+  {
+    "method": "GET",
+    "path": "/monitoring",
+    "status": 200,
+    "elapsed_seconds": 0.02
+  },
+  {
+    "method": "GET",
+    "path": "/overview",
+    "status": 200,
+    "elapsed_seconds": 0.01
+  }
+]

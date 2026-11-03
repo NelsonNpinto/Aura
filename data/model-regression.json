@@ -1,0 +1,5 @@
+[
+ {"id":"exact-contract","question":"Reply exactly with AURA_OK and no other text.","checks":[{"kind":"exact_match","expected":"AURA_OK"}]},
+ {"id":"arithmetic","question":"What is 19 multiplied by 7? Reply with only the number.","checks":[{"kind":"exact_match","expected":"133"}]},
+ {"id":"structured-answer","question":"Return exactly this JSON object and nothing else: {\"answer\":\"30 days\"}","checks":[{"kind":"json_schema","schema_definition":{"type":"object","required":["answer"],"properties":{"answer":{"const":"30 days"}}}}]}
+]

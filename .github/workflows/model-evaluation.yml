@@ -1,0 +1,54 @@
+name: Local model release gate
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Ollama model to pull and evaluate
+        default: qwen2.5:0.5b
+        required: true
+      threshold:
+        description: Minimum fraction of cases passing
+        default: '1'
+        required: true
+  workflow_call:
+    inputs:
+      model:
+        type: string
+        default: qwen2.5:0.5b
+      threshold:
+        type: string
+        default: '1'
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.13.6'
+          python-version: '3.12'
+      - run: uv sync --project backend --frozen
+      - name: Start local model service
+        run: docker run -d --name aura-ci-ollama -p 127.0.0.1:11434:11434 ollama/ollama:0.13.5
+      - name: Pull requested model
+        env:
+          MODEL: ${{ inputs.model }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker exec aura-ci-ollama ollama list; then break; fi
+            sleep 2
+          done
+          docker exec aura-ci-ollama ollama pull "$MODEL"
+      - name: Enforce score and latency gate
+        env:
+          MODEL: ${{ inputs.model }}
+          THRESHOLD: ${{ inputs.threshold }}
+        run: uv run --project backend python backend/scripts/run_local_quality.py data/model-regression.json --model "$MODEL" --threshold "$THRESHOLD" --output quality-result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: local-model-quality-result
+          path: quality-result.json

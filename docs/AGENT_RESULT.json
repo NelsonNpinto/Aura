@@ -1,0 +1,34 @@
+{
+  "status": 201,
+  "passed": true,
+  "steps": [
+    {
+      "tool": "calculator",
+      "arguments": {
+        "expression": "19*7"
+      },
+      "trace_id": "4128c5e7-0db2-47be-beb3-8fca2d264e27",
+      "result": "133"
+    }
+  ],
+  "response": "133",
+  "metrics": {
+    "tool_sequence_accuracy": 1.0,
+    "argument_accuracy": null,
+    "tool_failures": 0,
+    "unnecessary_calls": 0,
+    "tool_selection_accuracy": 1.0,
+    "output_checks": [
+      {
+        "kind": "exact_match",
+        "passed": true,
+        "detail": "Matches expected answer",
+        "method": "deterministic"
+      }
+    ],
+    "task_completion": true,
+    "completion_note": "Output checks and expected tool path are proxies; semantic task completion requires human review.",
+    "check_completion": true,
+    "multi_step_success": null
+  }
+}

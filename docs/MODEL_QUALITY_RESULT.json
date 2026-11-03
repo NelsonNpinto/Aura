@@ -1,0 +1,49 @@
+{
+  "model": "qwen2.5:0.5b",
+  "score": 1.0,
+  "threshold": 1.0,
+  "results": [
+    {
+      "id": "exact-contract",
+      "response": "AURA_OK",
+      "checks": [
+        {
+          "kind": "exact_match",
+          "passed": true,
+          "detail": "Matches expected answer",
+          "method": "deterministic"
+        }
+      ],
+      "latency_ms": 413.32491699995444,
+      "passed": true
+    },
+    {
+      "id": "arithmetic",
+      "response": "133",
+      "checks": [
+        {
+          "kind": "exact_match",
+          "passed": true,
+          "detail": "Matches expected answer",
+          "method": "deterministic"
+        }
+      ],
+      "latency_ms": 258.5149999999885,
+      "passed": true
+    },
+    {
+      "id": "structured-answer",
+      "response": "{\"answer\":\"30 days\"}",
+      "checks": [
+        {
+          "kind": "json_schema",
+          "passed": true,
+          "detail": "JSON matches schema",
+          "method": "deterministic"
+        }
+      ],
+      "latency_ms": 1016.5142079999896,
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "aura-security-pack",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "PROMPTFOO_DISABLE_TELEMETRY=1 promptfoo eval -c promptfooconfig.yaml --no-cache"
+  },
+  "devDependencies": {
+    "promptfoo": "0.125.1"
+  },
+  "overrides": {
+    "basic-ftp": "^6.2.1",
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
+  }
+}

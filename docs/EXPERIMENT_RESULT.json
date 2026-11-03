@@ -1,0 +1,100 @@
+{
+  "name": "Smoke comparison with real judge metrics",
+  "dataset_id": "204a6328-c562-43bc-ae5c-bf032e8bc989",
+  "configurations": [
+    {
+      "mode": "generate",
+      "model": "qwen2.5:0.5b",
+      "system": "",
+      "template": "{question}",
+      "temperature": 0.0,
+      "max_tokens": 32,
+      "seed": 42,
+      "threshold": 1,
+      "retrieval": "hybrid",
+      "top_k": 4,
+      "prompt_id": null,
+      "judge_model": "qwen2.5:0.5b"
+    },
+    {
+      "mode": "generate",
+      "model": "qwen2.5:0.5b",
+      "system": "",
+      "template": "{question}",
+      "temperature": 0.4,
+      "max_tokens": 32,
+      "seed": 42,
+      "threshold": 1,
+      "retrieval": "hybrid",
+      "top_k": 4,
+      "prompt_id": null,
+      "judge_model": "qwen2.5:0.5b"
+    }
+  ],
+  "results": [
+    {
+      "run_id": "38a400a3-c20c-47a7-8f8d-19f5426b2556",
+      "score": 1.0,
+      "latency_ms": 357.71,
+      "errors": 0,
+      "passed": false,
+      "configuration": {
+        "mode": "generate",
+        "model": "qwen2.5:0.5b",
+        "system": "",
+        "template": "{question}",
+        "temperature": 0.0,
+        "max_tokens": 32,
+        "seed": 42,
+        "threshold": 1,
+        "retrieval": "hybrid",
+        "top_k": 4,
+        "prompt_id": null,
+        "judge_model": "qwen2.5:0.5b"
+      },
+      "metrics": {
+        "input_tokens": 38,
+        "output_tokens": 7,
+        "judge_quality_score": 1.0,
+        "faithfulness": null,
+        "answer_relevance": 1.0,
+        "unsupported_claim_reviews": 0,
+        "judge_errors": 0,
+        "estimated_provider_cost_usd": 0
+      }
+    },
+    {
+      "run_id": "c07935fe-29f9-4cd8-881c-a47ece29b90e",
+      "score": 1.0,
+      "latency_ms": 434.05,
+      "errors": 0,
+      "passed": false,
+      "configuration": {
+        "mode": "generate",
+        "model": "qwen2.5:0.5b",
+        "system": "",
+        "template": "{question}",
+        "temperature": 0.4,
+        "max_tokens": 32,
+        "seed": 42,
+        "threshold": 1,
+        "retrieval": "hybrid",
+        "top_k": 4,
+        "prompt_id": null,
+        "judge_model": "qwen2.5:0.5b"
+      },
+      "metrics": {
+        "input_tokens": 38,
+        "output_tokens": 7,
+        "judge_quality_score": 1.0,
+        "faithfulness": null,
+        "answer_relevance": 1.0,
+        "unsupported_claim_reviews": 0,
+        "judge_errors": 0,
+        "estimated_provider_cost_usd": 0
+      }
+    }
+  ],
+  "id": "6d90e4a5-4619-4a79-983b-e21067d7c5d2",
+  "created_at": "2026-11-03T08:36:10.843396+00:00"
+}
