@@ -60,8 +60,23 @@ This is the only option where **everything** works, because you control which
 models are pulled — including `all-minilm` for embeddings, which keeps vector
 search alive.
 
-Put it behind authentication and set `OLLAMA_API_KEY`. An Ollama server open to
-the internet is free compute for anyone who finds it.
+An Ollama server open to the internet is free compute for anyone who finds it,
+and Ollama has no authentication of its own. Setting `OLLAMA_API_KEY` alone
+changes nothing on a self-hosted server: the application sends the bearer
+token, and a plain `ollama serve` ignores it.
+
+Something in front has to check it. Run Ollama bound to loopback or a private
+network and put nginx, Caddy, or a Cloudflare Tunnel ahead of it, rejecting any
+request whose `Authorization` header does not match. Then set the same value as
+`OLLAMA_API_KEY` here.
+
+Ollama also refuses requests whose `Host` header is not localhost, as DNS
+rebinding protection, so the proxy must rewrite `Host` or the external name
+must be added to `OLLAMA_ORIGINS`. Without that the proxy returns 403 and the
+cause is not obvious.
+
+Binding Ollama straight to `0.0.0.0` with no proxy is the mistake to avoid; it
+is why scans keep finding open Ollama servers.
 
 ### Option B — Hosted Ollama
 
@@ -125,7 +140,7 @@ Project **Settings → Environment Variables**:
 | `DATABASE_URL` | Neon pooled URL, `postgresql+psycopg://` scheme | always |
 | `API_KEY` | a long random string | always |
 | `OLLAMA_BASE_URL` | your Ollama host | options A and B |
-| `OLLAMA_API_KEY` | key for that host | options A and B |
+| `OLLAMA_API_KEY` | key your proxy or host validates | options A and B |
 | `EMBEDDING_PROVIDER` | `ollama` | for vector search |
 | `EMBEDDING_MODEL` | `all-minilm` | for vector search |
 | `VITE_API_TIMEOUT_MS` | `55000` | recommended |
