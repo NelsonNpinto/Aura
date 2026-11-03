@@ -33,6 +33,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-aura}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-aura}
       OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-sentence-transformers}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       API_KEY: ${API_KEY:-}

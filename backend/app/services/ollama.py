@@ -8,9 +8,16 @@ class OllamaUnavailable(Exception):
     pass
 
 
+def auth_headers():
+    """A remote Ollama reachable from the internet must not be left open; a key
+    also satisfies hosted Ollama, which rejects unauthenticated requests."""
+    key = get_settings().ollama_api_key
+    return {"Authorization": f"Bearer {key}"} if key else {}
+
+
 async def list_models():
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
+        async with httpx.AsyncClient(timeout=5, headers=auth_headers()) as client:
             response = await client.get(f"{get_settings().ollama_base_url}/api/tags")
             response.raise_for_status()
             return {"available": True, "models": response.json().get("models", [])}
@@ -43,7 +50,9 @@ def decoding_schema(schema):
 
 async def generate(payload: GenerateRequest):
     try:
-        async with httpx.AsyncClient(timeout=get_settings().ollama_timeout_seconds) as client:
+        async with httpx.AsyncClient(
+            timeout=get_settings().ollama_timeout_seconds, headers=auth_headers()
+        ) as client:
             response = await client.post(
                 f"{get_settings().ollama_base_url}/api/generate",
                 json={

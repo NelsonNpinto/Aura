@@ -1,98 +1,192 @@
-# Deploying AURA on Vercel
+# From nothing to live
 
-Both the API and the interface run in one Vercel project using
-[Services](https://vercel.com/docs/services). `vercel.json` at the repository
-root defines them: `backend/` (FastAPI, entrypoint `app.main:app`) receives
-`/api/*`, and `frontend/` (Vite) receives everything else. Services share one
-origin, so no CORS configuration is involved.
+Everything AURA needs, what each piece costs, and the order to do it in. Part 1
+gets it running on your machine. Part 2 is the decision that governs how much
+of the app works once deployed. Part 3 puts it on the internet.
 
-## What does not run on Vercel
+## What the application actually requires
 
-**Ollama.** Vercel runs request-scoped functions with no GPU and no persistent
-process, so the model server must live elsewhere. Set `OLLAMA_BASE_URL` to a
-reachable Ollama host. Until you do, Playground, AI Judge, Agents, Security, and
-Marketing return connection errors. Evaluations, Datasets, Regression tests,
-Traces, Failure inbox, and the dashboard work without any model.
+| Piece | Why | Can it be skipped |
+|---|---|---|
+| PostgreSQL with pgvector | every trace, evaluation, dataset, and chunk | no — the API will not start usefully |
+| An Ollama server | all generation, the judge, agents, security and marketing packs | yes, and roughly half the app goes with it |
+| An embedding model | vector and hybrid retrieval | yes — BM25 retrieval still works |
+| Node 22.12+, Python 3.12+ | building each half | only if you deploy without building locally |
+| Docker with Compose | the local stack | yes, if you run both halves on the host |
 
-**Local embedding weights.** The deployed bundle omits the `rag` optional
-dependency group (torch, sentence-transformers, RAGAS, langchain-huggingface),
-which keeps the function at roughly 134 MB instead of 1.5 GB. Vector search
-still works by embedding through Ollama: set `EMBEDDING_PROVIDER=ollama` and
-`EMBEDDING_MODEL=all-minilm`. The chunk column is `Vector(384)`, so the model
-must emit 384 dimensions — `all-minilm` does, `nomic-embed-text` does not.
+No paid model API is required anywhere. There is no OpenAI, Anthropic, or
+Gemini key in this codebase. The one unavoidable cost of a live deployment is
+somewhere to run Ollama, and only if you want the model-backed half.
 
-Reranking and RAGAS scoring have no Ollama equivalent and return HTTP 503 when
-requested. BM25 retrieval is pure Python and is unaffected.
+## Part 1 — Run it locally
 
-## Steps
-
-### 1. Create the database
-
-In the Vercel dashboard, open **Storage → Create → Neon**. Neon includes
-pgvector. Copy the **pooled** connection string: serverless functions open many
-short-lived connections, and the engine uses `NullPool` when `VERCEL` is set.
-
-Convert the scheme for SQLAlchemy — Neon gives `postgresql://`, the application
-needs `postgresql+psycopg://`:
+Ports 5273, 8200, 5433, and 11434 must be free.
 
 ```sh
+cp .env.example .env
+python3 scripts/configure-local.py
+docker compose up --build -d
+docker compose exec ollama ollama pull llama3.2:1b
+```
+
+Open http://localhost:5273. `configure-local.py` writes a random
+`POSTGRES_PASSWORD` and `WEBHOOK_SECRET` without printing them or overwriting
+values you already set.
+
+`llama3.2:1b` is the smallest model worth judging anything with. `qwen2.5:0.5b`
+is faster and fine for checking that the pipeline moves, but it fails most of
+its own evaluations — that is the model, not a bug.
+
+To confirm the whole path end to end, open Evaluations before any model is
+installed, paste `Refunds are available within 30 days.`, select **Non-empty
+response** and **Required keywords** with `refunds, 30 days`, and run at a 100%
+threshold. Both checks pass. Remove `30 days` and it scores 50% and fails. That
+exercises the API and the database without touching inference.
+
+## Part 2 — Decide where inference runs
+
+This is the decision that determines how much of the deployed app works. Vercel
+runs request-scoped functions with no GPU and no persistent process, so Ollama
+cannot live there. Pick one.
+
+### Option A — Self-hosted Ollama
+
+A small CPU VPS or a Fly.io machine running the `ollama/ollama` image. RAM is
+the binding constraint, not CPU: a 256 MB instance cannot hold any usable
+model, so budget a few GB. Expect somewhere between $5 and $25 a month
+depending on provider and size.
+
+This is the only option where **everything** works, because you control which
+models are pulled — including `all-minilm` for embeddings, which keeps vector
+search alive.
+
+Put it behind authentication and set `OLLAMA_API_KEY`. An Ollama server open to
+the internet is free compute for anyone who finds it.
+
+### Option B — Hosted Ollama
+
+`OLLAMA_BASE_URL=https://ollama.com` with an `OLLAMA_API_KEY` from
+ollama.com/settings/keys. Pay per token, no infrastructure.
+
+Two caveats worth testing before committing: the hosted API documents
+`/api/chat`, while this application calls `/api/generate`, and the cloud model
+catalogue is built around large models, so a 384-dimension embedding model such
+as `all-minilm` may not be offered. If `/api/generate` is unavailable the
+adapter in `app/services/ollama.py` needs a small change; if embeddings are
+unavailable, vector search stays on BM25.
+
+Verify both before relying on it:
+
+```sh
+curl -H "Authorization: Bearer $OLLAMA_API_KEY" https://ollama.com/api/tags
+```
+
+### Option C — No inference
+
+Free. Deploy with `OLLAMA_BASE_URL` unset.
+
+Working: Evaluations, Datasets, Regression tests, Traces, Failure inbox,
+Overview, Settings. These are the deterministic core of the project.
+
+Not working: Playground, AI Judge, Agents, Security, Marketing. Each returns a
+connection error rather than failing silently.
+
+## Part 3 — Deploy
+
+### 3.1 Create the database
+
+Vercel dashboard → **Storage → Create → Neon**. pgvector is included.
+
+Copy the **pooled** connection string. Serverless opens many short-lived
+connections, which is why the engine switches to `NullPool` when `VERCEL` is
+set. Change the scheme for SQLAlchemy — Neon hands you `postgresql://`, the
+application needs `postgresql+psycopg://`:
+
+```
 postgresql+psycopg://USER:PASSWORD@HOST-pooler.REGION.aws.neon.tech/DB?sslmode=require
 ```
 
-### 2. Apply migrations
+### 3.2 Apply migrations
 
-Vercel has no release phase, so run Alembic once from your machine against the
-same URL. The deployed function never migrates.
+Vercel has no release phase, and the deployed function never migrates. Run
+Alembic once from your machine against the same URL:
 
 ```sh
 cd backend
 DATABASE_URL='postgresql+psycopg://...' uv run alembic upgrade head
 ```
 
-### 3. Set environment variables
+### 3.3 Set environment variables
 
 Project **Settings → Environment Variables**:
 
-| Variable | Value | Required |
+| Variable | Value | When |
 |---|---|---|
-| `DATABASE_URL` | Neon pooled URL, `postgresql+psycopg://` scheme | yes |
-| `API_KEY` | a long random string | yes — the API is public |
-| `OLLAMA_BASE_URL` | your Ollama host | for any model feature |
+| `DATABASE_URL` | Neon pooled URL, `postgresql+psycopg://` scheme | always |
+| `API_KEY` | a long random string | always |
+| `OLLAMA_BASE_URL` | your Ollama host | options A and B |
+| `OLLAMA_API_KEY` | key for that host | options A and B |
 | `EMBEDDING_PROVIDER` | `ollama` | for vector search |
 | `EMBEDDING_MODEL` | `all-minilm` | for vector search |
 | `VITE_API_TIMEOUT_MS` | `55000` | recommended |
 | `WEBHOOK_SECRET` | random string | for failure ingestion |
 
-`API_KEY` matters more here than locally. Compose binds to loopback; a Vercel
-deployment is reachable by anyone. With it set, every route except `/health`
-and the signed webhook requires `Authorization: Bearer <key>`. Enter the same
-value in the app's Settings page, which stores it in `sessionStorage`.
+`API_KEY` matters far more here than locally. Compose binds every port to
+loopback; a Vercel deployment answers anyone. With it set, every route except
+`/api/v1/health` and the signed webhook requires `Authorization: Bearer <key>`.
+Enter the same value in the app's Settings page, which holds it in
+`sessionStorage`.
 
 `VITE_API_TIMEOUT_MS` must stay below the function's `maxDuration`, which
-`vercel.json` sets to 60 seconds. Hobby and Pro plans cap duration differently;
-raise both together if generation needs longer, or expect long requests to be
-cut off mid-flight.
+`vercel.json` sets to 60 seconds. Raise both together if generation needs
+longer, or long requests are cut off mid-flight.
 
-### 4. Import the repository
+`EMBEDDING_MODEL` must emit 384 dimensions, because the chunk column is
+`Vector(384)`. `all-minilm` does. `nomic-embed-text` is 768 and will fail on
+insert.
 
-On the Vercel import screen, pick the repository root — **not** "Import single
-project" on `backend` or `frontend`. The root `vercel.json` already describes
-both services, so the multi-service prompt needs no further input.
+### 3.4 Import the repository
 
-### 5. Verify
+On the Vercel import screen, choose the **repository root**. Do not use "Import
+single project" on `backend` or `frontend` — the root `vercel.json` already
+describes both services and the routing between them.
+
+### 3.5 Verify
 
 ```sh
 curl https://YOUR-DEPLOYMENT.vercel.app/api/v1/health
 ```
 
-Then open the deployment, enter the API key in Settings, and run the evaluation
-workflow from the README. It needs no model and exercises the database path
-end to end.
+Then open the deployment, enter the API key in Settings, and run the Part 1
+evaluation workflow. It needs no model and proves the database path.
 
-## Rate limiting caveat
+## How the deployment is put together
 
-`app/core/middleware.py` keeps its request window in a module-level dictionary.
-Each function instance has its own, so the effective limit scales with instance
-count rather than being a global ceiling. It is a local-development guard, not
-a production control; put a real limiter in front of the deployment if abuse
-matters.
+`vercel.json` defines two services on one origin. `backend/` is a FastAPI
+service with entrypoint `app.main:app` and takes `/api/*`; `frontend/` is a
+Vite build and takes everything else. Vercel hands the service the original
+request path, so `/api/v1/health` arrives intact at the existing `/api/v1`
+router prefix. One origin means no CORS configuration exists or is needed.
+
+The deployed bundle omits the `rag` optional dependency group — torch,
+sentence-transformers, RAGAS, langchain-huggingface — which is the difference
+between a 1.5 GB function and a 134 MB one. Vercel installs optional groups
+only when asked, so this needs no configuration.
+
+Consequences, all of them deliberate:
+
+- Vector search embeds through Ollama rather than local weights.
+- Reranking returns HTTP 503. There is no Ollama equivalent.
+- RAGAS scoring returns HTTP 503.
+- BM25 retrieval is pure Python and is unaffected.
+
+## Two things that are not production-grade
+
+**Rate limiting.** `app/core/middleware.py` keeps its window in a module-level
+dictionary. Every function instance has its own, so the effective ceiling
+scales with instance count instead of being global. It is a development guard.
+Put a real limiter in front of the deployment if abuse is a concern.
+
+**Scoring.** An output-check score is the fraction of explicit deterministic
+rules that passed. It is not a measure of factual quality, and a small model is
+not a trustworthy judge of anything, including itself.

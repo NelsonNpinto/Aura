@@ -25,7 +25,15 @@ class _OllamaEmbedder:
     def __init__(self, model):
         from langchain_ollama import OllamaEmbeddings
 
-        self._client = OllamaEmbeddings(model=model, base_url=get_settings().ollama_base_url)
+        from app.services.ollama import auth_headers
+
+        settings = get_settings()
+        headers = auth_headers()
+        self._client = OllamaEmbeddings(
+            model=model,
+            base_url=settings.ollama_base_url,
+            **({"client_kwargs": {"headers": headers}} if headers else {}),
+        )
 
     def encode(self, value, normalize_embeddings=True):
         single = isinstance(value, str)
