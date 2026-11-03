@@ -112,14 +112,17 @@ connection error rather than failing silently.
 
 Vercel dashboard → **Storage → Create → Neon**. pgvector is included.
 
-Copy the **pooled** connection string. Serverless opens many short-lived
-connections, which is why the engine switches to `NullPool` when `VERCEL` is
-set. Change the scheme for SQLAlchemy — Neon hands you `postgresql://`, the
-application needs `postgresql+psycopg://`:
+Copy the **pooled** connection string — its hostname contains `-pooler`.
+Serverless opens many short-lived connections, which is why the engine switches
+to `NullPool` when `VERCEL` is set. The direct string will exhaust its
+connection limit.
 
-```
-postgresql+psycopg://USER:PASSWORD@HOST-pooler.REGION.aws.neon.tech/DB?sslmode=require
-```
+Paste it as-is. `postgresql://`, `postgres://`, and `postgresql+psycopg://` are
+all accepted; the first two are rewritten to psycopg 3, which is the driver
+this project installs.
+
+Skip the integration's "Connect a Project" step. It writes a `STORAGE_URL`
+variable, while the application reads `DATABASE_URL`.
 
 ### 3.2 Apply migrations
 
