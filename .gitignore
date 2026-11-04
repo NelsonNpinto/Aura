@@ -24,3 +24,15 @@ security/promptfoo/.promptfoo/
 backups/
 .promptfoo-audit.json
 .frontend-audit.json
+
+# AURA rebuild
+.env.local
+legacy/**/node_modules/
+legacy/**/dist/
+apps/web/.next/
+apps/web/next-env.d.ts
+.vercel/
+.fastembed_cache/
+*.egg-info/
+.mypy_cache/
+coverage/
