@@ -36,3 +36,5 @@ apps/web/next-env.d.ts
 *.egg-info/
 .mypy_cache/
 coverage/
+apps/api/model_cache/
+apps/api/.local/

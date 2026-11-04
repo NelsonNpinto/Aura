@@ -1,5 +1,5 @@
 # Local development dependencies. Production uses Neon, Upstash and AuraDB (see .env.example).
-name: aura
+name: aura-dev
 
 services:
   postgres:
@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: aura
       POSTGRES_PASSWORD: aura-local-only
       POSTGRES_DB: aura
-    ports: ["5433:5432"]
+    ports: ["127.0.0.1:5434:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aura -d aura"]
@@ -17,7 +17,7 @@ services:
 
   redis:
     image: redis:8.6.8
-    ports: ["6380:6379"]
+    ports: ["127.0.0.1:6380:6379"]
 
   # Upstash-compatible REST facade over local Redis, so the same client runs locally and in prod.
   redis-http:
@@ -26,7 +26,7 @@ services:
       SRH_MODE: env
       SRH_TOKEN: local-upstash-token
       SRH_CONNECTION_STRING: redis://redis:6379
-    ports: ["8079:80"]
+    ports: ["127.0.0.1:8079:80"]
     depends_on: [redis]
 
   neo4j:
@@ -34,13 +34,13 @@ services:
     environment:
       NEO4J_AUTH: neo4j/aura-local-only
       NEO4J_server_memory_heap_max__size: 512m
-    ports: ["7474:7474", "7687:7687"]
+    ports: ["127.0.0.1:7474:7474", "127.0.0.1:7687:7687"]
     volumes: [neo4jdata:/data]
     profiles: [graph]
 
   ollama:
     image: ollama/ollama:latest
-    ports: ["11434:11434"]
+    ports: ["127.0.0.1:11435:11434"]
     volumes: [ollama:/root/.ollama]
     profiles: [ollama]
 
