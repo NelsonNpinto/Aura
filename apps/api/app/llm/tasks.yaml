@@ -3,6 +3,7 @@
 # Model IDs and free-tier limits: from Groq/Gemini docs as of 2026-11; re-verify against each
 # provider's /models endpoint once keys exist (HC-1). Prices are LIST prices in micro-USD per
 # million tokens, used only for cost ESTIMATES (free tier is not billed).
+# ollama/* entries are local-dev fallbacks only (skipped when deployed).
 # open_weight: true marks models whose outputs may become training data (§B18).
 
 models:
@@ -34,7 +35,7 @@ defaults:
 
 tasks:
   playground:
-    chain: [groq/openai/gpt-oss-20b, gemini/gemini-2.5-flash-lite]
+    chain: [groq/openai/gpt-oss-20b, gemini/gemini-2.5-flash-lite, ollama/qwen2.5:0.5b]
     temperature: 0.2
     max_tokens: 512
     cache: none
@@ -75,7 +76,7 @@ tasks:
     max_tokens: 800
     prompt: {name: policy_reasoning, label: production}
   rag_answer:
-    chain: [groq/openai/gpt-oss-120b, gemini/gemini-2.5-flash]
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-2.5-flash, ollama/qwen2.5:0.5b]
     max_tokens: 700
     prompt: {name: rag_answer, label: production}
   copilot:

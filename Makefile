@@ -17,10 +17,10 @@ dev: up
 	$(MAKE) -j2 api-dev web-dev
 
 api-dev:
-	cd $(API) && uv run uvicorn app.main:app --reload --port 8000
+	cd $(API) && uv run uvicorn app.main:app --reload --port 8010
 
 web-dev:
-	cd $(WEB) && npm run dev
+	cd $(WEB) && AURA_API_DEV_ORIGIN=http://localhost:8010 npm run dev
 
 migrate:
 	cd $(API) && uv run alembic upgrade head
