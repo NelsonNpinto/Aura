@@ -1,25 +1,31 @@
 from __future__ import annotations
 
 import os
-
-os.environ.setdefault("APP_ENV", "test")
-os.environ.setdefault("DATABASE_URL", "postgresql://aura:aura-local-only@localhost:5434/aura")
-# Tests must never reach real providers or Upstash unless explicitly asked.
-for var in ("GROQ_API_KEY", "GEMINI_API_KEY", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "BLOB_READ_WRITE_TOKEN"):
-    os.environ[var] = ""
-if not os.environ.get("AURA_TEST_UPSTASH"):
-    os.environ["UPSTASH_REDIS_REST_URL"] = ""
-    os.environ["UPSTASH_REDIS_REST_TOKEN"] = ""
-os.environ.setdefault("LOCAL_BLOB_DIR", "/tmp/aura-test-blob")
-
-collect_ignore_glob = ["._*"]
-
+import tempfile
 import time
 import uuid
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("DATABASE_URL", "postgresql://aura:aura-local-only@localhost:5434/aura")
+# Tests must never reach real providers or Upstash unless explicitly asked.
+for var in (
+    "GROQ_API_KEY",
+    "GEMINI_API_KEY",
+    "LANGFUSE_PUBLIC_KEY",
+    "LANGFUSE_SECRET_KEY",
+    "BLOB_READ_WRITE_TOKEN",
+):
+    os.environ[var] = ""
+if not os.environ.get("AURA_TEST_UPSTASH"):
+    os.environ["UPSTASH_REDIS_REST_URL"] = ""
+    os.environ["UPSTASH_REDIS_REST_TOKEN"] = ""
+os.environ.setdefault("LOCAL_BLOB_DIR", os.path.join(tempfile.gettempdir(), "aura-test-blob"))
+
+collect_ignore_glob = ["._*"]
 
 
 def _db_up() -> bool:
@@ -65,8 +71,16 @@ def mint(signing_key, monkeypatch):
 
     def _mint(org_id: str, roles: list[str], user_id: str | None = None, **extra) -> str:
         now = int(time.time())
-        claims = {"sub": user_id or f"user-{uuid.uuid4().hex[:8]}", "org_id": org_id, "roles": roles,
-                  "iss": "http://localhost:3000", "aud": "aura-api", "iat": now, "exp": now + 600, **extra}
+        claims = {
+            "sub": user_id or f"user-{uuid.uuid4().hex[:8]}",
+            "org_id": org_id,
+            "roles": roles,
+            "iss": "http://localhost:3000",
+            "aud": "aura-api",
+            "iat": now,
+            "exp": now + 600,
+            **extra,
+        }
         return jwt.encode(claims, signing_key, algorithm="EdDSA")
 
     return _mint

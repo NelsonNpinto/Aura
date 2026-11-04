@@ -1,0 +1,106 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg17-trixie
+        env:
+          POSTGRES_USER: aura
+          POSTGRES_PASSWORD: aura-ci-only
+          POSTGRES_DB: aura
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aura" --health-interval 3s --health-retries 20
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql://aura:aura-ci-only@localhost:5432/aura
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint and types
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy app
+      - name: Migration round-trip (upgrade → check → downgrade → upgrade)
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+      - run: uv run python -m app.scripts.seed
+      - run: uv run pytest -q
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/model_cache
+          key: fastembed-${{ hashFiles('apps/api/app/core/config.py') }}
+      - name: Download bundled models
+        run: uv run --no-dev python -m app.scripts.fetch_models
+      - name: Bundle-size gate (< 450 MB, no torch)
+        working-directory: .
+        run: bash scripts/api_bundle_size.sh
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          BETTER_AUTH_SECRET: ci-build-only-placeholder-secret-0000
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@v10
+      - name: Python dependency audit
+        working-directory: apps/api
+        run: |
+          uv export --no-dev --frozen --no-hashes --no-emit-project -o /tmp/req.txt
+          uvx pip-audit -r /tmp/req.txt --strict
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: npm audit (high+)
+        working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high

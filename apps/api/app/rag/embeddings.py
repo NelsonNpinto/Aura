@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import math
+import os
 from functools import lru_cache
 from typing import Protocol
 
@@ -34,10 +35,32 @@ class FastEmbedder:
         return await asyncio.to_thread(run)
 
 
+# int8 build of the same cross-encoder: 23 MB instead of 91 MB, keeps the api bundle < 450 MB.
+INT8_RERANKER = "aura/ms-marco-MiniLM-L-6-v2-int8"
+
+
+def _register_int8_reranker() -> None:
+    from fastembed.common.model_description import ModelSource
+    from fastembed.rerank.cross_encoder import TextCrossEncoder
+
+    if any(m["model"] == INT8_RERANKER for m in TextCrossEncoder.list_supported_models()):
+        return
+    TextCrossEncoder.add_custom_model(
+        model=INT8_RERANKER,
+        sources=ModelSource(hf="Xenova/ms-marco-MiniLM-L-6-v2"),
+        model_file="onnx/model_quantized.onnx",
+        description="ms-marco-MiniLM-L-6-v2 cross-encoder, int8 ONNX",
+        license="apache-2.0",
+        size_in_gb=0.023,
+    )
+
+
 class FastReranker:
     def __init__(self, model: str, cache_dir: str) -> None:
         from fastembed.rerank.cross_encoder import TextCrossEncoder
 
+        if model == INT8_RERANKER:
+            _register_int8_reranker()
         self._m = TextCrossEncoder(model_name=model, cache_dir=cache_dir, threads=1)
 
     async def rerank(self, query: str, docs: list[str]) -> list[float]:
@@ -68,13 +91,19 @@ class OverlapReranker:
         return [len(q & set(d.lower().split())) / (len(q) or 1) for d in docs]
 
 
+def _cache_dir() -> str:
+    """Bundled cache when present; otherwise /tmp (the only writable path on Vercel)."""
+    s = get_settings()
+    if os.path.isdir(s.fastembed_cache_dir) or not s.is_deployed:
+        return s.fastembed_cache_dir
+    return "/tmp/model_cache"  # noqa: S108
+
+
 @lru_cache
 def get_embedder() -> Embedder:
-    s = get_settings()
-    return FastEmbedder(s.embed_model, s.fastembed_cache_dir)
+    return FastEmbedder(get_settings().embed_model, _cache_dir())
 
 
 @lru_cache
 def get_reranker() -> Reranker:
-    s = get_settings()
-    return FastReranker(s.rerank_model, s.fastembed_cache_dir)
+    return FastReranker(get_settings().rerank_model, _cache_dir())

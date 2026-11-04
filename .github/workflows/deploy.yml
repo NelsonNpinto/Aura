@@ -1,0 +1,87 @@
+name: deploy
+
+# Production deploys run ONLY here: tests → migrations → deploy → smoke.
+# Vercel's automatic production deploys from main are disabled in vercel.json.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  migrate:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      APP_ENV: production
+      # Direct (unpooled) URL for DDL; expand/contract migrations only.
+      DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - name: API migrations
+        working-directory: apps/api
+        run: |
+          uv sync --frozen --no-dev
+          uv run --no-dev alembic upgrade head
+          uv run --no-dev python -m app.scripts.seed
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Auth migrations
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run auth:migrate
+
+  deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - id: deploy
+        name: vercel deploy --prod
+        run: |
+          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          url=$(npx --yes vercel@latest deploy --prod --token="$VERCEL_TOKEN" \
+            --build-env GIT_SHA="$GITHUB_SHA" --env GIT_SHA="$GITHUB_SHA")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Smoke test production
+        env:
+          BASE_URL: ${{ vars.PRODUCTION_URL || needs.deploy.outputs.url }}
+        run: bash scripts/smoke.sh "$BASE_URL"
+      - name: Rollback instructions
+        if: failure()
+        run: |
+          echo "::error::Smoke test failed. Roll back with: npx vercel rollback --token \$VERCEL_TOKEN (see docs/RUNBOOK.md#rollback)."
+          echo "Database migrations are expand-only, so the previous deployment stays compatible."

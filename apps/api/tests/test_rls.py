@@ -17,10 +17,13 @@ pytestmark = pytest.mark.db
 async def _insert_doc(org: str) -> str:
     did = uuid.uuid4()
     async with tenant_tx(org, "u1") as s:
-        await s.execute(text(
-            "INSERT INTO kb.documents (id, org_id, filename, mime, size_bytes, sha256, blob_key, created_by)"
-            " VALUES (:id, :o, 'f.md', 'text/markdown', 1, :h, 'k', 'u1')"),
-            {"id": did, "o": org, "h": uuid.uuid4().hex + uuid.uuid4().hex})
+        await s.execute(
+            text(
+                "INSERT INTO kb.documents (id, org_id, filename, mime, size_bytes, sha256, blob_key, created_by)"
+                " VALUES (:id, :o, 'f.md', 'text/markdown', 1, :h, 'k', 'u1')"
+            ),
+            {"id": did, "o": org, "h": uuid.uuid4().hex + uuid.uuid4().hex},
+        )
     return str(did)
 
 
@@ -43,8 +46,11 @@ async def test_cross_org_reads_blocked_concurrently():
 async def test_with_check_blocks_writing_into_another_org():
     with pytest.raises(DBAPIError):
         async with tenant_tx("org-x") as s:
-            await s.execute(text(
-                "INSERT INTO core.org_settings (org_id, display_name) VALUES ('org-y', 'nope')"))
+            await s.execute(
+                text(
+                    "INSERT INTO core.org_settings (org_id, display_name) VALUES ('org-y', 'nope')"
+                )
+            )
 
 
 async def test_no_tenant_set_means_no_rows():
@@ -72,4 +78,6 @@ async def test_system_tx_bypasses_rls_for_jobs():
     org = f"rls-e-{uuid.uuid4().hex[:6]}"
     did = await _insert_doc(org)
     async with system_tx() as s:
-        assert (await s.execute(text("SELECT 1 FROM kb.documents WHERE id = :i"), {"i": did})).first()
+        assert (
+            await s.execute(text("SELECT 1 FROM kb.documents WHERE id = :i"), {"i": did})
+        ).first()

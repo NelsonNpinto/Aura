@@ -54,7 +54,9 @@ async def test_bad_signature_and_wrong_audience_rejected(client, mint, org_id):
 
 
 async def test_jwt_principal(client, mint, org_id):
-    r = await client.get("/api/v1/me", headers=auth(mint(org_id, ["approver", "bogus"], user_id="u-1")))
+    r = await client.get(
+        "/api/v1/me", headers=auth(mint(org_id, ["approver", "bogus"], user_id="u-1"))
+    )
     assert r.json() == {"user_id": "u-1", "org_id": org_id, "roles": ["approver"], "kind": "jwt"}
 
 
@@ -64,7 +66,9 @@ async def test_body_limit_413(client, monkeypatch):
     from app.core.middleware import BodyLimitMiddleware
 
     small = BodyLimitMiddleware(app, max_bytes=10)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=small), base_url="http://t") as c:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=small), base_url="http://t"
+    ) as c:
         r = await c.post("/api/v1/playground/run", content=b"x" * 100)
     assert r.status_code == 413 and r.json()["error"]["code"] == "payload_too_large"
 
@@ -102,22 +106,41 @@ def scripted_router(monkeypatch):
 
 @pytest.mark.db
 async def test_playground_fallback_reason_stored(client, mint, org_id, scripted_router):
-    scripted_router({"groq/openai/gpt-oss-20b": [ProviderError("rate_limited", "429")],
-                     "gemini/gemini-2.5-flash-lite": ["hello from gemini"]})
+    scripted_router(
+        {
+            "groq/openai/gpt-oss-20b": [ProviderError("rate_limited", "429")],
+            "gemini/gemini-2.5-flash-lite": ["hello from gemini"],
+        }
+    )
     tok = mint(org_id, ["admin"])
-    r = await client.post("/api/v1/playground/run", json={"task": "playground", "variables": {"input": "hi"}},
-                          headers=auth(tok) | {"x-vercel-ip-country": "US"})
+    r = await client.post(
+        "/api/v1/playground/run",
+        json={"task": "playground", "variables": {"input": "hi"}},
+        headers=auth(tok) | {"x-vercel-ip-country": "US"},
+    )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["model"] == "gemini/gemini-2.5-flash-lite"
     assert body["fallback_reason"] == "groq/openai/gpt-oss-20b:rate_limited"
     async with system_tx() as s:
-        rows = (await s.execute(text(
-            "SELECT model, status, fallback_reason, error_type, prompt_version FROM ai.llm_calls"
-            " WHERE org_id=:o ORDER BY attempt"), {"o": org_id})).all()
-        trace = (await s.execute(text("SELECT name, status FROM ai.traces WHERE org_id=:o"), {"o": org_id})).one()
-    assert [(r.model, r.status) for r in rows] == [("groq/openai/gpt-oss-20b", "error"),
-                                                  ("gemini/gemini-2.5-flash-lite", "ok")]
+        rows = (
+            await s.execute(
+                text(
+                    "SELECT model, status, fallback_reason, error_type, prompt_version FROM ai.llm_calls"
+                    " WHERE org_id=:o ORDER BY attempt"
+                ),
+                {"o": org_id},
+            )
+        ).all()
+        trace = (
+            await s.execute(
+                text("SELECT name, status FROM ai.traces WHERE org_id=:o"), {"o": org_id}
+            )
+        ).one()
+    assert [(r.model, r.status) for r in rows] == [
+        ("groq/openai/gpt-oss-20b", "error"),
+        ("gemini/gemini-2.5-flash-lite", "ok"),
+    ]
     assert rows[1].fallback_reason == "groq/openai/gpt-oss-20b:rate_limited"
     assert rows[0].prompt_version >= 1
     assert trace.name == "playground:playground" and trace.status == "ok"
@@ -125,19 +148,26 @@ async def test_playground_fallback_reason_stored(client, mint, org_id, scripted_
 
 @pytest.mark.db
 async def test_playground_requires_admin(client, mint, org_id):
-    r = await client.post("/api/v1/playground/run", json={"task": "playground", "variables": {}},
-                          headers=auth(mint(org_id, ["guest"])))
+    r = await client.post(
+        "/api/v1/playground/run",
+        json={"task": "playground", "variables": {}},
+        headers=auth(mint(org_id, ["guest"])),
+    )
     assert r.status_code == 403
 
 
 @pytest.mark.db
-async def test_budget_exhaustion_returns_budget_exhausted(client, mint, org_id, monkeypatch, scripted_router):
+async def test_budget_exhaustion_returns_budget_exhausted(
+    client, mint, org_id, monkeypatch, scripted_router
+):
     scripted_router({"groq/openai/gpt-oss-20b": ["a", "b", "c"]})
     monkeypatch.setattr(get_settings(), "org_daily_runs", 2)
     tok = mint(org_id, ["admin"])
     payload = {"task": "playground", "variables": {"input": "x"}}
-    codes = [(await client.post("/api/v1/playground/run", json=payload, headers=auth(tok))).status_code
-             for _ in range(3)]
+    codes = [
+        (await client.post("/api/v1/playground/run", json=payload, headers=auth(tok))).status_code
+        for _ in range(3)
+    ]
     assert codes == [200, 200, 429]
     r = await client.post("/api/v1/playground/run", json=payload, headers=auth(tok))
     assert r.json()["error"]["code"] == "budget_exhausted" and "retry-after" in r.headers
@@ -160,7 +190,9 @@ Any change to a vendor bank account requires controller approval and a documente
 
 
 @pytest.mark.db
-async def test_knowledge_upload_dedup_search_and_cited_answer(client, mint, org_id, monkeypatch, scripted_router):
+async def test_knowledge_upload_dedup_search_and_cited_answer(
+    client, mint, org_id, monkeypatch, scripted_router
+):
     monkeypatch.setattr(embeddings, "get_embedder", lambda: HashEmbedder())
     monkeypatch.setattr(embeddings, "get_reranker", lambda: OverlapReranker())
     import app.api.v1.knowledge as kn
@@ -169,49 +201,88 @@ async def test_knowledge_upload_dedup_search_and_cited_answer(client, mint, org_
     monkeypatch.setattr(kn, "get_reranker", lambda: OverlapReranker())
     tok = mint(org_id, ["clerk"])
     files = {"file": ("ap-policy.md", POLICY_MD, "text/markdown")}
-    r1 = await client.post("/api/v1/knowledge/documents", files=files, data={"doc_type": "policy"}, headers=auth(tok))
+    r1 = await client.post(
+        "/api/v1/knowledge/documents", files=files, data={"doc_type": "policy"}, headers=auth(tok)
+    )
     assert r1.status_code == 201, r1.text
-    r2 = await client.post("/api/v1/knowledge/documents", files=files, data={"doc_type": "policy"}, headers=auth(tok))
+    r2 = await client.post(
+        "/api/v1/knowledge/documents", files=files, data={"doc_type": "policy"}, headers=auth(tok)
+    )
     assert r2.json()["duplicate"] is True and r2.json()["document_id"] == r1.json()["document_id"]
     assert r1.json()["chunk_count"] >= 2
 
-    s = await client.post("/api/v1/knowledge/search", json={"query": "bank account change call-back"}, headers=auth(tok))
+    s = await client.post(
+        "/api/v1/knowledge/search",
+        json={"query": "bank account change call-back"},
+        headers=auth(tok),
+    )
     hits = s.json()["hits"]
     assert hits and "Bank detail changes" in hits[0]["heading"]
     assert hits[0]["keyword_rank"] is not None and hits[0]["vector_rank"] is not None
 
-    scripted_router({"groq/openai/gpt-oss-120b": ["Controller approval and a call-back are required [1]. See also [9]."]})
-    a = await client.post("/api/v1/knowledge/ask", json={"question": "What is needed for a bank change?"}, headers=auth(tok))
+    scripted_router(
+        {
+            "groq/openai/gpt-oss-120b": [
+                "Controller approval and a call-back are required [1]. See also [9]."
+            ]
+        }
+    )
+    a = await client.post(
+        "/api/v1/knowledge/ask",
+        json={"question": "What is needed for a bank change?"},
+        headers=auth(tok),
+    )
     body = a.json()
     assert a.status_code == 200, a.text
     assert body["citations"]["used"] == [1] and body["citations"]["invalid"] == [9]
     assert body["citations"]["valid"] is False
 
     other = mint(f"other-{uuid.uuid4().hex[:6]}", ["clerk"])
-    s2 = await client.post("/api/v1/knowledge/search", json={"query": "bank account change"}, headers=auth(other))
+    s2 = await client.post(
+        "/api/v1/knowledge/search", json={"query": "bank account change"}, headers=auth(other)
+    )
     assert s2.json()["hits"] == []
 
 
 @pytest.mark.db
 async def test_upload_rejects_binaries_and_guests(client, mint, org_id):
     tok = mint(org_id, ["clerk"])
-    r = await client.post("/api/v1/knowledge/documents", files={"file": ("x.zip", b"PK\x03\x04junk", "application/zip")},
-                          headers=auth(tok))
+    r = await client.post(
+        "/api/v1/knowledge/documents",
+        files={"file": ("x.zip", b"PK\x03\x04junk", "application/zip")},
+        headers=auth(tok),
+    )
     assert r.status_code == 415
-    g = await client.post("/api/v1/knowledge/documents", files={"file": ("a.md", b"# hi", "text/markdown")},
-                          headers=auth(mint(org_id, ["guest"])))
+    g = await client.post(
+        "/api/v1/knowledge/documents",
+        files={"file": ("a.md", b"# hi", "text/markdown")},
+        headers=auth(mint(org_id, ["guest"])),
+    )
     assert g.status_code == 403
 
 
 @pytest.mark.db
 async def test_api_key_lifecycle(client, mint, org_id):
     admin = mint(org_id, ["admin"], user_id="admin-1")
-    created = (await client.post("/api/v1/api-keys", json={"name": "ci", "roles": ["auditor"]}, headers=auth(admin))).json()
+    created = (
+        await client.post(
+            "/api/v1/api-keys", json={"name": "ci", "roles": ["auditor"]}, headers=auth(admin)
+        )
+    ).json()
     key = created["key"]
     me = await client.get("/api/v1/me", headers={"x-api-key": key})
-    assert me.json() == {"user_id": "admin-1", "org_id": org_id, "roles": ["auditor"], "kind": "api_key"}
+    assert me.json() == {
+        "user_id": "admin-1",
+        "org_id": org_id,
+        "roles": ["auditor"],
+        "kind": "api_key",
+    }
     listed = (await client.get("/api/v1/api-keys", headers=auth(admin))).json()
     assert "key_hash" not in listed[0] and listed[0]["prefix"] == created["prefix"]
-    assert (await client.delete(f"/api/v1/api-keys/{created['id']}", headers=auth(admin))).status_code == 204
+    assert (
+        await client.delete(f"/api/v1/api-keys/{created['id']}", headers=auth(admin))
+    ).status_code == 204
     assert (await client.get("/api/v1/me", headers={"x-api-key": key})).status_code == 401
-    assert (await client.get("/api/v1/me", headers={"x-api-key": key[:-2] + "zz"})).status_code == 401
+    assert (
+        await client.get("/api/v1/me", headers={"x-api-key": key[:-2] + "zz"})
+    ).status_code == 401

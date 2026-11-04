@@ -25,10 +25,14 @@ async def test_versions_are_immutable_for_app_role_and_owner():
         await create_version(s, name=name, template="v1 {{x}}", created_by="u")
     with pytest.raises(DBAPIError, match="permission denied"):
         async with tenant_tx("org-p") as s:
-            await s.execute(text("UPDATE ai.prompts SET template='hacked' WHERE name=:n"), {"n": name})
+            await s.execute(
+                text("UPDATE ai.prompts SET template='hacked' WHERE name=:n"), {"n": name}
+            )
     with pytest.raises(DBAPIError, match="immutable"):
         async with system_tx() as s:
-            await s.execute(text("UPDATE ai.prompts SET template='hacked' WHERE name=:n"), {"n": name})
+            await s.execute(
+                text("UPDATE ai.prompts SET template='hacked' WHERE name=:n"), {"n": name}
+            )
     with pytest.raises(DBAPIError, match="immutable"):
         async with system_tx() as s:
             await s.execute(text("DELETE FROM ai.prompts WHERE name=:n"), {"n": name})
@@ -56,7 +60,15 @@ async def test_labels_move_and_are_audited():
     src = DbPromptSource(ttl_s=0)
     assert (await src.resolve(name, "production")).template == "b"
     async with system_tx() as s:
-        events = (await s.execute(text(
-            "SELECT old_version, new_version, changed_by FROM ai.prompt_label_events WHERE name=:n ORDER BY id"),
-            {"n": name})).all()
-    assert [(e.old_version, e.new_version, e.changed_by) for e in events] == [(None, 1, "alice"), (1, 2, "bob")]
+        events = (
+            await s.execute(
+                text(
+                    "SELECT old_version, new_version, changed_by FROM ai.prompt_label_events WHERE name=:n ORDER BY id"
+                ),
+                {"n": name},
+            )
+        ).all()
+    assert [(e.old_version, e.new_version, e.changed_by) for e in events] == [
+        (None, 1, "alice"),
+        (1, 2, "bob"),
+    ]
