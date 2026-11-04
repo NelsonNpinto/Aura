@@ -4,7 +4,7 @@ Spec: [AURA_BUILD_PROMPT.md](AURA_BUILD_PROMPT.md). Mode: **auto** (stops at hum
 
 ## Current
 
-- **Phase:** 0 — Foundation and first live deploy
+- **Phase:** 0 deploy blocked on HC-1/HC-2; **Phase 1 local work in progress** (§A4: continue work that doesn't depend on the checkpoint)
 - **Branch:** `rebuild/finance-ops` (rebuild of this repo, chosen by the human on 2026-11-04 over a new repo)
 - **Last verified production deploy:** none yet for the rebuild. The previous product (AI eval platform) lives under `legacy/` for reference and code porting.
 
@@ -73,6 +73,26 @@ Dependencies (with reasons) are recorded per package in `apps/api/pyproject.toml
 | 0.11 Docs | done for Phase 0 | claude-code | README, docs/*, VALIDATION.md, CHANGELOG.md | — |
 
 **Risks:** Neon pooler (PgBouncer transaction mode) breaks server-side prepared statements → disable psycopg prepare. Vercel Services is beta → fallback plan in §B17. fastembed model files add ~150 MB to the bundle → measure in CI.
+
+## Phase 1 plan — invoice-to-pay agents
+
+Order chosen so each step is testable without cloud accounts. Live acceptance (five demo invoices live, Queues batch, redeploy durability) waits for HC-1/HC-2.
+
+| Task | Status | Owner | Files | Tests | Dependencies (reason) |
+|---|---|---|---|---|---|
+| 1.5 Domain rules | in progress | claude-code | apps/api/app/domain/{money,matching,duplicates,approval,sod,risk}.py | table-driven unit tests | none (pure Python) |
+| 1.4 Audit lineage | pending | — | app/audit, migration 0002 | chain verify, tamper, concurrent appends | none |
+| 1.1 Synthetic world generator | pending | — | evals/generator | determinism, ground truth | fpdf2 (PDF render), pypdfium2 + Pillow (scans), Faker not used (seeded own lists) |
+| 1.2 Mock ERP + MCP | pending | — | services/erp-mock | contract test per tool | mcp (official SDK, Streamable HTTP stateless) |
+| 1.3 Tool registry + gateway | pending | — | app/tools | each policy branch | mcp client |
+| 1.6 Workflow graph | pending | — | app/agents/invoice_to_pay | fake provider + cassettes | langgraph, langgraph-checkpoint-postgres, pdfplumber |
+| 1.7 Runs API (SSE, resume, cancel) | pending | — | app/api/v1/runs.py | SSE replay, SoD, idempotency | — |
+| 1.8 aura-eval v0 | pending | — | app/evaluation/cli.py | route accuracy stored | — |
+| 1.9 UI pages | pending | — | apps/web | e2e | @xyflow/react, pdfjs-dist |
+| 1.10 Demo data, replay, personas | pending | — | seed snapshot | budget=0 replay | — |
+| 1.11 Playwright e2e | pending | — | apps/web/e2e | five scenarios | @playwright/test |
+
+**Risks:** Vercel Queues API for Python is new (check docs at 1.7); MCP 2026-07-28 stateless transport support in the Python SDK must be verified; Groq 8K TPM constrains extraction of long invoices (chunk + fall back to Gemini).
 
 ## Acceptance — Phase 0
 
