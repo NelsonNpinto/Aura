@@ -76,3 +76,9 @@ plugins = ["pydantic.mypy"]
 
 [tool.vercel]
 entrypoint = "app.main:app"
+
+[tool.uv]
+# litellm (all releases as of 2026-11-05) caps filelock <4, but filelock 3.x has 13 open CVEs
+# (fixed in 4.2.1). litellm only imports filelock in its proxy CLI, which AURA never runs;
+# huggingface-hub uses the stable FileLock API. Drop this once litellm lifts the cap.
+override-dependencies = ["filelock>=4.2.1"]

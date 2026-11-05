@@ -97,7 +97,7 @@ jobs:
         working-directory: apps/api
         run: |
           uv export --no-dev --frozen --no-hashes --no-emit-project -o /tmp/req.txt
-          uvx pip-audit -r /tmp/req.txt --strict
+          uvx pip-audit -r /tmp/req.txt --strict --no-deps --disable-pip  # pinned by uv.lock; pip must not re-resolve (filelock override)
       - uses: actions/setup-node@v7
         with:
           node-version: 22
