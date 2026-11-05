@@ -10,7 +10,7 @@ const LAYERS = [
 
 export default function Landing() {
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+    <main className="w-full px-4 py-12 sm:px-8 lg:px-12">
       <nav className="mb-16 flex items-center justify-between">
         <span className="text-lg font-semibold tracking-tight">AURA</span>
         <div className="flex items-center gap-4 text-sm">
@@ -46,7 +46,7 @@ export default function Landing() {
       <section className="mt-12">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Live metrics</h2>
         <p className="mt-2 text-sm text-muted">
-          Not measured yet. Metrics appear here only once stored evaluation runs exist (build phase 0 of 5).
+          Not measured yet. Metrics appear here only once stored evaluation runs exist.
         </p>
       </section>
     </main>
