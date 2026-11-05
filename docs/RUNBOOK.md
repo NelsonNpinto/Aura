@@ -19,3 +19,11 @@ The first request after ~5 min idle takes ~1 s longer. `/api/v1/ready` reports `
 `deploy.yml` stops before `vercel deploy` when migrations fail, so production keeps serving the old build. Fix forward with a new migration; use a Neon branch to rehearse.
 
 Sections for Neo4j paused, demo budget exhausted and injection spike are added in phases 1–3.
+
+## Shared Neon database with the legacy app
+
+The production Neon database (`neondb`) also holds the previous app's tables in `public`,
+including its own `public.alembic_version` (revision `4962370af0b4`). AURA must not touch them.
+AURA's Alembic history lives in `public.aura_alembic_version` and all AURA tables live in
+their own schemas (`core`, `ai`, `kb`, `ap`, `audit`, `ops`; Better Auth in `auth`).
+Dropping the legacy tables is a separate, human-approved decision (ADR-000).

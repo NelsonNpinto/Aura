@@ -18,6 +18,9 @@ def include_object(obj, name, type_, reflected, compare_to):  # type: ignore[no-
     return True
 
 
+VERSION_TABLE = "aura_alembic_version"
+
+
 def include_name(name, type_, parent_names):  # type: ignore[no-untyped-def]
     if type_ == "schema":
         return name in APP_SCHEMAS
@@ -38,6 +41,9 @@ def run_migrations_online() -> None:
             include_object=include_object,
             include_name=include_name,
             compare_type=True,
+            # Own version table: the Neon database also holds the legacy app's
+            # public.alembic_version, which must stay untouched (ADR-000).
+            version_table=VERSION_TABLE,
         )
         with context.begin_transaction():
             context.run_migrations()
