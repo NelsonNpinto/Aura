@@ -1,21 +1,28 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["iad1"],
   "services": {
-    "frontend": {
-      "root": "frontend/",
-      "framework": "vite",
-      "buildCommand": "npm run build",
-      "outputDirectory": "dist",
-      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+    "web": {
+      "root": "apps/web/",
+      "framework": "nextjs"
     },
-    "backend": {
-      "root": "backend/",
+    "api": {
+      "root": "apps/api/",
+      "framework": "fastapi",
       "entrypoint": "app.main:app",
-      "functions": { "app/main.py": { "maxDuration": 60 } }
+      "buildCommand": "uv run --no-dev python -m app.scripts.fetch_models && uv run --no-dev python -m app.scripts.prune_bundle",
+      "functions": {
+        "app/main.py": {
+          "maxDuration": 300,
+          "excludeFiles": "{tests/**,alembic/**,.local/**,**/._*,.venv/**,**/__pycache__/**}"
+        }
+      }
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "backend" } },
-    { "source": "/(.*)", "destination": { "service": "frontend" } }
-  ]
+    { "source": "/api/v1/(.*)", "destination": { "service": "api" } },
+    { "source": "/mcp(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ],
+  "git": { "deploymentEnabled": { "main": false } }
 }

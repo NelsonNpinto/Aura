@@ -1,0 +1,106 @@
+# Model router task registry (§B10). Model names live HERE, never in code.
+#
+# Model IDs verified live against Groq /models and Gemini generateContent on 2026-11-05 (Gemini 2.5
+# is closed to new accounts; Groq retired qwen3-32b). Gemini 3.x free-tier RPM/RPD are not published
+# on the docs page; the values below are conservative and should be checked in AI Studio. Re-verify against each
+# provider's /models endpoint once keys exist (HC-1). Prices are LIST prices in micro-USD per
+# million tokens, used only for cost ESTIMATES (free tier is not billed).
+# ollama/* entries are local-dev fallbacks only (skipped when deployed).
+# open_weight: true marks models whose outputs may become training data (§B18).
+
+models:
+  groq/openai/gpt-oss-120b:
+    {rpm: 30, tpm: 8000, rpd: 1000, price_in: 150000, price_out: 600000, open_weight: true}
+  groq/openai/gpt-oss-20b:
+    {rpm: 30, tpm: 8000, rpd: 1000, price_in: 75000, price_out: 300000, open_weight: true}
+  groq/qwen/qwen3.8-27b:
+    {rpm: 60, tpm: 6000, rpd: 1000, price_in: 290000, price_out: 590000, open_weight: true}
+  groq/meta-llama/llama-prompt-guard-2-86m:
+    {rpm: 30, tpm: 15000, rpd: 14400, price_in: 40000, price_out: 40000, open_weight: true}
+  groq/openai/gpt-oss-safeguard-20b:
+    {rpm: 30, tpm: 8000, rpd: 1000, price_in: 75000, price_out: 300000, open_weight: true}
+  gemini/gemini-3.6-flash:
+    {rpm: 10, tpm: 250000, rpd: 250, price_in: 300000, price_out: 2500000, vision: true, free_tier_geo_restricted: true}
+  gemini/gemini-3.5-flash-lite:
+    {rpm: 15, tpm: 250000, rpd: 1000, price_in: 100000, price_out: 400000, vision: true, free_tier_geo_restricted: true}
+  ollama/qwen2.5:0.5b:
+    {rpm: 1000, tpm: 1000000, rpd: 100000, price_in: 0, price_out: 0, open_weight: true, local_only: true}
+  fake/echo: {rpm: 100000, tpm: 100000000, rpd: 10000000, price_in: 0, price_out: 0, open_weight: true}
+  fake/json: {rpm: 100000, tpm: 100000000, rpd: 10000000, price_in: 0, price_out: 0, open_weight: true}
+
+defaults:
+  temperature: 0
+  max_tokens: 1024
+  timeout_s: 20
+  cache: exact
+  budget_class: interactive
+
+tasks:
+  playground:
+    chain: [groq/openai/gpt-oss-20b, gemini/gemini-3.5-flash-lite, ollama/qwen2.5:0.5b]
+    temperature: 0.2
+    max_tokens: 512
+    cache: none
+    prompt: {name: playground, label: production}
+  classify_doc:
+    chain: [groq/openai/gpt-oss-20b, gemini/gemini-3.5-flash-lite]
+    max_tokens: 200
+    output_schema: app.schemas.llm_outputs:DocClassification
+    prompt: {name: classify_doc, label: production}
+  injection_check:
+    chain: [groq/meta-llama/llama-prompt-guard-2-86m]
+    max_tokens: 16
+    timeout_s: 8
+    prompt: {name: injection_check, label: production}
+  extract_text:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    max_tokens: 2048
+    timeout_s: 45
+    output_schema: app.schemas.llm_outputs:InvoiceExtractionOut
+    prompt: {name: extract_text, label: production}
+  extract_vision:
+    chain: [gemini/gemini-3.6-flash, gemini/gemini-3.5-flash-lite]
+    max_tokens: 2048
+    timeout_s: 60
+    output_schema: app.schemas.llm_outputs:InvoiceExtractionOut
+    prompt: {name: extract_vision, label: production}
+  explain_match:
+    chain: [groq/openai/gpt-oss-20b, gemini/gemini-3.5-flash-lite]
+    max_tokens: 400
+    prompt: {name: explain_match, label: production}
+  gl_coding:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    max_tokens: 800
+    output_schema: app.schemas.llm_outputs:GlCodingOut
+    prompt: {name: gl_coding, label: production}
+  policy_reasoning:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    max_tokens: 800
+    prompt: {name: policy_reasoning, label: production}
+  rag_answer:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, ollama/qwen2.5:0.5b]
+    max_tokens: 700
+    prompt: {name: rag_answer, label: production}
+  copilot:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    temperature: 0.1
+    max_tokens: 1200
+    cache: none
+    prompt: {name: copilot, label: production}
+  judge:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    max_tokens: 900
+    budget_class: eval
+    output_schema: app.schemas.llm_outputs:JudgeOut
+    prompt: {name: judge, label: production}
+  text2cypher:
+    chain: [groq/openai/gpt-oss-120b, groq/qwen/qwen3.8-27b]
+    max_tokens: 400
+    prompt: {name: text2cypher, label: production}
+  paraphrase_data:
+    chain: [groq/openai/gpt-oss-120b, groq/qwen/qwen3.8-27b]
+    temperature: 0.7
+    cache: none
+    budget_class: eval
+    open_weight_only: true
+    prompt: {name: paraphrase_data, label: production}

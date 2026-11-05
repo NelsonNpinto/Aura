@@ -1,79 +1,50 @@
-name: aura
+# Local development dependencies. Production uses Neon, Upstash and AuraDB (see .env.example).
+name: aura-dev
+
 services:
-  db:
-    image: pgvector/pgvector:pg16
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17-trixie
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-aura}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-aura}
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_USER: aura
+      POSTGRES_PASSWORD: aura-local-only
+      POSTGRES_DB: aura
+    ports: ["127.0.0.1:5434:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD-SHELL", "pg_isready -U aura -d aura"]
+      interval: 3s
       retries: 20
-    restart: unless-stopped
+
+  redis:
+    image: redis:8.6.8
+    ports: ["127.0.0.1:6380:6379"]
+
+  # Upstash-compatible REST facade over local Redis, so the same client runs locally and in prod.
+  redis-http:
+    image: hiett/serverless-redis-http:0.0.10
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: local-upstash-token
+      SRH_CONNECTION_STRING: redis://redis:6379
+    ports: ["127.0.0.1:8079:80"]
+    depends_on: [redis]
+
+  neo4j:
+    image: neo4j:5.26-community
+    environment:
+      NEO4J_AUTH: neo4j/aura-local-only
+      NEO4J_server_memory_heap_max__size: 512m
+    ports: ["127.0.0.1:7474:7474", "127.0.0.1:7687:7687"]
+    volumes: [neo4jdata:/data]
+    profiles: [graph]
+
   ollama:
-    image: ollama/ollama:0.13.5
-    ports:
-      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-  backend:
-    build: ./backend
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-aura}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-aura}
-      OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-sentence-transformers}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
-      API_KEY: ${API_KEY:-}
-      OTEL_ENDPOINT: ${OTEL_ENDPOINT:-}
-      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
-      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
-      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-http://langfuse-web:3000}
-      RAGAS_DO_NOT_TRACK: "true"
-    volumes:
-      - embedding_models:/models
-    ports:
-      - "127.0.0.1:${BACKEND_PORT:-8200}:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-  frontend:
-    build: ./frontend
-    ports:
-      - "127.0.0.1:${FRONTEND_PORT:-5273}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
+    image: ollama/ollama:latest
+    ports: ["127.0.0.1:11435:11434"]
+    volumes: [ollama:/root/.ollama]
+    profiles: [ollama]
+
 volumes:
-  postgres_data:
-  ollama_data:
-  embedding_models:
-networks:
-  default:
-    name: aura_network
+  pgdata:
+  neo4jdata:
+  ollama:

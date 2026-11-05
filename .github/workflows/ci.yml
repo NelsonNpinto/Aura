@@ -1,90 +1,106 @@
-name: AURA checks
-on: [push, pull_request]
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  backend:
+  api:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          version: '0.13.6'
-          python-version: '3.12'
-      - run: uv sync --frozen
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pytest -q
-      - name: Deterministic evaluation release gate
-        run: uv run python scripts/check_quality.py ../data/regression.json
-        env:
-          AURA_MIN_SCORE: ${{ vars.AURA_MIN_SCORE || '1' }}
-  database-migrations:
-    runs-on: ubuntu-latest
+        working-directory: apps/api
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:0.8.7-pg17-trixie
         env:
           POSTGRES_USER: aura
-          POSTGRES_PASSWORD: ci-disposable-password
+          POSTGRES_PASSWORD: aura-ci-only
           POSTGRES_DB: aura
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U aura -d aura"
-          --health-interval 5s --health-timeout 5s --health-retries 15
-    defaults:
-      run:
-        working-directory: backend
+          --health-cmd "pg_isready -U aura" --health-interval 3s --health-retries 20
     env:
-      DATABASE_URL: postgresql+psycopg://aura:ci-disposable-password@localhost:5432/aura
+      APP_ENV: test
+      DATABASE_URL: postgresql://aura:aura-ci-only@localhost:5432/aura
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
-          version: '0.13.6'
-          python-version: '3.12'
+          enable-cache: true
       - run: uv sync --frozen
-      - run: uv run alembic upgrade head
-      - run: uv run alembic check
-      - run: uv run alembic downgrade base
-      - run: uv run alembic upgrade head
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Lint and types
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy app
+      - name: Migration round-trip (upgrade → check → downgrade → upgrade)
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+      - run: uv run python -m app.scripts.seed
+      - run: uv run pytest -q
+      - uses: actions/cache@v6
         with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm run build
-  containers:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - run: docker compose build
-        env:
-          POSTGRES_PASSWORD: ci-disposable-password
+          path: apps/api/model_cache
+          key: fastembed-${{ hashFiles('apps/api/app/core/config.py') }}
+      - name: Download bundled models
+        run: uv run --no-dev python -m app.scripts.fetch_models
+      - name: Bundle-size gate (< 450 MB, no torch)
+        working-directory: .
+        run: bash scripts/api_bundle_size.sh
 
-  terraform:
+  web:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          terraform_version: '1.13.4'
-      - run: terraform fmt -check
-      - run: terraform init -backend=false
-      - run: terraform validate
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          BETTER_AUTH_SECRET: ci-build-only-placeholder-secret-0000
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Python dependency audit
+        working-directory: apps/api
+        run: |
+          uv export --no-dev --frozen --no-hashes --no-emit-project -o /tmp/req.txt
+          uvx pip-audit -r /tmp/req.txt --strict --no-deps --disable-pip  # pinned by uv.lock; pip must not re-resolve (filelock override)
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: npm audit (high+)
+        working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high
