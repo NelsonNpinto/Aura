@@ -44,6 +44,7 @@ function Doc({ runId, docId, mime }: { runId: string; docId: string; mime: strin
   if (!url) return <Skeleton className="h-[600px]" />;
   return mime === "application/pdf"
     ? <iframe src={url} title="Invoice document" className="h-[640px] w-full rounded-lg border border-border bg-white" />
+    // eslint-disable-next-line @next/next/no-img-element -- private blob: URL, nothing for next/image to optimise
     : <img src={url} alt="Scanned invoice" className="w-full rounded-lg border border-border" />;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export type PersonaKey = "rahul" | "priya" | "meera";
 export const PERSONAS: { key: PersonaKey; name: string; role: string; blurb: string }[] = [
@@ -26,13 +26,16 @@ export function setPersona(p: PersonaKey) {
   window.dispatchEvent(new CustomEvent(EVT, { detail: p }));
 }
 
+function subscribe(cb: () => void): () => void {
+  window.addEventListener(EVT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(EVT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
 export function usePersona(): [PersonaKey, (p: PersonaKey) => void] {
-  const [p, setP] = useState<PersonaKey>("rahul");
-  useEffect(() => {
-    setP(getPersona());
-    const on = (e: Event) => setP((e as CustomEvent<PersonaKey>).detail);
-    window.addEventListener(EVT, on);
-    return () => window.removeEventListener(EVT, on);
-  }, []);
+  const p = useSyncExternalStore(subscribe, getPersona, () => "rahul" as PersonaKey);
   return [p, setPersona];
 }

@@ -5,7 +5,7 @@ import { AlertTriangle, BookOpen, CheckSquare, FlaskConical, Inbox, LayoutDashbo
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { PersonaSwitcher } from "@/components/persona-switcher";
 import { Badge } from "@/components/ui";
 import { clearApiToken } from "@/lib/api";
@@ -18,8 +18,8 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
   const path = usePathname();
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // false during SSR/hydration, true on the client: avoids a theme-icon hydration mismatch
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const demo = isGuest || orgName?.toLowerCase().includes("demo");
   const items = [
     { href: "/app", label: "Dashboard", icon: LayoutDashboard, show: true },
