@@ -243,7 +243,6 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
     { name = "upstash-redis" },
-    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.dev-dependencies]
@@ -253,6 +252,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "ruff" },
     { name = "types-pyyaml" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
@@ -275,7 +275,6 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1,<2.2" },
     { name = "structlog", specifier = ">=26.1" },
     { name = "upstash-redis", specifier = ">=1.9,<2" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.38" },
 ]
 
 [package.metadata.requires-dev]
@@ -285,6 +284,7 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=1.2" },
     { name = "ruff", specifier = ">=0.17.3" },
     { name = "types-pyyaml" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.38" },
 ]
 
 [[package]]

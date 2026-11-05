@@ -17,7 +17,7 @@ def mb(p):
     for r, _, fs in os.walk(p):
         for f in fs:
             fp = os.path.join(r, f)
-            if not f.startswith("._") and not os.path.islink(fp):
+            if not f.startswith("._"):  # follow symlinks: the bundler does
                 t += os.path.getsize(fp)
     return t / 1e6
 deps, app, models = mb(sys.argv[1]), mb("app"), mb("model_cache") if os.path.isdir("model_cache") else 0.0

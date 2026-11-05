@@ -31,3 +31,19 @@ AURA must run live at $0/month (§B4) and still look like production: auth, Post
 
 - Torch + sentence-transformers (previous app): breaks the bundle limit.
 - External embedding API: costs money or adds a quota to manage.
+
+## Update 2026-11-05: Linux bundle size
+
+The first Vercel preview build failed with `LAMBDA_SIZE_EXCEEDED` (660.88 MB > 500 MB). The macOS
+estimate (428 MB) had undercounted: Linux wheels are larger and the Hugging Face cache's
+blob symlinks were shipped twice. Fixes, each verified with the test suite, a live router call
+and fastembed embed + rerank:
+
+- `fetch_models` flattens the model cache (snapshot symlinks → files, `blobs/` removed): 87 MB.
+- `prune_bundle` also drops LiteLLM's optional Rust extension (34 MB), `hf_xet` (11 MB) and,
+  unless `ENABLE_BEDROCK=true`, boto3/botocore/s3transfer (31 MB).
+- `uvicorn[standard]` moved to the dev group (Vercel runs the ASGI app itself).
+- The size gate now follows symlinks, as the bundler does.
+
+Measured in a `linux/amd64` container: deps 350 MB + models 87 MB + app 0.2 MB ≈ 437 MB.
+Headroom under the 450 MB gate is small; new runtime dependencies must be weighed against it.
