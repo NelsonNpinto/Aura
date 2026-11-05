@@ -13,6 +13,8 @@ Dated evidence of what was actually run. Nothing here is projected.
 
 Additional live synthetic smoke: Gemini 3.6 Flash extracted PO-1001 as 2 laptops at INR 500.00 each, total INR 1,000.00. This found and fixed Decimal JSON-cache serialization; a regression test verifies cached decimal quantities. Groq's case answer correctly described the 2 ordered/invoiced versus 1 received shortfall, but omitted inline references while returning valid structured source IDs. The API now renders those verified IDs itself; unknown references still fail closed. Representative PDF/scan extraction and signed-in browser acceptance remain pending.
 
+The first full 207-case fixture run matched 84 outcomes and failed its gate. It is invalid as an accuracy benchmark because tool quotas and conflicting generator expectations affected results. Examples: g10002 required suspected-duplicate review; g10010/g10012 required vendor/employee conflict review despite their expected clean route. Zero inappropriate automatic routes were recorded. Node-error reporting and pacing were subsequently corrected; reviewed expectations and a paced full rerun remain outstanding. The original local report is retained privately.
+
 ## 2026-11-04 — Phase 0, local (macOS, Docker Postgres 17 + pgvector 0.8.7, Redis via serverless-redis-http)
 
 | Check | Result | Evidence |

@@ -12,6 +12,8 @@ The default uses fixture responses and an isolated synthetic evaluation organiza
 
 The `demo` dataset contains five scripted cases. `golden_invoices` selects the larger versioned set; the default limit is 20, bounded at 250. This implementation takes cases in file order, so a prefix run is not a representative or stratified sample. No golden-set accuracy claim is made until that run is measured. Cases with dependencies may require the complete set.
 
+Larger runs now pause 2.1 seconds between invoices by default (`--delay`), while tool quotas remain enforced. Increase pacing if the selected cases make multiple calls to the same limited tool. Runtime node errors fail the case even if the expected route was also an exception. Only the reviewed `demo` suite is published automatically; larger suites stay private pending review.
+
 The CLI verifies source file SHA-256 values, records dataset and selected-case snapshot hashes, and returns a nonzero exit code with `--gate` when any route/status/flag check fails or an inappropriate automatic route appears. A unit test deliberately supplies an incorrect automatic route to demonstrate gate failure.
 
 CI runs the five-case fixture gate and uploads its JSON artifact. Only explicitly public, synthetic reports are served by `/api/v1/eval-report`; private ad hoc judgments are filtered out. CI's local database is ephemeral, so its report artifact does not automatically appear in the production database.
@@ -23,6 +25,7 @@ When no public database report exists, the API serves the explicitly published r
 - Five-case fixture workflow gate: 5/5 passed, zero incorrect automatic routes, zero run errors. This is workflow logic evidence, not model accuracy.
 - One live Groq `gpt-oss-120b` judgment on synthetic marketing content: score 0.2, failed; identified unsupported 48-hour battery life and a 30% discount against supplied facts of 8 hours and a maximum 10% discount. This single case does not establish aggregate judge reliability.
 - No genuine human calibration labels have been supplied as part of this implementation. Calibration starts unmeasured; test fixtures are confined to test data and do not represent production reviews.
+- An initial unpaced 207-case fixture run matched 84 expected outcomes and failed its gate, with zero unexpected auto routes. This is **not a valid accuracy benchmark**: it encountered tool quotas, and some generator-labelled clean cases conflict with seeded duplicate or vendor/employee-bank checks. Its old runtime-error count did not include handled node errors; that reporting bug is now fixed. The original report is retained locally, excluded from public benchmark publication. The dataset needs expectation/dependency review and a paced rerun.
 
 ## Judge workbench
 

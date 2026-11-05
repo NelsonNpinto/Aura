@@ -11,3 +11,11 @@ def test_gate_catches_false_automatic_approval_and_missing_evidence():
     assert result["false_auto_post"] and not result["passed"]
     result = assess(expected, {"route": "approval", "status": "awaiting_approval", "flags": []})
     assert not result["passed"] and result["missing_flags"] == ["BANK_ACCOUNT_MISMATCH"]
+
+
+def test_expected_exception_does_not_mask_infrastructure_errors():
+    result = assess(
+        {"route": "exception", "status": "exception", "flags": []},
+        {"route": "exception", "status": "exception", "flags": [], "errors": ["tool rate limit"]},
+    )
+    assert not result["passed"]

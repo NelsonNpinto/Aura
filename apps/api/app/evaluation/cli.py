@@ -26,7 +26,11 @@ def assess(expected: dict[str, Any], actual: dict[str, Any]) -> dict[str, Any]:
     flags_ok = wanted <= found
     false_auto = actual.get("route") == "auto" and expected["route"] != "auto"
     return {
-        "passed": route_ok and status_ok and flags_ok and not false_auto,
+        "passed": route_ok
+        and status_ok
+        and flags_ok
+        and not false_auto
+        and not actual.get("errors"),
         "route_correct": route_ok,
         "status_correct": status_ok,
         "missing_flags": sorted(wanted - found),
@@ -34,7 +38,9 @@ def assess(expected: dict[str, Any], actual: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def run(dataset: str, limit: int, fake: bool, org: str | None = None) -> dict[str, Any]:
+async def run(
+    dataset: str, limit: int, fake: bool, org: str | None = None, delay: float = 2.1
+) -> dict[str, Any]:
     from erp_mock.seed import bootstrap, seed
 
     from app.agents.invoice_to_pay.runner import execute
@@ -51,7 +57,9 @@ async def run(dataset: str, limit: int, fake: bool, org: str | None = None) -> d
     await seed(org, root / "world")
     results = []
     started = time.monotonic()
-    for case in cases:
+    for index, case in enumerate(cases):
+        if index and len(cases) > 5:
+            await asyncio.sleep(delay)
         name = case["file"]["name"]
         path = folder / "files" / name
         if hashlib.sha256(path.read_bytes()).hexdigest() != case["file"]["sha256"]:
@@ -103,6 +111,7 @@ async def run(dataset: str, limit: int, fake: bool, org: str | None = None) -> d
                     "run_id": run_id,
                     "actual_status": state.get("status"),
                     "actual_route": state.get("route"),
+                    "runtime_errors": state.get("errors", []),
                     **result,
                 }
             )
@@ -116,7 +125,7 @@ async def run(dataset: str, limit: int, fake: bool, org: str | None = None) -> d
                 }
             )
     count = len(results)
-    errors = sum("error" in r for r in results)
+    errors = sum(bool(r.get("error") or r.get("runtime_errors")) for r in results)
     false_auto = sum(bool(r.get("false_auto_post")) for r in results)
     score = sum(bool(r["passed"]) for r in results) / count if count else None
     report = {
@@ -159,7 +168,7 @@ async def run(dataset: str, limit: int, fake: bool, org: str | None = None) -> d
                     {
                         "org_id": org,
                         "synthetic": True,
-                        "public_report": True,
+                        "public_report": dataset == "demo",
                         "case_snapshot": report["case_snapshot"],
                         "gate_passed": report["gate_passed"],
                         "limits": report["limits"],
@@ -180,10 +189,18 @@ def main() -> None:
     )
     parser.add_argument("--gate", action="store_true")
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=2.1,
+        help="Seconds between invoices in larger runs; tool quotas remain enforced",
+    )
     args = parser.parse_args()
     if not 1 <= args.limit <= 250:
         parser.error("limit must be between 1 and 250")
-    report = asyncio.run(run(args.dataset, args.limit, not args.live))
+    if not 0 <= args.delay <= 60:
+        parser.error("delay must be between 0 and 60 seconds")
+    report = asyncio.run(run(args.dataset, args.limit, not args.live, delay=args.delay))
     rendered = json.dumps(report, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
