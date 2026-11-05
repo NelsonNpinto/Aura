@@ -2,7 +2,7 @@
 
 A live, publicly demoable finance-operations AI platform on a **$0 free-tier stack**: an invoice-to-pay multi-agent workflow, a finance copilot, and a trust layer (guardrails, evals, observability, audit lineage, human-in-the-loop).
 
-> **Status: Phase 0 of 5 (foundation).** Live URL: _not deployed yet_ (waiting on accounts, see [PROGRESS.md](PROGRESS.md)). All data is synthetic. No real payments.
+> **Status:** foundation and the original invoice agent are deployed at https://aura-henna-one.vercel.app. New Purchasing, Copilot and AI Quality implementation is on `codex/procurement-workflow`; see [PROGRESS.md](PROGRESS.md) for rollout and remaining acceptance checks. All demo data is synthetic; no real payments.
 
 ## What works today
 
@@ -39,3 +39,6 @@ On an exFAT external drive (macOS), keep the Python venv off the drive (`export 
 ## Limits (honest)
 
 Demo on synthetic data; free-tier quotas cap usage; model answers can be wrong — citations are pointers, not proof. The previous AI-evaluation app lives in `legacy/` until its parts are ported.
+## Implementation update
+
+The current implementation branch adds **Purchasing**, **Copilot**, and **AI quality**. See [the purchasing walkthrough](docs/PROCUREMENT_GUIDE.md), [Gmail configuration](docs/GMAIL_SETUP.md), and [evaluation evidence and limitations](docs/EVALS.md). Deployment status and remaining phases are recorded in [PROGRESS.md](PROGRESS.md); branch implementation does not imply all phases are complete or deployed.

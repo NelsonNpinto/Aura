@@ -39,6 +39,17 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install auth migration dependencies
+        working-directory: apps/web
+        run: npm ci
+      - name: Prepare real auth schema for account integration tests
+        working-directory: apps/web
+        run: npm run auth:migrate
+        env:
+          BETTER_AUTH_SECRET: ci-auth-migrations-only-placeholder-secret
       - name: Lint and types
         run: |
           uv run ruff check .
@@ -52,6 +63,16 @@ jobs:
           uv run alembic upgrade head
       - run: uv run python -m app.scripts.seed
       - run: uv run pytest -q
+      - name: Deterministic invoice workflow gate
+        run: uv run aura-eval run --dataset demo --gate --output /tmp/aura-workflow-report.json
+        env:
+          ERP_SERVICE_TOKEN: ci-erp-only
+          APPROVAL_TOKEN_SECRET: ci-approval-only
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: invoice-workflow-evaluation
+          path: /tmp/aura-workflow-report.json
       - uses: actions/cache@v6
         with:
           path: apps/api/model_cache

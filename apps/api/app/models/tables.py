@@ -648,3 +648,44 @@ TENANT_TABLES = [
     "ap.feedback",
     "ops.outbox",
 ]
+
+procurement_cases = Table(
+    "procurement_cases",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("vendor_id", Text, nullable=False),
+    Column("po_number", Text, nullable=False),
+    Column("state", JSONB, nullable=False),
+    _now(),
+    UniqueConstraint("org_id", "po_number"),
+    schema="ap",
+)
+
+procurement_members = Table(
+    "procurement_members",
+    metadata,
+    Column("org_id", Text, primary_key=True),
+    Column("user_id", Text, primary_key=True),
+    Column("role", Text, nullable=False),
+    Column("vendor_id", Text),
+    schema="ap",
+)
+TENANT_TABLES.extend(["ap.procurement_cases", "ap.procurement_members"])
+
+judge_labels = Table(
+    "judge_labels",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("run_id", UUID(as_uuid=True), ForeignKey("ai.dataset_runs.id"), nullable=False),
+    Column("created_by", Text, nullable=False),
+    Column("passed", Boolean, nullable=False),
+    Column("score", Integer, nullable=False),
+    Column("comment", Text, nullable=False),
+    _now(),
+    UniqueConstraint("run_id", "created_by"),
+    CheckConstraint("score >= 0 AND score <= 100", name="score_range"),
+    schema="ai",
+)
+TENANT_TABLES.append("ai.judge_labels")

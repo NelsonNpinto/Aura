@@ -82,7 +82,7 @@ class RouterResult:
         return {
             "task": self.task,
             "text": self.text,
-            "parsed": self.parsed.model_dump() if self.parsed else None,
+            "parsed": self.parsed.model_dump(mode="json") if self.parsed else None,
             "model": self.model,
             "provider": self.provider,
             "prompt": {"name": self.prompt_name, "version": self.prompt_version},
@@ -326,7 +326,9 @@ class ModelRouter:
                                 {
                                     "text": result.text,
                                     "model": result.model,
-                                    "parsed": result.parsed.model_dump() if result.parsed else None,
+                                    "parsed": result.parsed.model_dump(mode="json")
+                                    if result.parsed
+                                    else None,
                                 }
                             ),
                             self.cache_ttl_s,

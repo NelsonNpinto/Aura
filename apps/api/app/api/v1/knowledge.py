@@ -5,13 +5,14 @@ from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import text
 
 from app.api.deps import call_context
 from app.core.auth import CurrentPrincipal, Principal, require_roles
 from app.core.config import get_settings
 from app.core.db import tenant_tx
-from app.core.errors import AppError
+from app.core.errors import AppError, NotFound
 from app.core.limits import charge_run
 from app.llm.router import get_router
 from app.monitoring.tracing import get_tracer
@@ -100,6 +101,24 @@ async def search(body: SearchRequest, p: CurrentPrincipal) -> dict[str, Any]:
         )
         sp.set_output([h.chunk_id for h in hits])
     return {"hits": [asdict(h) for h in hits]}
+
+
+@router.get("/documents/{document_id}/file")
+async def source_file(document_id: str, p: CurrentPrincipal) -> Response:
+    async with tenant_tx(p.org_id, p.user_id) as session:
+        row = (
+            await session.execute(
+                text("SELECT blob_key, mime FROM kb.documents WHERE id::text=:id"),
+                {"id": document_id},
+            )
+        ).first()
+    if not row:
+        raise NotFound("Document not found")
+    try:
+        data = await get_blob_store().get(row.blob_key)
+    except FileNotFoundError as exc:
+        raise NotFound("Document file not available") from exc
+    return Response(data, media_type=row.mime, headers={"Cache-Control": "private, no-store"})
 
 
 @router.post("/ask")

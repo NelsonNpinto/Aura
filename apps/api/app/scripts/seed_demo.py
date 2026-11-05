@@ -13,7 +13,7 @@ from app.core.auth import DEMO_ORG_ID, Principal
 from app.core.config import datasets_root
 from app.rag.embeddings import get_embedder
 from app.rag.service import ingest
-from app.services.blob import get_blob_store
+from app.services.blob import BundledPolicyStore
 
 
 async def ingest_policies(org: str) -> list[dict[str, object]]:
@@ -40,7 +40,7 @@ async def ingest_policies(org: str) -> list[dict[str, object]]:
             effective_from=None,
             effective_to=None,
             max_pages=50,
-            blob=get_blob_store(),
+            blob=BundledPolicyStore(),
             embedder=get_embedder(),
             synthetic=True,
         )

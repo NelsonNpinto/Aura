@@ -1,0 +1,77 @@
+{
+  "dataset": "demo",
+  "dataset_version": "0aba2045b135964413ae2ee85f48092d8e416af053eb8061cd16788d2ef9158f",
+  "case_snapshot": "000b6c9c70f8c8c01ac85bbd3d008bd04f33e36ff2119098db67ed2b1c54a34c",
+  "org_id": "eval-1a2e3cb52765",
+  "created_at": "2026-11-05T11:49:58.455341+00:00",
+  "provider_mode": "fake",
+  "mode": "workflow",
+  "case_count": 5,
+  "metrics": {
+    "pass_rate": 1.0,
+    "errors": 0,
+    "false_auto_posts": 0,
+    "duration_ms": 1802,
+    "extraction_f1": null,
+    "judge_agreement": null
+  },
+  "results": [
+    {
+      "case_id": "demo-a",
+      "run_id": "2fb233a7-ee19-461e-9b57-0b7757d966be",
+      "actual_status": "posted",
+      "actual_route": "auto",
+      "passed": true,
+      "route_correct": true,
+      "status_correct": true,
+      "missing_flags": [],
+      "false_auto_post": false
+    },
+    {
+      "case_id": "demo-b",
+      "run_id": "c433a803-0bb5-443f-9dc5-f93d89df73af",
+      "actual_status": "exception",
+      "actual_route": "exception",
+      "passed": true,
+      "route_correct": true,
+      "status_correct": true,
+      "missing_flags": [],
+      "false_auto_post": false
+    },
+    {
+      "case_id": "demo-c",
+      "run_id": "ff8816f6-6610-4133-8b9c-c07ae6fd27b5",
+      "actual_status": "awaiting_approval",
+      "actual_route": "approval",
+      "passed": true,
+      "route_correct": true,
+      "status_correct": true,
+      "missing_flags": [],
+      "false_auto_post": false
+    },
+    {
+      "case_id": "demo-d",
+      "run_id": "1f5eeb12-0189-4e0a-84be-8054f017e998",
+      "actual_status": "blocked",
+      "actual_route": "exception",
+      "passed": true,
+      "route_correct": true,
+      "status_correct": true,
+      "missing_flags": [],
+      "false_auto_post": false
+    },
+    {
+      "case_id": "demo-e",
+      "run_id": "d0df9315-4f62-430a-9a4f-6f63350b64eb",
+      "actual_status": "awaiting_approval",
+      "actual_route": "approval",
+      "passed": true,
+      "route_correct": true,
+      "status_correct": true,
+      "missing_flags": [],
+      "false_auto_post": false
+    }
+  ],
+  "gate_passed": true,
+  "limits": "Fixture extraction is supplied ground truth; this is not a model accuracy benchmark."
+}

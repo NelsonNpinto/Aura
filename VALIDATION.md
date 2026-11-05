@@ -2,6 +2,19 @@
 
 Dated evidence of what was actually run. Nothing here is projected.
 
+## 2026-11-05 — Purchasing, copilot and quality implementation
+
+- Local API suite: **127 passed** (7.40 s), including vendor assignment/stale-role restriction/revocation, cross-vendor/org access, ordered approval, changed evidence, payment idempotency, Gmail mocked transport outcomes, copilot citation/scope checks and human-label privacy/calibration.
+- API ruff and mypy passed. Web typecheck, eslint, 3 vitest checks and production build passed with Purchasing/Copilot/Quality routes.
+- Actual fixture workflow CLI: **5/5**, no execution errors, no inappropriate automatic routes. Dataset SHA `0aba2045b135964413ae2ee85f48092d8e416af053eb8061cd16788d2ef9158f`; selected snapshot `000b6c9c70f8c8c01ac85bbd3d008bd04f33e36ff2119098db67ed2b1c54a34c`. Fixture extraction is ground truth, so extraction F1 remains unmeasured.
+- Actual live marketing judge: local stored run `93b363a2-df07-449f-beef-019d26651fd3`, Groq gpt-oss-120b, score **0.2**, failed, unsupported claims identified: 48-hour battery life and 30% discount. One case only; no human calibration evidence inferred.
+- Browser: local `/app/procurement` redirects unauthenticated visitors to login. A complete signed-in multi-account walkthrough was not performed.
+- Real Gmail delivery, new live document/scan extraction and new production deployment have not yet been verified. No real funds moved or emails sent during this validation.
+
+Additional live synthetic smoke: Gemini 3.6 Flash extracted PO-1001 as 2 laptops at INR 500.00 each, total INR 1,000.00. This found and fixed Decimal JSON-cache serialization; a regression test verifies cached decimal quantities. Groq's case answer correctly described the 2 ordered/invoiced versus 1 received shortfall, but omitted inline references while returning valid structured source IDs. The API now renders those verified IDs itself; unknown references still fail closed. Representative PDF/scan extraction and signed-in browser acceptance remain pending.
+
+The first full 207-case fixture run matched 84 outcomes and failed its gate. It is invalid as an accuracy benchmark because tool quotas and conflicting generator expectations affected results. Examples: g10002 required suspected-duplicate review; g10010/g10012 required vendor/employee conflict review despite their expected clean route. Zero inappropriate automatic routes were recorded. Node-error reporting and pacing were subsequently corrected; reviewed expectations and a paced full rerun remain outstanding. The original local report is retained privately.
+
 ## 2026-11-04 — Phase 0, local (macOS, Docker Postgres 17 + pgvector 0.8.7, Redis via serverless-redis-http)
 
 | Check | Result | Evidence |

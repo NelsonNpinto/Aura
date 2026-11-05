@@ -5,7 +5,17 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import account, health, knowledge, playground, prompts, runs
+from app.api.v1 import (
+    account,
+    copilot,
+    health,
+    knowledge,
+    playground,
+    procurement,
+    prompts,
+    quality,
+    runs,
+)
 from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 from app.core.limits import rate_limit
@@ -28,7 +38,16 @@ def create_app() -> FastAPI:
     v1 = APIRouter(prefix="/api/v1")
     v1.include_router(health.router)
     limited = APIRouter(dependencies=[Depends(rate_limit)])
-    for r in (account.router, playground.router, prompts.router, knowledge.router, runs.router):
+    for r in (
+        account.router,
+        playground.router,
+        prompts.router,
+        knowledge.router,
+        runs.router,
+        procurement.router,
+        quality.router,
+        copilot.router,
+    ):
         limited.include_router(r)
     v1.include_router(limited)
     app.include_router(v1)

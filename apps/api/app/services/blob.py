@@ -5,6 +5,7 @@ Never call `list` (advanced op quota); metadata lives in Postgres.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -13,7 +14,7 @@ from urllib.parse import quote
 
 import httpx
 
-from app.core.config import get_settings
+from app.core.config import datasets_root, get_settings
 
 _API = "https://vercel.com/api/blob"
 _API_VERSION = "13"
@@ -31,6 +32,31 @@ def _check_key(key: str) -> None:
         raise ValueError("invalid blob key")
 
 
+class BundledPolicyStore:
+    """Only the versioned, public synthetic policy corpus; never a private-upload fallback."""
+
+    async def get(self, key: str) -> bytes:
+        _check_key(key)
+        if not re.fullmatch(r"kb/[A-Za-z0-9_-]+/[a-f0-9]{64}", key):
+            raise FileNotFoundError(key)
+        digest = key.rsplit("/", 1)[-1]
+        for path in (datasets_root() / "policies").glob("*.md"):
+            if path.name.startswith("._"):
+                continue
+            data = path.read_bytes()
+            if hashlib.sha256(data).hexdigest() == digest:
+                return data
+        raise FileNotFoundError(key)
+
+    async def put(self, key: str, data: bytes, content_type: str) -> str:
+        if await self.get(key) != data:
+            raise ValueError("Only bundled synthetic policies may use this store")
+        return key
+
+    async def delete(self, key: str) -> None:
+        raise PermissionError("Bundled policies are immutable")
+
+
 class LocalBlobStore:
     def __init__(self, root: str) -> None:
         self.root = Path(root)
@@ -44,7 +70,10 @@ class LocalBlobStore:
 
     async def get(self, key: str) -> bytes:
         _check_key(key)
-        return (self.root / key).read_bytes()
+        try:
+            return (self.root / key).read_bytes()
+        except FileNotFoundError:
+            return await BundledPolicyStore().get(key)
 
     async def delete(self, key: str) -> None:
         _check_key(key)
@@ -85,6 +114,8 @@ class VercelBlobStore:
         url = f"https://{self.store_id.lower()}.private.blob.vercel-storage.com/{quote(key)}"
         async with httpx.AsyncClient(timeout=30) as c:
             r = await c.get(url, headers={"authorization": f"Bearer {self.token}"})
+            if r.status_code == 404:
+                return await BundledPolicyStore().get(key)
             r.raise_for_status()
             return r.content
 
