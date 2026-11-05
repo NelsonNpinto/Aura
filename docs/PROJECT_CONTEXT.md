@@ -2,8 +2,9 @@
 
 > **How to use this file:** paste or upload it into ChatGPT, Claude or any other assistant and say
 > "Use this as the full context for my project AURA and answer my questions about it."
-> It describes what AURA is, how every part works, what is built, what is live, what is not
-> built yet, and why each decision was made. Last updated **2026-11-05** (git `b4fdfa9` on `main`).
+> It describes what AURA is, how every part works, what every screen and button does (§21),
+> what is built and live, the complete design of everything planned but not built yet (§22), and
+> why each decision was made. Last updated **2026-11-05** (git `b4fdfa9` on `main`).
 
 ---
 
@@ -401,3 +402,170 @@ SSE event types: `run.created`, `run.started`, `run.resumed`, `node.started`, `n
 ## 20. Glossary
 
 - **AP** accounts payable · **PO** purchase order · **GRN** goods receipt note · **Three-way match** invoice vs PO vs receipt · **STP** straight-through processing (auto-posted without humans) · **SoD** segregation of duties · **HITL** human in the loop · **RLS** row-level security · **MCP** Model Context Protocol · **RAG** retrieval-augmented generation · **RRF** reciprocal rank fusion · **SSE** server-sent events · **GL** general ledger · **Prompt injection** text that tries to instruct the AI · **Spotlighting** wrapping untrusted text in delimited data blocks · **Tamper-evident** modification is detectable, not impossible.
+
+---
+
+## 21. Screen-by-screen, button-by-button guide (what is live today)
+
+Every item below exists on https://aura-henna-one.vercel.app and works as described.
+
+### 21.1 Landing page `/`
+| Element | What it does |
+|---|---|
+| **Log in** (top right) | Opens `/login` (email + password). |
+| **Sign up** (top right) | Opens `/signup` to create your own workspace (you become its admin). |
+| **GitHub** | Opens the public repo `NelsonNpinto/Aura`. |
+| Badge "Demo on synthetic data · no real payments" | Reminder: everything is synthetic; the ERP is a mock; nothing is really paid. |
+| **Try the live demo** | Opens `/demo` (guest access, no account). |
+| **Create a workspace** | Same as Sign up. |
+| Four layer cards | Short explanation of the experience, agent runtime, context/tools and trust layers. |
+| "Live metrics" | Says "Not measured yet" until stored evaluation runs exist (no invented numbers). |
+
+### 21.2 Guest demo `/demo`
+| Element | What it does |
+|---|---|
+| "Verify you are human" (Cloudflare Turnstile) | Bot protection. Produces a one-time token; after any failed attempt a fresh widget appears. |
+| **Enter the demo** | Signs you in as an anonymous guest in the shared `demo` organisation and opens the app. Disabled until Turnstile passes. Guests have a daily run quota. |
+| **Continue to the demo** (shown if you already have a session) | Goes straight into the app with your existing session. |
+| **Sign out and start a new guest session** | Ends the current session so you can enter as a fresh guest. |
+
+### 21.3 Log in `/login` and Sign up `/signup`
+| Element | What it does |
+|---|---|
+| Name (sign up only), Email, Password | Account fields (email + password auth via Better Auth). |
+| Turnstile | Bot check, required on both forms. |
+| **Log in** / **Sign up** button | Submits; on success opens `/app`. Sign-up creates a personal organisation where you are admin. |
+| "Have an account? Log in" / "New here? Sign up" | Switch between the two forms. |
+
+### 21.4 App sidebar (every `/app` page)
+| Element | What it does |
+|---|---|
+| **Dashboard** | `/app` overview. |
+| **Invoices** | `/app/inbox` — run demo invoices, upload invoices, see all runs. |
+| **Approvals** | `/app/approvals` — invoices waiting for a human decision. |
+| **Exceptions** | `/app/exceptions` — invoices the agents could not post. |
+| **Knowledge** | `/app/knowledge` — policy knowledge base: upload, search, ask with citations. |
+| **Playground** (admins only) | `/app/admin/playground` — run prompts through the model router. |
+| "guest" badge | Shown for demo guests. |
+| **Acting as** persona switcher (demo workspace) | Choose **Rahul · AP clerk**, **Priya · Approver** (up to $10,000, no HIGH flags) or **Meera · Controller**. Every action is performed as that persona; segregation of duties applies between them. |
+| Name / organisation / role badges | Who you are and your roles. |
+| Moon/Sun icon | Toggle dark/light mode. |
+| **Sign out** | Ends the session. |
+
+### 21.5 Dashboard `/app`
+| Element | What it does |
+|---|---|
+| "Signed in to …" | Shows the current organisation. |
+| **Remaining demo budget** panel | Live counters from Redis: your daily runs, your organisation's, and the global budget; resets at UTC midnight. "Provider requests today" expands per-model usage. |
+| Metric tiles (Straight-through rate, Route accuracy, Cost per invoice, p95 latency) | Show "not measured" with their data source until evaluation runs are stored. |
+
+### 21.6 Invoices `/app/inbox`
+| Element | What it does |
+|---|---|
+| Five **demo invoice cards** (A–E) with **Run** | Starts a live run of that scripted invoice and opens the run viewer. A: clean → auto-post. B: price variance → exception. C: bank change → controller approval. D: hidden injection → blocked. E: scanned image → vision + human review. |
+| File icon on each card | Opens the demo invoice PDF/PNG in a new tab. |
+| **Upload an invoice** card → **Choose file and run** | Pick a PDF, PNG or JPEG (≤10 MB); it is uploaded (type checked by magic bytes, de-duplicated by SHA-256, guest uploads expire after 72 h) and a run starts immediately. |
+| Warning text | Don't upload real invoices or personal data. |
+| **Sample invoices to download and upload** list | 17 synthetic invoices; clicking one downloads it; each shows amount and expected outcome. |
+| **Runs** table | Every run: start time (click → run page), vendor, invoice number (with "demo x" badge), amount, status chip, risk level, mode (live / "recorded run" / fixture), who started it. Refreshes every 15 s. |
+
+### 21.7 Run viewer `/app/runs/{id}`
+| Element | What it does |
+|---|---|
+| Status chip, **live** badge | Current state while streaming. "recorded run" badge = budget exhausted, deterministic replay with no model calls. |
+| **Invoice, evidence and lineage →** | Opens the evidence page for this run. |
+| Pipeline (11 steps) | Each step goes grey → spinning (running) → green check (done) / amber pause (waiting for human) / red X (error). Shows duration, tokens and a one-line summary; raised flags appear as red/amber chips under the step that raised them. |
+| Outcome card | Vendor, invoice number, amount, route, risk score/level, latency and tokens, the reasons for the route, all flags, then: posted with ERP and payment references; or "Needs controller/approver approval → Open approvals"; or the exception explanation with **Drafted vendor email (copy only, never sent)**; or the blocked message. Decided approvals are listed with who decided and their comment. |
+| Event log | Every SSE event in order: run started, node started/completed, tool called/result (with latency), LLM call (task → model, cache hit, fallback reason), guardrail verdicts, flags, interrupt, run completed. |
+
+### 21.8 Invoice evidence `/app/invoices/{id}`
+| Element | What it does |
+|---|---|
+| Document viewer | The original PDF (embedded) or scanned image, fetched privately with your session. |
+| Hidden-text panel | If found: each hidden span with its reason (white_text, tiny_font, off_page…) and page. |
+| Fields table | Vendor, invoice number, dates, PO, currency, subtotal, tax, total, bank account (last 4 only), each with a confidence score or "not found in source". |
+| **Three-way match** table | Per line: description, billed vs received quantity, invoice vs PO unit price, outcome (matched / price variance / qty variance / no PO / no receipt), GL account · cost center. Lines with problems are highlighted. |
+| Flags | Each flag with severity colour and message. |
+| Policy citations | Numbered policy excerpts the decision relied on. |
+| **Decision lineage** + "chain verified · N events" badge | The hash-chained audit trail: every agent step, tool call, guardrail decision and human decision, with actor (agent/human), action and short hash. Red badge with the broken sequence number if anything was tampered with. |
+| **Export JSON** | Downloads the full lineage + verification result for auditors. |
+| **Replay run →** | Back to the run viewer (events replay from the database). |
+
+### 21.9 Approvals `/app/approvals`
+| Element | What it does |
+|---|---|
+| Header "Acting as …" | Which persona/user is deciding. |
+| Approval cards | Vendor, invoice number, required role badge (approver/controller), flag chips, amount, submitter, SLA due time, bank last 4, **Evidence →** link. |
+| Red "You can't approve this: …" note | Server-computed reason: you prepared/uploaded it, you last edited this vendor's bank details, you created the vendor, wrong role, or above your limit. |
+| Comment box | Required for flagged invoices, rejections and requests for info. |
+| "I called the vendor…" checkbox | Shown for bank-detail changes; required before approving. |
+| **Approve** | Records the decision, signs a single-use payment token, resumes the run → posts to ERP and schedules payment. |
+| **Reject** | Closes the run as rejected. |
+| **Request info** | Turns it into an exception with a drafted vendor email. |
+| Keyboard: **j/k** move, **a** approve, **r** reject | Shortcuts for the selected card. |
+| Concurrency | If two people decide at once, only the first counts; the second gets "already decided". |
+
+### 21.10 Exceptions `/app/exceptions`
+| Element | What it does |
+|---|---|
+| Exception cards | Type badge (price variance, qty variance, security, processing error…), vendor, invoice, amount, explanation. |
+| **Drafted vendor email** → **Copy email** | Copies the AI-drafted (or template) email asking the vendor for a corrected invoice/credit note. Never sent automatically. |
+| Resolution note + **Resolve** / **Dismiss** | Closes the exception with an audited note. |
+| **Evidence and lineage →** | Opens the evidence page. |
+
+### 21.11 Knowledge `/app/knowledge`
+| Element | What it does |
+|---|---|
+| **Upload a policy document** (File, Type, **Upload**) | Adds a PDF/Markdown/text policy to your organisation's knowledge base: split into sections, embedded (int8 bge-small), indexed for vector and keyword search. Duplicates detected by SHA-256. The demo workspace already contains the 6-document synthetic policy corpus. |
+| Documents list | Uploaded documents with type and chunk count. |
+| Question box + **Search** | Hybrid search (vector + keyword, fused, cross-encoder reranked): shows the top passages with their scores. |
+| **Ask** | Answers the question from the top passages with numbered citations; says "not in the provided data" when the documents don't cover it; invalid citation numbers are detected. Example questions: "Who must approve a $15,000 invoice?", "What is the price tolerance?", "What happens when a vendor's bank account changes?", "Can I approve an invoice I uploaded?", "Are credit notes paid?", "When is a missing PO allowed?". |
+
+### 21.12 Playground `/app/admin/playground` (admins)
+| Element | What it does |
+|---|---|
+| Input + **Run through router** | Sends a prompt through the model router; shows the answer, model used, tokens, latency, cost estimate, cache hit and any fallback reason. Counts against the daily budget. |
+| Router tasks table | Every configured task with its model chain, prompt and cache policy. |
+
+---
+
+## 22. Designed, not yet built — the full plan (Phases 1 leftovers and 2–5)
+
+> **Status label for assistants:** everything in this section is **designed in the spec but not built
+> or deployed yet**. Describe it as planned/roadmap, never as live. The design is complete enough to
+> explain exactly how each feature will work.
+
+### 22.1 Phase 1 leftovers
+- **Batch runs:** select many invoices → one Vercel Queues message per invoice → background processing; a 20-invoice batch must stay within free-tier limits.
+- **`aura-eval` CLI:** runs the 207-case golden set in workflow mode and stores STP rate, route accuracy, field F1, per-node latency and cost in `ai.dataset_runs`; those numbers then fill the dashboard tiles and the landing page.
+- **Recorded runs:** real live runs of the five demo invoices saved as snapshots and played back (labelled "recorded run") when the daily budget is exhausted.
+- **Playwright end-to-end tests** for the five demo scenarios including an SoD violation attempt.
+- **Approval SLA escalation** (cron moves overdue approvals to the next role), GST e-invoice QR/IRN validation, TDS withholding, dated FX conversion, service confirmation by requester.
+
+### 22.2 Phase 2 — Context engine and finance copilot
+- **Copilot page `/app/copilot`:** a chat (streaming) that answers questions with numbered citations to evidence (policy passage, invoice, graph path, audit event), shows inline tables/charts, keeps threads per user, and says "not in the data" when it can't support an answer. Built with LangChain `create_agent` + middleware (summarisation, PII redaction, call limits, human confirmation for any write tool). Tools (through the same gateway): `search_policies`, `graph_query`, `sql_query` (read-only, RLS-protected views), `get_invoice`, `list_invoices`, `explain_decision`, `start_invoice_run` (write, needs confirmation).
+- **Questions it is designed to answer** (including about an invoice you uploaded): "Why is INV-1042 on hold?", "What flags did my last upload get and why?", "Which invoices are waiting for a controller?", "What's our spend with Acme this quarter?", "Which vendors share a bank account?", "Who approved the Harbor Freight payment and on what evidence?", "Show me all exceptions caused by price variance this month", "Is this invoice a duplicate of anything?", "What does policy say about freight charges?", "Start a run for this document" (asks for confirmation first).
+- **Knowledge graph (Neo4j) + `/app/graph` explorer:** vendors, bank accounts, employees, POs, receipts, invoices, GL accounts, decisions and evidence as nodes; fraud checks wired into `vendor_verify`: vendors/employees sharing a bank account, invoices split just under an approval limit, a new vendor's first invoice approved by its creator, duplicates across vendor aliases. If the graph is paused, checks report "unavailable" (MEDIUM flag → human review), never a silent pass. Text-to-Cypher is read-only, validated and limited to the demo org.
+- **Long-term memory + memory page:** facts learned only from human-confirmed corrections (or ≥3 consistent observations), never from document text; shown in lineage when used; 180-day TTL; users can view and delete them.
+- **Minimal AURA MCP server `/mcp`:** external MCP hosts (Claude Desktop, MCP Inspector) can list invoices, get an invoice, explain a decision and ask the copilot using a per-user API key.
+
+### 22.3 Phase 3 — Trust layer
+- **Hardened guardrails:** chunked Prompt Guard on every chunk, spotlighting at every LLM boundary, optional safeguard classifier on copilot answers, `ai.guardrail_events` + a guardrails view.
+- **Quality page `/app/quality`:** datasets and cases, eval runs, regression gates, LLM judge with rubric (correctness, relevance, faithfulness, completeness, clarity; unsupported claims fail), human calibration (agreement, Cohen's kappa — "undefined/insufficient labels" until enough real labels), offline experiments and online A/B with confidence intervals, red-team results, feedback inbox (approve a failure into a regression case).
+- **CI tiers:** PR (fake provider + cassettes, 20-case gate), nightly (50 live cases), weekly (full golden + red team), release gates; hard gates: zero false auto-posts on HIGH-risk cases, HITL triggered whenever required.
+- **Public challenge page `/challenge`:** visitors try to trick the agent (Turnstile, rate limits, sandbox tenant with no write tools); results by attack category; misses become regression cases.
+- **Observability page `/app/observability`:** cost per day/invoice, tokens, p50/p95 latency per node, error/fallback/cache-hit rates, STP/HITL/override rates, guardrail blocks, remaining budget, nightly drift report (amount/vendor mix PSI, embedding centroid shift, confidence shift).
+- **Public eval report `/eval-report`** + README badges, generated only from stored runs, with dates and versions; **threat model** mapped to OWASP LLM Top 10; **daily chain-head anchor** committed to the public repo.
+
+### 22.4 Phase 4 — Fine-tuned GL-coding model
+- Dataset from generator ground truth + open-weight paraphrases (+ a public real-world test set), split by vendor, published on Hugging Face.
+- Unsloth QLoRA fine-tune of a ~2B Qwen model on free Colab/Kaggle GPUs; compared honestly with the base model and the strongest free model; quantised GGUF variants benchmarked on CPU.
+- Served from a free Hugging Face ZeroGPU Space; the router's `specialist/gl-coder` provider calls it with a 15–20 s timeout and falls back to the general models.
+- Model registry, 20% canary with online metrics, manual promote/rollback; feedback (human GL corrections) → weekly dataset → retrain → eval gate → canary → promote. Model card published.
+
+### 22.5 Phase 5 — Stretch and launch
+- **Production MCP server:** approve invoices from an MCP host with the approver's identity, elicitation confirmation and an interactive approval card; OAuth if feasible.
+- **Browser agent:** a mock legacy vendor portal with no API; a Playwright agent (accessibility tree first, vision fallback) downloads invoices and feeds them into intake.
+- **Second workflow: vendor onboarding** (KYC documents, bank verification, mock sanctions list, human approval) on the same runtime — proves the platform is domain-agnostic.
+- **Kubernetes:** Dockerfiles + Helm chart, kind e2e in CI. **AWS (optional):** Terraform for a Bedrock OIDC role, plan-only ECS profile.
+- **Load test + cost model** (headroom at 10×/100×), `/architecture` page, README with GIF and badges, 2-minute demo script, v1.0.0, and a final list of measured headline numbers each linked to the stored run that produced it.
