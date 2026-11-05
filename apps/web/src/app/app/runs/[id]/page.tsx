@@ -23,6 +23,7 @@ export default function RunPage() {
   const { id } = useParams<{ id: string }>();
   const search = useSearchParams();
   const demo = search.get("demo");
+  const doc = search.get("doc");
   const [runId, setRunId] = useState<string | null>(id === "new" ? null : id);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [mode, setMode] = useState<string | null>(null);
@@ -51,11 +52,11 @@ export default function RunPage() {
       }
       setEvents((prev) => (prev.some((e) => e.seq === (data as RunEvent).seq) ? prev : [...prev, data as RunEvent]));
     };
-    const go = id === "new" && demo
-      ? streamEvents("/runs", { method: "POST", body: JSON.stringify({ demo_key: demo }) }, onEvent, ctrl.signal)
+    const go = id === "new" && (demo || doc)
+      ? streamEvents("/runs", { method: "POST", body: JSON.stringify(demo ? { demo_key: demo } : { document_id: doc }) }, onEvent, ctrl.signal)
       : streamEvents(`/runs/${id}/events`, { method: "GET" }, onEvent, ctrl.signal);
     go.catch((e) => { if ((e as Error).name !== "AbortError") setError(e); }).finally(() => setLive(false));
-  }, [id, demo]);
+  }, [id, demo, doc]);
 
   const d = detail.data;
   const last = events[events.length - 1];

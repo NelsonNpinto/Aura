@@ -1,14 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Play } from "lucide-react";
+import { Download, FileText, Play, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { StatusChip } from "@/components/runs";
 import { Badge, Button, Card, ErrorNote, Skeleton } from "@/components/ui";
 import { api, money } from "@/lib/api";
 
 type Demo = { key: string; title: string; expect: string; file: string; expected_status: string };
+type Sample = { file: string; label: string; anomaly: string; vendor: string; total_minor: number; currency: string; expected_status: string };
 type Run = {
   id: string; status: string; route: string | null; mode: string; created_at: string; latency_ms: number | null;
   filename: string; demo_key: string | null; vendor_name: string | null; invoice_number: string | null;
@@ -19,6 +21,20 @@ export default function InboxPage() {
   const router = useRouter();
   const demos = useQuery({ queryKey: ["demo"], queryFn: () => api<{ invoices: Demo[] }>("/demo/invoices") });
   const runs = useQuery({ queryKey: ["runs"], queryFn: () => api<{ runs: Run[] }>("/runs?limit=100"), refetchInterval: 5000 });
+  const samples = useQuery({ queryKey: ["samples"], queryFn: async () => (await fetch("/sample-invoices/index.json")).json() as Promise<Sample[]> });
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<unknown>(null);
+
+  async function upload(f: File) {
+    setUploading(true); setUploadError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const doc = await api<{ document_id: string }>("/documents", { method: "POST", body: fd });
+      router.push(`/app/runs/new?doc=${doc.document_id}`);
+    } catch (e) { setUploadError(e); } finally { setUploading(false); }
+  }
 
   return (
     <div className="w-full space-y-6">
@@ -51,6 +67,37 @@ export default function InboxPage() {
             </Card>
           ))}
         </div>
+      </section>
+
+      <section aria-labelledby="up-h" className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <Card className="space-y-3">
+          <h2 id="up-h" className="text-sm font-medium uppercase tracking-wide text-muted">Upload an invoice</h2>
+          <p className="text-sm">PDF, PNG or JPEG up to 10 MB. The agents extract, verify, match and route it live.</p>
+          <p className="rounded-md border border-warn/40 p-2 text-xs text-warn">
+            Don&apos;t upload real invoices or personal data: this is a public demo on free-tier model providers, and guest uploads
+            are deleted after 72 hours. Use the synthetic samples on the right.
+          </p>
+          <input ref={fileRef} type="file" accept="application/pdf,image/png,image/jpeg" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
+          <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="w-full">
+            <Upload size={14} className="mr-1 inline" aria-hidden /> {uploading ? "Uploading…" : "Choose file and run"}
+          </Button>
+          <ErrorNote error={uploadError} />
+        </Card>
+        <Card className="space-y-2">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Sample invoices to download and upload</h2>
+          <p className="text-xs text-muted">Synthetic invoices from vendors in the demo ERP. Download one, then upload it on the left.</p>
+          <div className="grid max-h-72 gap-1 overflow-auto sm:grid-cols-2">
+            {samples.data?.map((x) => (
+              <a key={x.file} href={`/sample-invoices/${x.file}`} download
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-2">
+                <Download size={14} className="shrink-0 text-muted" aria-hidden />
+                <span className="truncate">{x.label}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted">{money(x.total_minor, x.currency)} · expect {x.expected_status.replace(/_/g, " ")}</span>
+              </a>
+            ))}
+          </div>
+        </Card>
       </section>
 
       <section aria-labelledby="runs-h">
