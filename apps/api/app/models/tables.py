@@ -255,6 +255,7 @@ kb_chunks = Table(
     schema="kb",
 )
 
+
 # ================================================================ Phase 1: invoice-to-pay
 def _ts(name: str, nullable: bool = True) -> Column[object]:
     return Column(name, TIMESTAMP(timezone=True), nullable=nullable)
@@ -265,8 +266,16 @@ def _money(name: str, nullable: bool = True) -> Column[object]:
 
 
 RUN_STATUSES = (
-    "queued", "running", "awaiting_approval", "awaiting_receipt", "posted",
-    "exception", "rejected", "blocked", "failed", "cancelled",
+    "queued",
+    "running",
+    "awaiting_approval",
+    "awaiting_receipt",
+    "posted",
+    "exception",
+    "rejected",
+    "blocked",
+    "failed",
+    "cancelled",
 )
 
 # ---------------------------------------------------------------- audit (§B12)
@@ -363,9 +372,7 @@ ap_runs = Table(
     _now(),
     _ts("finished_at"),
     UniqueConstraint("thread_id"),
-    CheckConstraint(
-        "status IN (" + ",".join(f"'{s}'" for s in RUN_STATUSES) + ")", name="status"
-    ),
+    CheckConstraint("status IN (" + ",".join(f"'{s}'" for s in RUN_STATUSES) + ")", name="status"),
     CheckConstraint("route IS NULL OR route IN ('auto','approval','exception')", name="route"),
     CheckConstraint("mode IN ('live','replay','fake')", name="mode"),
     Index(None, "org_id", "created_at"),
@@ -378,7 +385,9 @@ ap_run_events = Table(
     metadata,
     Column("id", BigInteger, Identity(), primary_key=True),
     _org(),
-    Column("run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False
+    ),
     Column("seq", Integer, nullable=False),
     Column("type", Text, nullable=False),
     Column("node", Text),
@@ -425,7 +434,12 @@ ap_invoice_lines = Table(
     metadata,
     _uuid_pk(),
     _org(),
-    Column("invoice_id", UUID(as_uuid=True), ForeignKey("ap.invoices.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "invoice_id",
+        UUID(as_uuid=True),
+        ForeignKey("ap.invoices.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("line_no", Integer, nullable=False),
     Column("description", Text, nullable=False),
     Column("quantity", Text, nullable=False),
@@ -446,7 +460,9 @@ ap_extractions = Table(
     metadata,
     _uuid_pk(),
     _org(),
-    Column("run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False
+    ),
     Column("path", Text, nullable=False),
     Column("data", JSONB, nullable=False),
     Column("confidence", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
@@ -463,7 +479,9 @@ ap_flags = Table(
     metadata,
     _uuid_pk(),
     _org(),
-    Column("run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False
+    ),
     Column("code", Text, nullable=False),
     Column("severity", Text, nullable=False),
     Column("message", Text, nullable=False),
@@ -479,7 +497,9 @@ ap_exceptions = Table(
     metadata,
     _uuid_pk(),
     _org(),
-    Column("run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False
+    ),
     Column("type", Text, nullable=False),
     Column("status", Text, nullable=False, server_default="open"),
     Column("reason", Text, nullable=False),
@@ -499,7 +519,9 @@ ap_approvals = Table(
     metadata,
     _uuid_pk(),
     _org(),
-    Column("run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False
+    ),
     Column("step", Integer, nullable=False, server_default="1"),
     Column("required_role", Text, nullable=False),
     Column("packet_hash", Text, nullable=False),
@@ -529,7 +551,9 @@ ap_postings = Table(
     metadata,
     _uuid_pk(),
     _org(),
-    Column("run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "run_id", UUID(as_uuid=True), ForeignKey("ap.runs.id", ondelete="CASCADE"), nullable=False
+    ),
     Column("idempotency_key", Text, nullable=False),
     Column("erp_ref", Text, nullable=False),
     Column("payment_ref", Text),

@@ -17,8 +17,20 @@ from typing import Any
 from app.core.config import get_settings
 from app.domain.money import MoneyError, parse_decimal, to_minor
 
-HEADER_FIELDS = ("vendor_name", "vendor_tax_id", "invoice_number", "invoice_date", "due_date",
-                 "currency", "po_number", "subtotal", "tax", "total", "bank_account", "bank_routing")
+HEADER_FIELDS = (
+    "vendor_name",
+    "vendor_tax_id",
+    "invoice_number",
+    "invoice_date",
+    "due_date",
+    "currency",
+    "po_number",
+    "subtotal",
+    "tax",
+    "total",
+    "bank_account",
+    "bank_routing",
+)
 
 
 @dataclass
@@ -43,10 +55,27 @@ class ExtractedInvoice:
     path: str = "text"
 
     def public(self) -> dict[str, Any]:
-        d = {k: getattr(self, k) for k in (
-            "doc_type", "vendor_name", "vendor_tax_id", "invoice_number", "invoice_date", "due_date",
-            "currency", "po_number", "subtotal_minor", "tax_minor", "total_minor", "lines", "confidence",
-            "evidence", "unverified", "path")}
+        d = {
+            k: getattr(self, k)
+            for k in (
+                "doc_type",
+                "vendor_name",
+                "vendor_tax_id",
+                "invoice_number",
+                "invoice_date",
+                "due_date",
+                "currency",
+                "po_number",
+                "subtotal_minor",
+                "tax_minor",
+                "total_minor",
+                "lines",
+                "confidence",
+                "evidence",
+                "unverified",
+                "path",
+            )
+        }
         d["bank_account_last4"] = (self.bank_account or "")[-4:] or None
         return d
 
@@ -93,7 +122,9 @@ def _found(value: Any, source: str, source_digits: str) -> bool:
     return bool(d) and len(d) >= 3 and d in source_digits
 
 
-def normalize(raw: dict[str, Any], *, source_text: str | None, path: str, doc_type_hint: str) -> ExtractedInvoice:
+def normalize(
+    raw: dict[str, Any], *, source_text: str | None, path: str, doc_type_hint: str
+) -> ExtractedInvoice:
     cur = (raw.get("currency") or "").strip().upper()[:3] or None
     if cur and not re.fullmatch(r"[A-Z]{3}", cur):
         cur = None
@@ -105,18 +136,22 @@ def normalize(raw: dict[str, Any], *, source_text: str | None, path: str, doc_ty
             qty = Decimal(0)
         up = _minor(ln.get("unit_price", ln.get("unit_price_minor")), cur)
         amt = _minor(ln.get("amount", ln.get("amount_minor")), cur)
-        lines.append({
-            "description": str(ln.get("description", ""))[:500],
-            "quantity": str(qty.normalize()) if qty == qty.to_integral() else str(qty),
-            "uom": (ln.get("uom") or "each").lower()[:16],
-            "unit_price_minor": up,
-            "amount_minor": amt,
-        })
+        lines.append(
+            {
+                "description": str(ln.get("description", ""))[:500],
+                "quantity": str(qty.normalize()) if qty == qty.to_integral() else str(qty),
+                "uom": (ln.get("uom") or "each").lower()[:16],
+                "unit_price_minor": up,
+                "amount_minor": amt,
+            }
+        )
     inv = ExtractedInvoice(
         doc_type=raw.get("doc_type") or doc_type_hint,
         vendor_name=(raw.get("vendor_name") or None),
         vendor_tax_id=(raw.get("vendor_tax_id") or None),
-        invoice_number=(str(raw.get("invoice_number")).strip() if raw.get("invoice_number") else None),
+        invoice_number=(
+            str(raw.get("invoice_number")).strip() if raw.get("invoice_number") else None
+        ),
         invoice_date=_date(raw.get("invoice_date")),
         due_date=_date(raw.get("due_date")),
         currency=cur,
@@ -124,7 +159,9 @@ def normalize(raw: dict[str, Any], *, source_text: str | None, path: str, doc_ty
         subtotal_minor=_minor(raw.get("subtotal", raw.get("subtotal_minor")), cur),
         tax_minor=_minor(raw.get("tax", raw.get("tax_minor")), cur),
         total_minor=_minor(raw.get("total", raw.get("total_minor")), cur),
-        bank_account=(_digits(str(raw.get("bank_account") or raw.get("bank_account_number") or "")) or None),
+        bank_account=(
+            _digits(str(raw.get("bank_account") or raw.get("bank_account_number") or "")) or None
+        ),
         bank_routing=(_digits(str(raw.get("bank_routing") or "")) or None),
         lines=lines,
         evidence=raw.get("evidence") or {},
@@ -144,7 +181,8 @@ def normalize(raw: dict[str, Any], *, source_text: str | None, path: str, doc_ty
         inv.confidence[f] = conf
     if path == "text":
         for i, ln in enumerate(lines):
-            if ln["description"] and ln["description"][:20].lower() not in src.lower():
+            desc = str(ln["description"] or "")
+            if desc and desc[:20].lower() not in src.lower():
                 inv.unverified.append(f"lines[{i}].description")
     return inv
 

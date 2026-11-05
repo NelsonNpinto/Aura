@@ -40,7 +40,11 @@ async def seed() -> dict[str, list[str]]:
                     {"n": pname},
                 )
             ).first()
-            if current and current.system == spec.get("system", "") and current.template == spec["template"]:
+            if (
+                current
+                and current.system == spec.get("system", "")
+                and current.template == spec["template"]
+            ):
                 continue
             # Changed defaults become a NEW immutable version; the label move is audited.
             v = await create_version(

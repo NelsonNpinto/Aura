@@ -130,7 +130,9 @@ async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
     kwargs: dict[str, Any] = {
         "model": req.model,
         "messages": req.messages,
-        "temperature": req.temperature,
+        # Gemini 3 degrades (loops, failures) below temperature 1.0 per Google's guidance;
+        # determinism there comes from the exact cache and JSON validation instead.
+        "temperature": 1.0 if req.model.startswith("gemini/gemini-3") else req.temperature,
         "max_tokens": req.max_tokens,
         "timeout": req.timeout_s,
         "num_retries": 0,

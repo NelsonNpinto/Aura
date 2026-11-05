@@ -39,7 +39,9 @@ async def checkpointer() -> AsyncIterator[Any]:
     from psycopg.rows import dict_row
 
     global _setup_done
-    async with await AsyncConnection.connect(_conninfo(), autocommit=True, prepare_threshold=0, row_factory=dict_row) as conn:
+    async with await AsyncConnection.connect(
+        _conninfo(), autocommit=True, prepare_threshold=0, row_factory=dict_row
+    ) as conn:
         saver = AsyncPostgresSaver(conn)
         if not _setup_done:
             async with _setup_lock:
@@ -52,20 +54,39 @@ async def checkpointer() -> AsyncIterator[Any]:
 
 async def _set_status(org_id: str, run_id: str, status: str) -> None:
     async with tenant_tx(org_id) as s:
-        await s.execute(text("UPDATE ap.runs SET status=:s WHERE id=:r AND status NOT IN ('posted','rejected','exception','blocked','failed','cancelled')"),
-                        {"s": status, "r": run_id})
+        await s.execute(
+            text(
+                "UPDATE ap.runs SET status=:s WHERE id=:r AND status NOT IN ('posted','rejected','exception','blocked','failed','cancelled')"
+            ),
+            {"s": status, "r": run_id},
+        )
 
 
-async def execute(run_id: str, org_id: str, actor_id: str, *, document_id: str | None = None,
-                  resume: dict[str, Any] | None = None, approval_token: str | None = None,
-                  country: str | None = None, queue: asyncio.Queue[dict[str, Any]] | None = None,
-                  fake: bool = False) -> dict[str, Any]:
+async def execute(
+    run_id: str,
+    org_id: str,
+    actor_id: str,
+    *,
+    document_id: str | None = None,
+    resume: dict[str, Any] | None = None,
+    approval_token: str | None = None,
+    country: str | None = None,
+    queue: asyncio.Queue[dict[str, Any]] | None = None,
+    fake: bool = False,
+) -> dict[str, Any]:
     """Run (or resume) the graph to its next stop: completion or an approval interrupt."""
     emitter = Emitter(run_id, org_id, await last_seq(org_id, run_id))
     if queue is not None:
         emitter.queues.append(queue)
-    RUNTIME[run_id] = Deps(run_id=run_id, org_id=org_id, actor_id=actor_id, emitter=emitter,
-                           country=country, approval_token=approval_token, fake=fake)
+    RUNTIME[run_id] = Deps(
+        run_id=run_id,
+        org_id=org_id,
+        actor_id=actor_id,
+        emitter=emitter,
+        country=country,
+        approval_token=approval_token,
+        fake=fake,
+    )
     config = {"configurable": {"thread_id": run_id}, "recursion_limit": 40}
     try:
         async with checkpointer() as saver:
@@ -73,11 +94,24 @@ async def execute(run_id: str, org_id: str, actor_id: str, *, document_id: str |
             if resume is None:
                 await _set_status(org_id, run_id, "running")
                 await emitter.emit("run.started", None, document_id=document_id)
-                inp: Any = {"run_id": run_id, "org_id": org_id, "document_id": document_id, "started_by": actor_id,
-                            "flags": [], "errors": [], "timings": {}, "costs": {"tokens": 0, "est_usd_micros": 0}}
+                inp: Any = {
+                    "run_id": run_id,
+                    "org_id": org_id,
+                    "document_id": document_id,
+                    "started_by": actor_id,
+                    "flags": [],
+                    "errors": [],
+                    "timings": {},
+                    "costs": {"tokens": 0, "est_usd_micros": 0},
+                }
             else:
                 await _set_status(org_id, run_id, "running")
-                await emitter.emit("run.resumed", "human_approval", decision=resume.get("decision"), approver_id=resume.get("approver_id"))
+                await emitter.emit(
+                    "run.resumed",
+                    "human_approval",
+                    decision=resume.get("decision"),
+                    approver_id=resume.get("approver_id"),
+                )
                 inp = Command(resume=resume)
             final: dict[str, Any] = {}
             async for chunk in graph.astream(inp, config, stream_mode="values"):
@@ -85,20 +119,26 @@ async def execute(run_id: str, org_id: str, actor_id: str, *, document_id: str |
             snap = await graph.aget_state(config)
             if snap.next and "human_approval" in snap.next:
                 return {"status": "awaiting_approval", "route": final.get("route")}
-            await emitter.emit("run.completed", None, route=final.get("route"), outcome=final.get("status"))
+            await emitter.emit(
+                "run.completed", None, route=final.get("route"), outcome=final.get("status")
+            )
             return {"status": final.get("status"), "route": final.get("route")}
     except Exception as exc:
         log.error("run.failed", run_id=run_id, error=type(exc).__name__, detail=str(exc)[:300])
         async with tenant_tx(org_id) as s:
-            await s.execute(text("UPDATE ap.runs SET status='failed', error=:e, finished_at=now() WHERE id=:r"),
-                            {"e": f"{type(exc).__name__}: {str(exc)[:500]}", "r": run_id})
+            await s.execute(
+                text("UPDATE ap.runs SET status='failed', error=:e, finished_at=now() WHERE id=:r"),
+                {"e": f"{type(exc).__name__}: {str(exc)[:500]}", "r": run_id},
+            )
         await emitter.emit("run.failed", None, error=type(exc).__name__)
         return {"status": "failed", "route": None}
     finally:
         RUNTIME.pop(run_id, None)
 
 
-async def stream(run_id: str, org_id: str, actor_id: str, **kw: Any) -> AsyncIterator[dict[str, Any]]:
+async def stream(
+    run_id: str, org_id: str, actor_id: str, **kw: Any
+) -> AsyncIterator[dict[str, Any]]:
     """Run inline and yield events as they happen (single-invoice SSE path)."""
     q: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     task = asyncio.create_task(execute(run_id, org_id, actor_id, queue=q, **kw))

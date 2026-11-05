@@ -217,27 +217,36 @@ async def verify(session: AsyncSession, org_id: str, run_id: str | None = None) 
     if upto is not None:
         q += " AND seq <= :u"
         params["u"] = upto
-    rows = (await session.execute(text(q + " ORDER BY seq"), params)).mappings().all()
+    mrows = (await session.execute(text(q + " ORDER BY seq"), params)).mappings().all()
     prev = genesis_hash(org_id)
     expected_seq = 1
-    for r in rows:
-        ev = dict(r)
+    for mr in mrows:
+        ev = dict(mr)
         if ev["seq"] != expected_seq:
             return Verification(
-                False, expected_seq - 1, expected_seq - 1, prev,
+                False,
+                expected_seq - 1,
+                expected_seq - 1,
+                prev,
                 {"seq": expected_seq, "reason": f"missing event (found seq {ev['seq']})"},
                 run_count,
             )
         if ev["prev_hash"] != prev:
             return Verification(
-                False, expected_seq - 1, ev["seq"], prev,
+                False,
+                expected_seq - 1,
+                ev["seq"],
+                prev,
                 {"seq": ev["seq"], "reason": "prev_hash does not match previous event"},
                 run_count,
             )
         recomputed = event_hash(prev, ev)
         if recomputed != ev["hash"]:
             return Verification(
-                False, expected_seq - 1, ev["seq"], prev,
+                False,
+                expected_seq - 1,
+                ev["seq"],
+                prev,
                 {"seq": ev["seq"], "reason": "event content does not match its hash"},
                 run_count,
             )
@@ -252,7 +261,10 @@ async def verify(session: AsyncSession, org_id: str, run_id: str | None = None) 
         ).first()
         if head and (int(head.seq) != expected_seq - 1 or head.head_hash != prev):
             return Verification(
-                False, expected_seq - 1, int(head.seq), prev,
+                False,
+                expected_seq - 1,
+                int(head.seq),
+                prev,
                 {"seq": int(head.seq), "reason": "chain head does not match last event"},
                 run_count,
             )
@@ -261,12 +273,16 @@ async def verify(session: AsyncSession, org_id: str, run_id: str | None = None) 
 
 async def events_for_run(session: AsyncSession, org_id: str, run_id: str) -> list[dict[str, Any]]:
     rows = (
-        await session.execute(
-            text(
-                f"SELECT {_COLS} FROM audit.audit_events"  # noqa: S608 constant cols
-                " WHERE org_id = :o AND run_id = :r ORDER BY seq"
-            ),
-            {"o": org_id, "r": run_id},
+        (
+            await session.execute(
+                text(
+                    f"SELECT {_COLS} FROM audit.audit_events"  # noqa: S608 constant cols
+                    " WHERE org_id = :o AND run_id = :r ORDER BY seq"
+                ),
+                {"o": org_id, "r": run_id},
+            )
         )
-    ).mappings().all()
+        .mappings()
+        .all()
+    )
     return [dict(r) for r in rows]

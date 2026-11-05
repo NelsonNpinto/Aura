@@ -44,8 +44,9 @@ def create_app() -> FastAPI:
             "x-api-key",
             "x-request-id",
             "last-event-id",
+            "x-aura-persona",
         ],
-        expose_headers=["x-request-id", "retry-after"],
+        expose_headers=["x-request-id", "retry-after", "x-run-id"],
     )
     app.add_middleware(BodyLimitMiddleware, max_bytes=s.max_body_bytes)
     app.add_middleware(RequestContextMiddleware, hsts=s.is_deployed)

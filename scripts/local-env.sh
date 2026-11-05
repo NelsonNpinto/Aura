@@ -19,3 +19,4 @@ export NEO4J_URI=bolt://localhost:7687 NEO4J_USERNAME=neo4j NEO4J_PASSWORD=aura-
 export AURA_API_DEV_ORIGIN=http://localhost:8010
 export ERP_SERVICE_TOKEN=local-erp-service-token
 export APPROVAL_TOKEN_SECRET=local-approval-token-secret
+export NEXT_PUBLIC_AURA_STREAM_ORIGIN=http://localhost:8010

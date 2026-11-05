@@ -116,12 +116,20 @@ def extract_text(data: bytes, max_pages: int = 20) -> PdfText:
                     elif not ch.isspace():
                         size = raw.FPDFText_GetFontSize(tp.raw, ci)
                         raw.FPDFText_GetFillColor(
-                            tp.raw, ci, ctypes.byref(r), ctypes.byref(g), ctypes.byref(b),
+                            tp.raw,
+                            ci,
+                            ctypes.byref(r),
+                            ctypes.byref(g),
+                            ctypes.byref(b),
                             ctypes.byref(a),
                         )
                         raw.FPDFText_GetCharBox(
-                            tp.raw, ci, ctypes.byref(left), ctypes.byref(right),
-                            ctypes.byref(bottom), ctypes.byref(top),
+                            tp.raw,
+                            ci,
+                            ctypes.byref(left),
+                            ctypes.byref(right),
+                            ctypes.byref(bottom),
+                            ctypes.byref(top),
                         )
                         obj = raw.FPDFText_GetTextObject(tp.raw, ci)
                         mode = raw.FPDFTextObj_GetTextRenderMode(obj) if obj else 0

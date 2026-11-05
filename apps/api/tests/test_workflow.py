@@ -16,7 +16,10 @@ from sqlalchemy import text
 pytestmark = pytest.mark.db
 
 ROOT = Path(__file__).resolve().parents[3] / "evals" / "datasets"
-CASES = {json.loads(line)["demo_key"]: json.loads(line) for line in (ROOT / "demo" / "cases.jsonl").read_text().splitlines()}
+CASES = {
+    json.loads(line)["demo_key"]: json.loads(line)
+    for line in (ROOT / "demo" / "cases.jsonl").read_text().splitlines()
+}
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -40,7 +43,9 @@ def org():
         await bootstrap()
         await seed(o, ROOT / "world")
 
-    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(go()) if False else asyncio.run(go())
+    asyncio.get_event_loop_policy().new_event_loop().run_until_complete(
+        go()
+    ) if False else asyncio.run(go())
     return o
 
 
@@ -84,14 +89,38 @@ async def test_bank_change_needs_controller_callback_and_sod(org):
     assert res["status"] == "awaiting_approval"
     # preparer cannot approve own invoice (and is not a controller)
     with pytest.raises(Forbidden) as e:
-        await decide(org, rid, _actor("rahul"), decision="approve", comment="ok", callback_verified=True, packet_hash=None)
+        await decide(
+            org,
+            rid,
+            _actor("rahul"),
+            decision="approve",
+            comment="ok",
+            callback_verified=True,
+            packet_hash=None,
+        )
     assert {v["code"] for v in e.value.details["violations"]} >= {"SOD_PREPARER"}
     # approver role is not enough for a HIGH flag
     with pytest.raises(Forbidden):
-        await decide(org, rid, _actor("priya"), decision="approve", comment="ok", callback_verified=True, packet_hash=None)
+        await decide(
+            org,
+            rid,
+            _actor("priya"),
+            decision="approve",
+            comment="ok",
+            callback_verified=True,
+            packet_hash=None,
+        )
     # controller must document the call-back
     with pytest.raises(AppError, match="call-back"):
-        await decide(org, rid, _actor("meera"), decision="approve", comment="called vendor", callback_verified=False, packet_hash=None)
+        await decide(
+            org,
+            rid,
+            _actor("meera"),
+            decision="approve",
+            comment="called vendor",
+            callback_verified=False,
+            packet_hash=None,
+        )
 
 
 async def test_approval_resume_posts_once_and_replay_is_idempotent(org):
@@ -100,20 +129,37 @@ async def test_approval_resume_posts_once_and_replay_is_idempotent(org):
     from app.services.approvals import decide
 
     rid, _ = await _run(org, "c")
-    out = await decide(org, rid, _actor("meera"), decision="approve", comment="Called vendor on file number",
-                       callback_verified=True, packet_hash=None)
-    resume = {k: out[k] for k in ("decision", "approver_id", "comment", "callback_verified", "step")}
-    res = await execute(rid, org, "persona:meera", resume=resume, approval_token=out["token"], fake=True)
+    out = await decide(
+        org,
+        rid,
+        _actor("meera"),
+        decision="approve",
+        comment="Called vendor on file number",
+        callback_verified=True,
+        packet_hash=None,
+    )
+    resume = {
+        k: out[k] for k in ("decision", "approver_id", "comment", "callback_verified", "step")
+    }
+    res = await execute(
+        rid, org, "persona:meera", resume=resume, approval_token=out["token"], fake=True
+    )
     assert res == {"status": "posted", "route": "approval"}
     # replaying the same resume does not double-post
     await execute(rid, org, "persona:meera", resume=resume, approval_token=out["token"], fake=True)
     from app.core.db import system_tx
 
     async with tenant_tx(org) as s:
-        n = (await s.execute(text("SELECT count(*) FROM ap.postings WHERE run_id=:r"), {"r": rid})).scalar_one()
+        n = (
+            await s.execute(text("SELECT count(*) FROM ap.postings WHERE run_id=:r"), {"r": rid})
+        ).scalar_one()
     async with system_tx() as s:  # the app role cannot read schema erp (data boundary, §B5)
-        erp_n = (await s.execute(text("SELECT count(*) FROM erp.payments WHERE org_id=:o AND idempotency_key=:k"),
-                                 {"o": org, "k": f"{rid}:pay"})).scalar_one()
+        erp_n = (
+            await s.execute(
+                text("SELECT count(*) FROM erp.payments WHERE org_id=:o AND idempotency_key=:k"),
+                {"o": org, "k": f"{rid}:pay"},
+            )
+        ).scalar_one()
     assert n == 1 and erp_n == 1
 
 
@@ -123,8 +169,24 @@ async def test_two_simultaneous_approvals_one_decision(org):
 
     rid, _ = await _run(org, "e")  # scan → approver level
     results = await asyncio.gather(
-        decide(org, rid, _actor("priya"), decision="approve", comment="looks right", callback_verified=False, packet_hash=None),
-        decide(org, rid, _actor("meera"), decision="approve", comment="looks right", callback_verified=False, packet_hash=None),
+        decide(
+            org,
+            rid,
+            _actor("priya"),
+            decision="approve",
+            comment="looks right",
+            callback_verified=False,
+            packet_hash=None,
+        ),
+        decide(
+            org,
+            rid,
+            _actor("meera"),
+            decision="approve",
+            comment="looks right",
+            callback_verified=False,
+            packet_hash=None,
+        ),
         return_exceptions=True,
     )
     ok = [r for r in results if isinstance(r, dict)]
@@ -135,10 +197,26 @@ async def test_two_simultaneous_approvals_one_decision(org):
 async def test_payment_without_token_refused_by_gateway(org):
     from app.tools.gateway import ToolContext, ToolDenied, call_tool
 
-    ctx = ToolContext(org_id=org, actor_id="t", roles=frozenset({"system"}), agent="invoice_to_pay", route="approval")
+    ctx = ToolContext(
+        org_id=org,
+        actor_id="t",
+        roles=frozenset({"system"}),
+        agent="invoice_to_pay",
+        route="approval",
+    )
     with pytest.raises(ToolDenied):
-        await call_tool("schedule_payment", {"idempotency_key": "x", "erp_ref": "AP-1", "amount_minor": 100, "currency": "USD",
-                                             "due_date": "2026-12-01", "route": "approval"}, ctx)
+        await call_tool(
+            "schedule_payment",
+            {
+                "idempotency_key": "x",
+                "erp_ref": "AP-1",
+                "amount_minor": 100,
+                "currency": "USD",
+                "due_date": "2026-12-01",
+                "route": "approval",
+            },
+            ctx,
+        )
 
 
 async def test_gateway_rejects_wrong_agent_and_bad_args(org):
@@ -146,7 +224,17 @@ async def test_gateway_rejects_wrong_agent_and_bad_args(org):
 
     ctx = ToolContext(org_id=org, actor_id="t", roles=frozenset({"guest"}), agent="copilot")
     with pytest.raises(ToolDenied, match="may not call"):
-        await call_tool("post_invoice", {"idempotency_key": "x", "invoice_number": "1", "amount_minor": 1, "currency": "USD", "route": "auto"}, ctx)
+        await call_tool(
+            "post_invoice",
+            {
+                "idempotency_key": "x",
+                "invoice_number": "1",
+                "amount_minor": 1,
+                "currency": "USD",
+                "route": "auto",
+            },
+            ctx,
+        )
     with pytest.raises(ToolDenied, match="Invalid arguments"):
         await call_tool("get_vendor", {"vendor_id": "bad id!"}, ctx)
 

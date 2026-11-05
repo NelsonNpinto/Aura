@@ -112,7 +112,8 @@ def _redacted_args(spec: ToolSpec, args: dict[str, Any]) -> dict[str, Any]:
     for k in spec.redact_input:
         if out.get(k):
             out[k] = "[redacted]"
-    return redact_any(out)
+    red: dict[str, Any] = redact_any(out)
+    return red
 
 
 async def _execute(spec: ToolSpec, org_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -123,36 +124,60 @@ async def _execute(spec: ToolSpec, org_id: str, args: dict[str, Any]) -> dict[st
         from erp_mock import tools as erp  # in-process (tests/local dev): same code as the server
 
         try:
-            return await erp.call(spec.name, org_id, args)
+            res: dict[str, Any] = await erp.call(spec.name, org_id, args)
+            return res
         except erp.ErpError as e:
             return {"error": {"code": e.code, "message": e.message}}
     from mcp import ClientSession
     from mcp.client.streamable_http import streamablehttp_client
 
     headers = {"x-org-id": org_id, "authorization": f"Bearer {erp_org_token(org_id)}"}
-    async with streamablehttp_client(url, headers=headers, timeout=20) as (r, w, _), ClientSession(r, w) as s:
+    async with (
+        streamablehttp_client(url, headers=headers, timeout=20) as (r, w, _),
+        ClientSession(r, w) as s,
+    ):
         await s.initialize()
-        res = await s.call_tool(spec.name, args)
-    if res.isError:
-        text = " ".join(getattr(c, "text", "") for c in res.content)
+        tool_res = await s.call_tool(spec.name, args)
+    if tool_res.isError:
+        text = " ".join(getattr(c, "text", "") for c in tool_res.content)
         return {"error": {"code": "mcp_error", "message": text[:500]}}
-    if res.structuredContent is not None:
-        sc = res.structuredContent
-        return sc.get("result", sc) if isinstance(sc, dict) and set(sc) == {"result"} else sc
-    text = "".join(getattr(c, "text", "") for c in res.content)
+    if tool_res.structuredContent is not None:
+        sc: dict[str, Any] = tool_res.structuredContent
+        inner = sc.get("result", sc) if set(sc) == {"result"} else sc
+        return dict(inner) if isinstance(inner, dict) else {"result": inner}
+    text = "".join(getattr(c, "text", "") for c in tool_res.content)
     return json.loads(text) if text else {}
 
 
-async def _audit(ctx: ToolContext, spec: ToolSpec | None, name: str, decision: str, args: dict[str, Any],
-                 output: Any, details: dict[str, Any]) -> None:
+async def _audit(
+    ctx: ToolContext,
+    spec: ToolSpec | None,
+    name: str,
+    decision: str,
+    args: dict[str, Any],
+    output: Any,
+    details: dict[str, Any],
+) -> None:
     if not ctx.audit:
         return
     async with tenant_tx(ctx.org_id, ctx.actor_id) as s:
-        await append(s, ctx.org_id, AuditEvent(
-            action="tool.call", actor_type="agent" if ctx.agent != "human" else "human", actor_id=ctx.actor_id,
-            run_id=ctx.run_id, tool=name, decision=decision, input=args, output=output,
-            target_type="tool", target_id=name, details={**details, "agent": ctx.agent, "risk": spec.risk if spec else None},
-        ))
+        await append(
+            s,
+            ctx.org_id,
+            AuditEvent(
+                action="tool.call",
+                actor_type="agent" if ctx.agent != "human" else "human",
+                actor_id=ctx.actor_id,
+                run_id=ctx.run_id,
+                tool=name,
+                decision=decision,
+                input=args,
+                output=output,
+                target_type="tool",
+                target_id=name,
+                details={**details, "agent": ctx.agent, "risk": spec.risk if spec else None},
+            ),
+        )
 
 
 async def call_tool(name: str, args: dict[str, Any], ctx: ToolContext) -> dict[str, Any]:
@@ -162,33 +187,61 @@ async def call_tool(name: str, args: dict[str, Any], ctx: ToolContext) -> dict[s
     async def deny(code: str, msg: str) -> None:
         log.warning("tool.denied", tool=name, code=code, agent=ctx.agent, org_id=ctx.org_id)
         ctx.events.append({"tool": name, "decision": "denied", "code": code})
-        await _audit(ctx, spec, name, "denied", _redacted_args(spec, args) if spec else {}, None, {"code": code, "message": msg})
+        await _audit(
+            ctx,
+            spec,
+            name,
+            "denied",
+            _redacted_args(spec, args) if spec else {},
+            None,
+            {"code": code, "message": msg},
+        )
         raise ToolDenied(msg, code="tool_denied", details={"tool": name, "reason": code})
 
     if spec is None or not spec.enabled:
         await deny("unknown_tool", f"Tool {name} is not registered or disabled")
         raise AssertionError  # unreachable
-    errors = sorted(Draft202012Validator(spec.input_schema, format_checker=FormatChecker()).iter_errors(args), key=str)
+    errors = sorted(
+        Draft202012Validator(spec.input_schema, format_checker=FormatChecker()).iter_errors(args),
+        key=str,
+    )
     if errors:
         await deny("invalid_arguments", f"Invalid arguments: {errors[0].message[:200]}")
     if ctx.agent not in spec.allowed_agents:
         await deny("agent_not_allowed", f"Agent {ctx.agent} may not call {name}")
     if not (ctx.roles & spec.allowed_roles):
         await deny("role_not_allowed", f"Role not permitted to call {name}")
-    if spec.risk == "financial" and spec.requires_approval and ctx.route not in (None, "auto") and not ctx.approval_token:
-        await deny("approval_required", f"{name} needs a signed approval token on route {ctx.route}")
-    rl = await get_store().take([Window(f"tool:{ctx.org_id}:{name}:{int(time.time() // 60)}", spec.rate_limit, 120)])
+    if (
+        spec.risk == "financial"
+        and spec.requires_approval
+        and ctx.route not in (None, "auto")
+        and not ctx.approval_token
+    ):
+        await deny(
+            "approval_required", f"{name} needs a signed approval token on route {ctx.route}"
+        )
+    rl = await get_store().take(
+        [Window(f"tool:{ctx.org_id}:{name}:{int(time.time() // 60)}", spec.rate_limit, 120)]
+    )
     if not rl.allowed:
         await deny("rate_limited", f"Rate limit for {name} exceeded")
     try:
         result = await _execute(spec, ctx.org_id, args)
     except Exception as exc:  # transport or server failure: structured, audited, never silent
         log.error("tool.failed", tool=name, error=type(exc).__name__)
-        await _audit(ctx, spec, name, "error", _redacted_args(spec, args), None, {"error": type(exc).__name__})
+        await _audit(
+            ctx,
+            spec,
+            name,
+            "error",
+            _redacted_args(spec, args),
+            None,
+            {"error": type(exc).__name__},
+        )
         raise ToolFailed(f"{name} failed: {type(exc).__name__}", details={"tool": name}) from exc
     out = redact_any(result)
     ms = int((time.monotonic() - started) * 1000)
     decision = "error" if isinstance(out, dict) and "error" in out else "allowed"
     ctx.events.append({"tool": name, "decision": decision, "latency_ms": ms})
     await _audit(ctx, spec, name, decision, _redacted_args(spec, args), out, {"latency_ms": ms})
-    return out
+    return dict(out) if isinstance(out, dict) else {"result": out}

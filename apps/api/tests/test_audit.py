@@ -59,15 +59,18 @@ async def test_tamper_is_detected_with_first_broken_link():
         await _append(org, run, f"step.{i}", details={"i": i})
     # Simulate a database-owner edit: disable the append-only trigger, change seq 3, re-enable.
     async with system_tx() as s:
-        await s.execute(text("ALTER TABLE audit.audit_events DISABLE TRIGGER audit_events_append_only"))
+        await s.execute(
+            text("ALTER TABLE audit.audit_events DISABLE TRIGGER audit_events_append_only")
+        )
         await s.execute(
             text(
-                "UPDATE audit.audit_events SET decision = 'approve'"
-                " WHERE org_id = :o AND seq = 3"
+                "UPDATE audit.audit_events SET decision = 'approve' WHERE org_id = :o AND seq = 3"
             ),
             {"o": org},
         )
-        await s.execute(text("ALTER TABLE audit.audit_events ENABLE TRIGGER audit_events_append_only"))
+        await s.execute(
+            text("ALTER TABLE audit.audit_events ENABLE TRIGGER audit_events_append_only")
+        )
     async with tenant_tx(org) as s:
         v = await verify(s, org, run)
     assert not v.verified

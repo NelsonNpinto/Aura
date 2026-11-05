@@ -11,26 +11,34 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+class Lenient(BaseModel):
+    """Extraction outputs: models add harmless extra keys and print numbers as numbers.
+    Extra keys are dropped and numbers coerced to strings; bounds still apply, and every value is
+    cross-checked against the source afterwards (extraction.normalize)."""
+
+    model_config = ConfigDict(extra="ignore", str_strip_whitespace=True, coerce_numbers_to_str=True)
+
+
 class DocClassification(Strict):
     doc_type: Literal["invoice", "credit_note", "statement", "other"]
     confidence: float = Field(ge=0, le=1)
 
 
-class EvidenceSpan(Strict):
-    page: int = Field(ge=1, le=200)
-    snippet: str = Field(max_length=300)
+class EvidenceSpan(Lenient):
+    page: int = Field(default=1, ge=1, le=200)
+    snippet: str = Field(default="", max_length=300)
 
 
-class ExtractedLine(Strict):
+class ExtractedLine(Lenient):
     description: str = Field(max_length=500)
     quantity: str = Field(max_length=32)
     unit_price: str = Field(max_length=32)
     amount: str = Field(max_length=32)
     uom: str | None = Field(default=None, max_length=16)
-    evidence: EvidenceSpan | None = None
+    evidence: EvidenceSpan | str | None = None
 
 
-class InvoiceExtractionOut(Strict):
+class InvoiceExtractionOut(Lenient):
     vendor_name: str | None = Field(default=None, max_length=200)
     vendor_tax_id: str | None = Field(default=None, max_length=40)
     invoice_number: str | None = Field(default=None, max_length=64)
@@ -44,7 +52,7 @@ class InvoiceExtractionOut(Strict):
     bank_account: str | None = Field(default=None, max_length=64)
     bank_routing: str | None = Field(default=None, max_length=32)
     lines: list[ExtractedLine] = Field(default_factory=list, max_length=200)
-    evidence: dict[str, EvidenceSpan] = Field(default_factory=dict)
+    evidence: dict[str, EvidenceSpan | str | None] = Field(default_factory=dict)
 
 
 class GlLine(Strict):
