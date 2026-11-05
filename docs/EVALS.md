@@ -16,6 +16,8 @@ The CLI verifies source file SHA-256 values, records dataset and selected-case s
 
 CI runs the five-case fixture gate and uploads its JSON artifact. Only explicitly public, synthetic reports are served by `/api/v1/eval-report`; private ad hoc judgments are filtered out. CI's local database is ephemeral, so its report artifact does not automatically appear in the production database.
 
+When no public database report exists, the API serves the explicitly published recorded local validation artifact under `evals/datasets/reports`. It retains its original timestamp, dataset hash and fixture label; original traces remain local. This lets a new deployment show genuine measured workflow evidence without fabricating or rerunning it.
+
 ## Actual results on 5 November 2026
 
 - Five-case fixture workflow gate: 5/5 passed, zero incorrect automatic routes, zero run errors. This is workflow logic evidence, not model accuracy.

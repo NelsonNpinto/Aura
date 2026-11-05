@@ -4,6 +4,7 @@ import httpx
 import pytest
 from sqlalchemy import text
 
+from app.core.auth import generate_api_key
 from app.core.db import system_tx
 from app.main import create_app
 
@@ -13,6 +14,7 @@ async def test_vendor_assignment_refreshes_stale_roles_and_revocation_blocks_acc
     admin = "admin-" + uuid.uuid4().hex
     vendor = "vendor-" + uuid.uuid4().hex
     email = vendor + "@example.invalid"
+    old_key, prefix, hashed = generate_api_key()
     async with system_tx() as session:
         await session.execute(
             text(
@@ -33,6 +35,12 @@ async def test_vendor_assignment_refreshes_stale_roles_and_revocation_blocks_acc
             ),
             {"id": str(uuid.uuid4()), "o": org_id, "u": admin},
         )
+        await session.execute(
+            text(
+                "INSERT INTO core.api_keys (org_id,user_id,name,prefix,key_hash,roles) VALUES (:o,:u,'previous access',:p,:h,ARRAY['admin'])"
+            ),
+            {"o": org_id, "u": vendor, "p": prefix, "h": hashed},
+        )
     app = create_app()
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -45,6 +53,7 @@ async def test_vendor_assignment_refreshes_stale_roles_and_revocation_blocks_acc
                 json={"email": email, "role": "vendor", "vendor_id": "ACME"},
             )
             assert response.status_code == 200, response.text
+        assert (await client.get("/api/v1/me", headers={"x-api-key": old_key})).status_code == 401
         async with system_tx() as session:
             count = (
                 await session.execute(

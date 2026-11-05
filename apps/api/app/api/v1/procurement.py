@@ -235,6 +235,12 @@ async def member(body: MemberRequest, p: CurrentPrincipal) -> dict[str, str]:
         )
         await s.execute(
             text(
+                "UPDATE core.api_keys SET revoked_at=now() WHERE org_id=:o AND user_id=:u AND revoked_at IS NULL"
+            ),
+            {"o": p.org_id, "u": user.id},
+        )
+        await s.execute(
+            text(
                 "INSERT INTO ap.procurement_members (org_id,user_id,role,vendor_id) VALUES (:o,:u,:r,:v) ON CONFLICT (org_id,user_id) DO UPDATE SET role=excluded.role,vendor_id=excluded.vendor_id"
             ),
             {

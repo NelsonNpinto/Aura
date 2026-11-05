@@ -1,5 +1,6 @@
 """Public synthetic workflow reports; private evaluation results are never returned here."""
 
+import hashlib
 import json
 import uuid
 from collections import defaultdict
@@ -11,6 +12,7 @@ from sqlalchemy import text
 
 from app.api.deps import call_context
 from app.core.auth import CurrentPrincipal
+from app.core.config import datasets_root
 from app.core.db import system_tx, tenant_tx
 from app.core.errors import Forbidden, NotFound
 from app.core.limits import charge_run
@@ -197,8 +199,38 @@ async def reports() -> dict[str, Any]:
             .mappings()
             .all()
         )
+    public_reports = [dict(row) for row in rows]
+    artifact = datasets_root() / "reports" / "demo-fixture-2026-11-05.json"
+    if not public_reports and artifact.is_file():
+        recorded = json.loads(artifact.read_text())
+        # This explicitly published artifact contains an actual local fixture run; no private
+        # workspace judgments or source documents are imported into this public response.
+        public_reports = [
+            {
+                key: recorded[key]
+                for key in (
+                    "dataset",
+                    "dataset_version",
+                    "mode",
+                    "provider_mode",
+                    "case_count",
+                    "metrics",
+                    "results",
+                    "created_at",
+                    "case_snapshot",
+                    "gate_passed",
+                    "limits",
+                )
+            }
+        ]
+        public_reports[0]["id"] = (
+            "recorded-" + hashlib.sha256(artifact.read_bytes()).hexdigest()[:16]
+        )
+        public_reports[0]["limits"] += (
+            " Recorded local validation artifact; its original traces remain in the local evaluation database."
+        )
     return {
-        "reports": [dict(row) for row in rows],
-        "source": "Stored, explicitly public synthetic evaluation runs",
+        "reports": public_reports,
+        "source": "Stored public synthetic evaluation runs or explicitly published recorded validation artifacts",
         "notice": "Fixture runs measure workflow behavior, not live model accuracy. Human calibration and extraction quality remain unmeasured.",
     }
