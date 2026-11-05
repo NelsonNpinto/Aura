@@ -42,6 +42,7 @@ class InvoiceExtractionOut(Strict):
     tax: str | None = Field(default=None, max_length=32)
     total: str | None = Field(default=None, max_length=32)
     bank_account: str | None = Field(default=None, max_length=64)
+    bank_routing: str | None = Field(default=None, max_length=32)
     lines: list[ExtractedLine] = Field(default_factory=list, max_length=200)
     evidence: dict[str, EvidenceSpan] = Field(default_factory=dict)
 

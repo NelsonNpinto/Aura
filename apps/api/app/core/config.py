@@ -70,6 +70,16 @@ class Settings(BaseSettings):
 
     turnstile_secret_key: SecretStr | None = None
 
+    # Phase 1: ERP mock, approvals, workflow
+    erp_mcp_url: str | None = None  # empty = in-process ERP tools (tests, local dev)
+    erp_service_token: SecretStr | None = None
+    approval_token_secret: SecretStr | None = None
+    webhook_secret: SecretStr | None = None
+    demo_reset_secret: SecretStr | None = None
+    approval_sla_hours: int = 48
+    provider_mode: str = "live"  # live | fake (fake = deterministic fixtures, no provider calls)
+    datasets_dir: str = "../../evals/datasets"
+
     daily_run_budget: int = Field(default=200, ge=0)
     guest_daily_runs: int = Field(default=10, ge=0)
     org_daily_runs: int = Field(default=100, ge=0)

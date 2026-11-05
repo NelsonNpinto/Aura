@@ -1,0 +1,105 @@
+# Tool registry (§B9). Synced to ai.tool_registry. Every tool call goes through the gateway.
+# risk: read | write | financial. allowed_agents: invoice_to_pay, copilot, mcp.
+tools:
+  search_vendors:
+    source: mcp:erp
+    description: Search vendors by tax ID or fuzzy name/alias.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system]
+    allowed_agents: [invoice_to_pay, copilot, mcp]
+    rate_limit: 120
+    input: {type: object, additionalProperties: false, properties: {query: {type: [string, "null"], maxLength: 200}, tax_id: {type: [string, "null"], maxLength: 40}, limit: {type: integer, minimum: 1, maximum: 20}}}
+  get_vendor:
+    source: mcp:erp
+    description: Vendor master record.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system]
+    allowed_agents: [invoice_to_pay, copilot, mcp]
+    rate_limit: 120
+    input: {type: object, additionalProperties: false, required: [vendor_id], properties: {vendor_id: {type: string, pattern: "^[A-Z0-9-]{1,20}$"}}}
+  get_vendor_bank_accounts:
+    source: mcp:erp
+    description: Vendor bank account hashes and last 4 digits with history.
+    risk: read
+    allowed_roles: [clerk, approver, controller, auditor, admin, system, guest]
+    allowed_agents: [invoice_to_pay, copilot]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [vendor_id], properties: {vendor_id: {type: string, pattern: "^[A-Z0-9-]{1,20}$"}}}
+  compare_bank_account:
+    source: mcp:erp
+    description: Hash-compare invoice bank details with the vendor master.
+    risk: read
+    allowed_roles: [system]
+    allowed_agents: [invoice_to_pay]
+    rate_limit: 60
+    redact_input: [account_number, routing]
+    input: {type: object, additionalProperties: false, required: [vendor_id, routing, account_number], properties: {vendor_id: {type: string, maxLength: 20}, routing: {type: string, pattern: "^[0-9]{6,12}$"}, account_number: {type: string, pattern: "^[0-9]{6,20}$"}}}
+  get_purchase_order:
+    source: mcp:erp
+    description: Purchase order with lines.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system]
+    allowed_agents: [invoice_to_pay, copilot, mcp]
+    rate_limit: 120
+    input: {type: object, additionalProperties: false, required: [po_number], properties: {po_number: {type: string, maxLength: 40}}}
+  get_goods_receipts:
+    source: mcp:erp
+    description: Goods receipts for a PO.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system]
+    allowed_agents: [invoice_to_pay, copilot, mcp]
+    rate_limit: 120
+    input: {type: object, additionalProperties: false, required: [po_number], properties: {po_number: {type: string, maxLength: 40}}}
+  list_gl_accounts:
+    source: mcp:erp
+    description: Chart of accounts and cost centers.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system]
+    allowed_agents: [invoice_to_pay, copilot, mcp]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, properties: {}}
+  get_contract:
+    source: mcp:erp
+    description: Active contracts for a vendor.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system]
+    allowed_agents: [invoice_to_pay, copilot]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [vendor_id], properties: {vendor_id: {type: string, maxLength: 20}}}
+  get_employee_conflicts:
+    source: mcp:erp
+    description: Employees sharing a bank account hash.
+    risk: read
+    allowed_roles: [system]
+    allowed_agents: [invoice_to_pay]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [account_hash], properties: {account_hash: {type: string, pattern: "^[0-9a-f]{64}$"}}}
+  post_invoice:
+    source: mcp:erp
+    description: Post an invoice to AP (idempotent).
+    risk: write
+    requires_approval: false
+    idempotent: true
+    allowed_roles: [system]
+    allowed_agents: [invoice_to_pay]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [idempotency_key, invoice_number, amount_minor, currency, route], properties: {idempotency_key: {type: string, maxLength: 120}, vendor_id: {type: [string, "null"], maxLength: 20}, invoice_number: {type: string, maxLength: 60}, amount_minor: {type: integer}, currency: {type: string, pattern: "^[A-Z]{3}$"}, route: {enum: [auto, approval]}, po_lines: {type: array, maxItems: 100}}}
+  schedule_payment:
+    source: mcp:erp
+    description: Schedule payment of a posted invoice.
+    risk: financial
+    requires_approval: true
+    idempotent: true
+    allowed_roles: [system]
+    allowed_agents: [invoice_to_pay]
+    rate_limit: 30
+    redact_input: [approval_token]
+    input: {type: object, additionalProperties: false, required: [idempotency_key, erp_ref, amount_minor, currency, due_date, route], properties: {idempotency_key: {type: string, maxLength: 120}, erp_ref: {type: string, maxLength: 40}, amount_minor: {type: integer, minimum: 1}, currency: {type: string, pattern: "^[A-Z]{3}$"}, due_date: {type: string, format: date}, route: {enum: [auto, approval]}, approval_token: {type: [string, "null"], maxLength: 2000}}}
+  create_vendor_change_request:
+    source: mcp:erp
+    description: Open a vendor master change request.
+    risk: write
+    allowed_roles: [clerk, approver, controller, admin, system]
+    allowed_agents: [invoice_to_pay, copilot]
+    rate_limit: 20
+    input: {type: object, additionalProperties: false, required: [vendor_id, field, requested_by, note], properties: {vendor_id: {type: string, maxLength: 20}, field: {type: string, maxLength: 40}, requested_by: {type: string, maxLength: 80}, note: {type: string, maxLength: 1000}}}

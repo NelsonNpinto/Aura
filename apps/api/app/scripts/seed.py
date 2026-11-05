@@ -30,13 +30,19 @@ async def seed() -> dict[str, list[str]]:
             )
         prompts = yaml.safe_load(DEFAULTS.read_text())
         for pname, spec in prompts.items():
-            exists = (
+            current = (
                 await s.execute(
-                    text("SELECT 1 FROM ai.prompts WHERE name=:n LIMIT 1"), {"n": pname}
+                    text(
+                        "SELECT p.system, p.template FROM ai.prompt_labels l JOIN ai.prompts p"
+                        " ON p.name = l.name AND p.version = l.version"
+                        " WHERE l.name=:n AND l.label='production'"
+                    ),
+                    {"n": pname},
                 )
             ).first()
-            if exists:
+            if current and current.system == spec.get("system", "") and current.template == spec["template"]:
                 continue
+            # Changed defaults become a NEW immutable version; the label move is audited.
             v = await create_version(
                 s,
                 name=pname,
