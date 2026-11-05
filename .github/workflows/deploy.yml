@@ -28,15 +28,19 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED }}
       DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      # Demo seed: ERP master data (schema erp) + synthetic policy corpus (kb). Never calls LLMs.
+      LOCAL_BLOB_DIR: ${{ runner.temp }}/blob
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3
       - name: API migrations
         working-directory: apps/api
         run: |
-          uv sync --frozen --no-dev
-          uv run --no-dev alembic upgrade head
-          uv run --no-dev python -m app.scripts.seed
+          uv sync --frozen
+          uv run alembic upgrade head
+          uv run python -m app.scripts.seed
+          uv run python -m app.scripts.fetch_models
+          uv run python -m app.scripts.seed_demo
       - uses: actions/setup-node@v7
         with:
           node-version: 22

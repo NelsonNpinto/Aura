@@ -11,10 +11,9 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-from app.core.config import get_settings
+from app.core.config import datasets_root
 from app.domain.money import MoneyError, parse_decimal, to_minor
 
 HEADER_FIELDS = (
@@ -190,7 +189,7 @@ def normalize(
 @lru_cache
 def _fixtures() -> dict[str, dict[str, Any]]:
     """sha256 → ground-truth extraction, for provider_mode=fake (deterministic CI and replay)."""
-    root = Path(get_settings().datasets_dir)
+    root = datasets_root()
     out: dict[str, dict[str, Any]] = {}
     for f in (root / "demo" / "cases.jsonl", root / "golden_invoices" / "v1" / "cases.jsonl"):
         if f.exists():

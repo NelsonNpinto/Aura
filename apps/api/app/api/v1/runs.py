@@ -17,7 +17,7 @@ from app.agents.invoice_to_pay import runner
 from app.agents.invoice_to_pay.events import TERMINAL, events_after
 from app.audit.chain import events_for_run, verify
 from app.core.auth import CurrentPrincipal, Principal
-from app.core.config import get_settings
+from app.core.config import datasets_root, get_settings
 from app.core.db import tenant_tx
 from app.core.errors import AppError, Conflict, Forbidden, NotFound, RateLimited
 from app.core.limits import charge_run
@@ -58,7 +58,7 @@ def _sse(ev: dict[str, Any]) -> bytes:
 
 
 def _datasets() -> Path:
-    return Path(get_settings().datasets_dir)
+    return datasets_root()
 
 
 @router.get("/personas")

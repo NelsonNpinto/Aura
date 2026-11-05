@@ -8,17 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
 
 from app.core.auth import DEMO_ORG_ID, Principal
-from app.core.config import get_settings
+from app.core.config import datasets_root
 from app.rag.embeddings import get_embedder
 from app.rag.service import ingest
 from app.services.blob import get_blob_store
 
 
 async def ingest_policies(org: str) -> list[dict[str, object]]:
-    root = Path(get_settings().datasets_dir) / "policies"
+    root = datasets_root() / "policies"
     p = Principal(user_id="seed", org_id=org, roles=frozenset({"admin"}))
     done = []
     types = {
@@ -50,7 +49,7 @@ async def ingest_policies(org: str) -> list[dict[str, object]]:
 
 
 async def run(orgs: tuple[str, ...] = (DEMO_ORG_ID,)) -> dict[str, object]:
-    root = Path(get_settings().datasets_dir)
+    root = datasets_root()
     out: dict[str, object] = {}
     try:
         from erp_mock.seed import bootstrap, seed

@@ -26,7 +26,6 @@ CASES = {
 def _env():
     os.environ["ERP_SERVICE_TOKEN"] = "test-erp"
     os.environ["APPROVAL_TOKEN_SECRET"] = "test-approval-secret"
-    os.environ["DATASETS_DIR"] = str(ROOT)
     from app.core.config import get_settings
 
     get_settings.cache_clear()

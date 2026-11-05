@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
@@ -78,7 +79,7 @@ class Settings(BaseSettings):
     demo_reset_secret: SecretStr | None = None
     approval_sla_hours: int = 48
     provider_mode: str = "live"  # live | fake (fake = deterministic fixtures, no provider calls)
-    datasets_dir: str = "../../evals/datasets"
+    datasets_dir: str = ""  # empty = bundled ./data (deployed) or the repo's evals/datasets
 
     daily_run_budget: int = Field(default=200, ge=0)
     guest_daily_runs: int = Field(default=10, ge=0)
@@ -104,3 +105,14 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def datasets_root() -> Path:
+    """Synthetic datasets: explicit DATASETS_DIR, else the copy bundled into apps/api/data at build
+    time (deployed), else the repo's evals/datasets (local dev, tests, CI)."""
+    explicit = get_settings().datasets_dir
+    if explicit:
+        return Path(explicit)
+    api_root = Path(__file__).resolve().parents[2]
+    bundled = api_root / "data"
+    return bundled if (bundled / "demo").is_dir() else api_root.parents[1] / "evals" / "datasets"
