@@ -13,6 +13,7 @@ export default function DemoPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const onToken = useCallback((t: string | null) => setCaptcha(t), []);
+  const [widget, setWidget] = useState(0); // fresh single-use Turnstile token after each attempt
   const needsCaptcha = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
@@ -36,6 +37,8 @@ export default function DemoPage() {
     setBusy(false);
     if (res.error) {
       if (res.error.code === "ANONYMOUS_USERS_CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY") return go();
+      setCaptcha(null);
+      setWidget((w) => w + 1);
       return setError(res.error.message ?? "Could not start the demo");
     }
     go();
@@ -66,7 +69,7 @@ export default function DemoPage() {
           </div>
         ) : (
           <div className="mt-4 space-y-3">
-            <Turnstile onToken={onToken} />
+            <Turnstile key={widget} onToken={onToken} />
             <ErrorNote error={error} />
             <Button className="w-full" onClick={enter} disabled={busy || signedIn === null || (needsCaptcha && !captcha)}>
               {busy ? "Starting…" : "Enter the demo"}

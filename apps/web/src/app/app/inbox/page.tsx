@@ -20,7 +20,7 @@ type Run = {
 export default function InboxPage() {
   const router = useRouter();
   const demos = useQuery({ queryKey: ["demo"], queryFn: () => api<{ invoices: Demo[] }>("/demo/invoices") });
-  const runs = useQuery({ queryKey: ["runs"], queryFn: () => api<{ runs: Run[] }>("/runs?limit=100"), refetchInterval: 5000 });
+  const runs = useQuery({ queryKey: ["runs"], queryFn: () => api<{ runs: Run[] }>("/runs?limit=100"), refetchInterval: 15000 });
   const samples = useQuery({ queryKey: ["samples"], queryFn: async () => (await fetch("/sample-invoices/index.json")).json() as Promise<Sample[]> });
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
