@@ -7,11 +7,10 @@ export const metadata = { title: "Dashboard" };
 export default async function Dashboard() {
   const viewer = await getViewer();
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full space-y-6">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       <p className="text-sm text-muted">
-        Signed in to <strong>{viewer?.orgName ?? "—"}</strong>. The invoice workflow arrives in phase 1; the
-        knowledge base and model playground are live now.
+        Signed in to <strong>{viewer?.orgName ?? "—"}</strong>.
       </p>
       <div className="grid gap-4 md:grid-cols-2">
         <UsagePanel />

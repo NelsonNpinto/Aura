@@ -7,6 +7,8 @@ call and fastembed embed + rerank:
 - litellm rust_bridge native extension (~34 MB): optional; loader catches ImportError and the
   SDK falls back to pure Python.
 - hf_xet (~11 MB): optional Xet transfer backend for huggingface_hub; models are pre-fetched.
+- zstandard (~23 MB): optional for langsmith (falls back to uncompressed); AURA never sends
+  traces to LangSmith (Langfuse is the tracing backend). Checked 2026-11-05 like the rest.
 - boto3 / botocore / s3transfer (~31 MB): only for Bedrock, kept when ENABLE_BEDROCK=true.
 """
 
@@ -22,6 +24,7 @@ PRUNE = [
     "litellm/proxy/swagger",
     "litellm/rust_bridge/_native.abi3.so",
     "hf_xet",
+    "zstandard",
 ]
 BEDROCK_ONLY = ["boto3", "botocore", "s3transfer"]
 

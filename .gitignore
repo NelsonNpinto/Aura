@@ -39,3 +39,4 @@ coverage/
 apps/api/model_cache/
 apps/api/.local/
 .claude/launch.json
+apps/api/data/

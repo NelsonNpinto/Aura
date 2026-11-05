@@ -28,7 +28,7 @@ export default function KnowledgePage() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full space-y-6">
       <h1 className="text-2xl font-semibold">Knowledge base</h1>
       <Card>
         <h2 className="font-semibold">Upload a policy document</h2>

@@ -97,9 +97,14 @@ def find_pii(text: str) -> list[PiiFinding]:
     return sorted(findings, key=lambda f: f.start)
 
 
-def redact(text: str) -> str:
+BUSINESS_IDS = frozenset({"EIN", "GSTIN"})  # vendor tax IDs printed on invoices: business data
+
+
+def redact(text: str, keep: frozenset[str] = frozenset()) -> str:
     out, cursor = [], 0
     for f in find_pii(text):
+        if f.kind in keep:
+            continue
         out.append(text[cursor : f.start])
         out.append(f"[{f.kind}…{f.last4}]" if f.last4 else f"[{f.kind}]")
         cursor = f.end

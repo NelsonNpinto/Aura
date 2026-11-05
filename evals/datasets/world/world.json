@@ -1,0 +1,3354 @@
+{
+ "synthetic": true,
+ "seed": 7,
+ "base_currency": "USD",
+ "fx": [
+  {
+   "currency": "USD",
+   "rate_to_base": 1.0,
+   "on": "2026-10-01"
+  },
+  {
+   "currency": "EUR",
+   "rate_to_base": 1.08,
+   "on": "2026-10-01"
+  },
+  {
+   "currency": "INR",
+   "rate_to_base": 0.012,
+   "on": "2026-10-01"
+  },
+  {
+   "currency": "GBP",
+   "rate_to_base": 1.27,
+   "on": "2026-10-01"
+  }
+ ],
+ "capitalization_threshold_minor": 250000,
+ "gl_accounts": [
+  {
+   "code": "5000",
+   "name": "Cost of goods - raw materials",
+   "guidance": "Raw materials and components consumed in production"
+  },
+  {
+   "code": "5010",
+   "name": "Cost of goods - packaging",
+   "guidance": "Boxes, labels, pallets, wrap used to ship product"
+  },
+  {
+   "code": "5020",
+   "name": "Freight inbound",
+   "guidance": "Shipping and delivery charges on purchased goods"
+  },
+  {
+   "code": "6000",
+   "name": "Office supplies",
+   "guidance": "Paper, toner, pens, small desk items under the capitalization threshold"
+  },
+  {
+   "code": "6010",
+   "name": "Computer accessories",
+   "guidance": "Keyboards, mice, cables, docks under the capitalization threshold"
+  },
+  {
+   "code": "6020",
+   "name": "Software subscriptions",
+   "guidance": "SaaS licences billed monthly or annually"
+  },
+  {
+   "code": "6030",
+   "name": "Cloud hosting",
+   "guidance": "Compute, storage and bandwidth from cloud providers"
+  },
+  {
+   "code": "6040",
+   "name": "Telecommunications",
+   "guidance": "Phone, mobile and internet service"
+  },
+  {
+   "code": "6050",
+   "name": "Utilities - electricity",
+   "guidance": "Electricity for offices and warehouses"
+  },
+  {
+   "code": "6051",
+   "name": "Utilities - water",
+   "guidance": "Water and sewer charges"
+  },
+  {
+   "code": "6052",
+   "name": "Utilities - gas",
+   "guidance": "Natural gas for heating"
+  },
+  {
+   "code": "6060",
+   "name": "Rent",
+   "guidance": "Office and warehouse rent"
+  },
+  {
+   "code": "6070",
+   "name": "Repairs and maintenance",
+   "guidance": "Repairs that do not extend asset life"
+  },
+  {
+   "code": "6080",
+   "name": "Cleaning and janitorial",
+   "guidance": "Cleaning services and supplies"
+  },
+  {
+   "code": "6090",
+   "name": "Security services",
+   "guidance": "Guarding, alarm monitoring"
+  },
+  {
+   "code": "6100",
+   "name": "Professional fees - legal",
+   "guidance": "Outside counsel"
+  },
+  {
+   "code": "6110",
+   "name": "Professional fees - audit",
+   "guidance": "External audit and tax advisory"
+  },
+  {
+   "code": "6120",
+   "name": "Consulting",
+   "guidance": "Management and technical consultants"
+  },
+  {
+   "code": "6130",
+   "name": "Contract labour",
+   "guidance": "Temporary staff via agencies"
+  },
+  {
+   "code": "6140",
+   "name": "Training",
+   "guidance": "Courses, certifications, workshops"
+  },
+  {
+   "code": "6150",
+   "name": "Travel - airfare",
+   "guidance": "Flights"
+  },
+  {
+   "code": "6151",
+   "name": "Travel - lodging",
+   "guidance": "Hotels"
+  },
+  {
+   "code": "6152",
+   "name": "Travel - meals",
+   "guidance": "Meals while travelling"
+  },
+  {
+   "code": "6160",
+   "name": "Marketing - advertising",
+   "guidance": "Paid media and ads"
+  },
+  {
+   "code": "6161",
+   "name": "Marketing - events",
+   "guidance": "Trade shows and sponsorships"
+  },
+  {
+   "code": "6162",
+   "name": "Marketing - print",
+   "guidance": "Brochures, signage"
+  },
+  {
+   "code": "6170",
+   "name": "Insurance",
+   "guidance": "Business insurance premiums"
+  },
+  {
+   "code": "6180",
+   "name": "Bank charges",
+   "guidance": "Fees charged by banks"
+  },
+  {
+   "code": "6190",
+   "name": "Postage and courier",
+   "guidance": "Outbound courier and postage"
+  },
+  {
+   "code": "6200",
+   "name": "Lab supplies",
+   "guidance": "Consumables for the lab"
+  },
+  {
+   "code": "6210",
+   "name": "Safety equipment",
+   "guidance": "PPE, first aid, safety signage"
+  },
+  {
+   "code": "6220",
+   "name": "Vehicle fuel",
+   "guidance": "Fuel for company vehicles"
+  },
+  {
+   "code": "6230",
+   "name": "Vehicle maintenance",
+   "guidance": "Servicing and repairs of company vehicles"
+  },
+  {
+   "code": "6240",
+   "name": "Uniforms",
+   "guidance": "Staff uniforms"
+  },
+  {
+   "code": "6250",
+   "name": "Catering",
+   "guidance": "Food for internal meetings"
+  },
+  {
+   "code": "6260",
+   "name": "Subscriptions - publications",
+   "guidance": "Journals and data subscriptions"
+  },
+  {
+   "code": "1500",
+   "name": "Fixed assets - IT equipment",
+   "guidance": "Laptops, servers, network gear at or above the capitalization threshold"
+  },
+  {
+   "code": "1510",
+   "name": "Fixed assets - furniture",
+   "guidance": "Desks, chairs, shelving at or above the capitalization threshold"
+  },
+  {
+   "code": "1520",
+   "name": "Fixed assets - machinery",
+   "guidance": "Production machinery at or above the capitalization threshold"
+  },
+  {
+   "code": "2100",
+   "name": "Accrued liabilities",
+   "guidance": "Not used for invoice coding"
+  }
+ ],
+ "cost_centers": [
+  {
+   "code": "CC100",
+   "name": "Finance"
+  },
+  {
+   "code": "CC200",
+   "name": "Operations"
+  },
+  {
+   "code": "CC300",
+   "name": "Engineering"
+  },
+  {
+   "code": "CC400",
+   "name": "Sales"
+  },
+  {
+   "code": "CC500",
+   "name": "Marketing"
+  },
+  {
+   "code": "CC600",
+   "name": "People"
+  },
+  {
+   "code": "CC700",
+   "name": "Facilities"
+  },
+  {
+   "code": "CC800",
+   "name": "Lab"
+  }
+ ],
+ "vendors": [
+  {
+   "id": "V001",
+   "name": "Acme Industrial Supply Inc",
+   "aliases": [
+    "ACME Inc",
+    "Acme Incorporated"
+   ],
+   "category": "raw",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "41-7675615",
+   "address": "410 Mill Street, US",
+   "payment_terms_days": 15,
+   "cost_center": "CC200",
+   "created_by": "E002",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "6be8930aa0fb132ef838910578792b5170e19d93238df0d0f4d40d7b7435a419",
+    "last4": "6563",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V002",
+   "name": "Brightline Office Co",
+   "aliases": [
+    "Brightline Office"
+   ],
+   "category": "office",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "20-3956442",
+   "address": "164 Main Street, US",
+   "payment_terms_days": 30,
+   "cost_center": "CC100",
+   "created_by": "E001",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "bdf4ac269cd129844990eb41f5b317a7933215ab9aa88ca218ecd3627ab6df5d",
+    "last4": "8599",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V003",
+   "name": "Cobalt Cloud Services LLC",
+   "aliases": [
+    "Cobalt Cloud"
+   ],
+   "category": "cloud",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "26-9648511",
+   "address": "983 Station Street, US",
+   "payment_terms_days": 15,
+   "cost_center": "CC300",
+   "created_by": "E010",
+   "contract_id": "K003",
+   "status": "active",
+   "bank": {
+    "hash": "d82fc34083f9d27f49f7d92c1e381b9086314df030da745cf566e1eaa4ba52db",
+    "last4": "0313",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V004",
+   "name": "Delta Packaging Ltd",
+   "aliases": [
+    "Delta Pack"
+   ],
+   "category": "packaging",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "30-2844290",
+   "address": "358 Station Street, US",
+   "payment_terms_days": 15,
+   "cost_center": "CC200",
+   "created_by": "E001",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "033af75faa18ea4f7d4ca1f6e60df2051810c8f4f370b42b5486d5567ff3710c",
+    "last4": "1396",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V005",
+   "name": "Evergreen Power & Light",
+   "aliases": [
+    "Evergreen P&L"
+   ],
+   "category": "electricity",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "91-5232182",
+   "address": "988 Oak Street, US",
+   "payment_terms_days": 45,
+   "cost_center": "CC700",
+   "created_by": "E010",
+   "contract_id": "K005",
+   "status": "active",
+   "bank": {
+    "hash": "5465e2681acac3c758141fa3658c034749f3bef9d0139d8807c3b29957af256f",
+    "last4": "2154",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V006",
+   "name": "Fjord Analytics GmbH",
+   "aliases": [
+    "Fjord Analytics"
+   ],
+   "category": "software",
+   "currency": "EUR",
+   "country": "DE",
+   "tax_id": "GB273343387",
+   "address": "538 Harbor Street, DE",
+   "payment_terms_days": 30,
+   "cost_center": "CC300",
+   "created_by": "E003",
+   "contract_id": "K006",
+   "status": "active",
+   "bank": {
+    "hash": "edf8d0f9a0b930eba130623600e5e979241f2b2548bcb0c72a1ad8a65e9ce4b4",
+    "last4": "5253",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V007",
+   "name": "Granite Legal LLP",
+   "aliases": [
+    "Granite Legal"
+   ],
+   "category": "legal",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "79-9433856",
+   "address": "347 Main Street, US",
+   "payment_terms_days": 30,
+   "cost_center": "CC100",
+   "created_by": "E002",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "d4ae37ecd40e2c49d245fe8e46b8a80b1cb23907566a242c076a71d85907544c",
+    "last4": "4743",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V008",
+   "name": "Harbor Freight Logistics",
+   "aliases": [
+    "Harbor Logistics"
+   ],
+   "category": "freight",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "54-8503235",
+   "address": "837 Oak Street, US",
+   "payment_terms_days": 45,
+   "cost_center": "CC200",
+   "created_by": "E001",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "55bbdd297b51be71d0fdaefd51ba1da59e9b465ba8f2e390eee8a758c102e26b",
+    "last4": "9907",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V009",
+   "name": "Indus Components Pvt Ltd",
+   "aliases": [
+    "Indus Components"
+   ],
+   "category": "raw",
+   "currency": "INR",
+   "country": "IN",
+   "tax_id": "22MWCXD4265H1Z3",
+   "address": "454 Oak Street, IN",
+   "payment_terms_days": 15,
+   "cost_center": "CC200",
+   "created_by": "E010",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "4ebb3c9ccf54431fb6e2549f496a4d6d5d30be73f7bae1e178b4390e424e12db",
+    "last4": "9729",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V010",
+   "name": "Juniper Telecom",
+   "aliases": [
+    "Juniper Tel"
+   ],
+   "category": "telecom",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "70-6878862",
+   "address": "169 Station Street, US",
+   "payment_terms_days": 30,
+   "cost_center": "CC700",
+   "created_by": "E001",
+   "contract_id": "K010",
+   "status": "active",
+   "bank": {
+    "hash": "eed3cb41acf24a112d7fac01bee1ff7e75374bcf957fd68eae021672b7148d9d",
+    "last4": "4348",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V011",
+   "name": "Kestrel Security Services",
+   "aliases": [
+    "Kestrel Security"
+   ],
+   "category": "security",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "85-6469193",
+   "address": "275 Station Street, US",
+   "payment_terms_days": 60,
+   "cost_center": "CC700",
+   "created_by": "E002",
+   "contract_id": "K011",
+   "status": "active",
+   "bank": {
+    "hash": "b0e8c588a48e4128c2ee04a406b90267a2115f3ab2d824d781706b77f4f09b2b",
+    "last4": "8288",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V012",
+   "name": "Lumen Lab Supplies",
+   "aliases": [
+    "Lumen Lab"
+   ],
+   "category": "lab",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "66-4072040",
+   "address": "633 Harbor Street, US",
+   "payment_terms_days": 30,
+   "cost_center": "CC800",
+   "created_by": "E002",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "9f92875a4cca9a1a698e69fd30f801e3c77d89973ab04ee4f832f30b0319e4c5",
+    "last4": "8871",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V013",
+   "name": "Meridian Consulting Group",
+   "aliases": [
+    "Meridian Consulting"
+   ],
+   "category": "consulting",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "17-5169042",
+   "address": "205 Oak Street, US",
+   "payment_terms_days": 15,
+   "cost_center": "CC100",
+   "created_by": "E001",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "bcdbec3e5b40e28ba86b9dbbbfb24af831d1bef04a8487609e046c2e437137a1",
+    "last4": "8983",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V014",
+   "name": "Northwind Staffing",
+   "aliases": [
+    "Northwind Staff"
+   ],
+   "category": "labour",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "67-9525445",
+   "address": "556 Mill Street, US",
+   "payment_terms_days": 30,
+   "cost_center": "CC200",
+   "created_by": "E003",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "760eaa8e7b12864b241bf824340fbd404dffed4a581355c3a19304941d393b4c",
+    "last4": "5136",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V015",
+   "name": "Orchid Catering",
+   "aliases": [
+    "Orchid Cater"
+   ],
+   "category": "catering",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "37-6079806",
+   "address": "812 Harbor Street, US",
+   "payment_terms_days": 30,
+   "cost_center": "CC600",
+   "created_by": "E003",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "ee8cd083b2b383bab5211993bfecd67ba80e2a86393e8b4970f44c7ecd420e08",
+    "last4": "2326",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V016",
+   "name": "Pinnacle IT Hardware",
+   "aliases": [
+    "Pinnacle IT"
+   ],
+   "category": "it_hw",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "61-6689424",
+   "address": "441 Main Street, US",
+   "payment_terms_days": 45,
+   "cost_center": "CC300",
+   "created_by": "E003",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "a261f4a724189f2b155131ff5babe907bb3d67539e67b694d3ec164c645a202f",
+    "last4": "6589",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V017",
+   "name": "Quartz Water Utility",
+   "aliases": [
+    "Quartz Water"
+   ],
+   "category": "water",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "75-2078620",
+   "address": "125 Main Street, US",
+   "payment_terms_days": 15,
+   "cost_center": "CC700",
+   "created_by": "E001",
+   "contract_id": "K017",
+   "status": "active",
+   "bank": {
+    "hash": "0229cdb7370f559a4039058c8840597fa2969ccb96337a8f8f7ed20e016a9afd",
+    "last4": "6288",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V018",
+   "name": "Riverbend Print Studio",
+   "aliases": [
+    "Riverbend Print"
+   ],
+   "category": "print",
+   "currency": "USD",
+   "country": "US",
+   "tax_id": "73-6486963",
+   "address": "101 Oak Street, US",
+   "payment_terms_days": 15,
+   "cost_center": "CC500",
+   "created_by": "E002",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "0229cdb7370f559a4039058c8840597fa2969ccb96337a8f8f7ed20e016a9afd",
+    "last4": "6288",
+    "effective_from": "2025-06-01",
+    "changed_by": "E002"
+   }
+  },
+  {
+   "id": "V019",
+   "name": "Saffron Software Pvt Ltd",
+   "aliases": [
+    "Saffron Software"
+   ],
+   "category": "software",
+   "currency": "INR",
+   "country": "IN",
+   "tax_id": "29ALTPJ3117A1Z9",
+   "address": "736 Main Street, IN",
+   "payment_terms_days": 15,
+   "cost_center": "CC300",
+   "created_by": "E002",
+   "contract_id": "K019",
+   "status": "active",
+   "bank": {
+    "hash": "66a230c054760bf5e457f4ea32b6b19da5bb3ebbd218405fe5579548cedeef9c",
+    "last4": "4782",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  },
+  {
+   "id": "V020",
+   "name": "Tidewater Training Co",
+   "aliases": [
+    "Tidewater Training"
+   ],
+   "category": "training",
+   "currency": "GBP",
+   "country": "GB",
+   "tax_id": "DE119502484",
+   "address": "266 Harbor Street, GB",
+   "payment_terms_days": 15,
+   "cost_center": "CC600",
+   "created_by": "E001",
+   "contract_id": null,
+   "status": "active",
+   "bank": {
+    "hash": "6b5ddab7c61489e261583ea69ca76d3bba519c7210719ca0152ffd6605c1d9b5",
+    "last4": "6786",
+    "effective_from": "2024-01-01",
+    "changed_by": null
+   }
+  }
+ ],
+ "employees": [
+  {
+   "id": "E001",
+   "name": "Rahul Shah",
+   "email": "rahul.shah@example.test",
+   "role": "clerk",
+   "bank_hash": "561e0556ecce598fcdfc000db3bf09544dfb7b7057b281bd6af3d382c9240377",
+   "bank_last4": "9083"
+  },
+  {
+   "id": "E002",
+   "name": "Priya Iyer",
+   "email": "priya.iyer@example.test",
+   "role": "clerk",
+   "bank_hash": "7a948f5a9a7219c48c51ebee0fde5838f20f870609bbdf7f1f9ad35b3343e3b8",
+   "bank_last4": "6091"
+  },
+  {
+   "id": "E003",
+   "name": "Meera Nair",
+   "email": "meera.nair@example.test",
+   "role": "clerk",
+   "bank_hash": "c60d385229f42792cd0c8f6c1486ea4f3065b457b2f08e922f8da5d7748cf33c",
+   "bank_last4": "0824"
+  },
+  {
+   "id": "E004",
+   "name": "Arjun Rao",
+   "email": "arjun.rao@example.test",
+   "role": "approver",
+   "bank_hash": "8b7de87c10136e4501739f8fea8989d338088436fc225967f59431487d9ac29c",
+   "bank_last4": "1993"
+  },
+  {
+   "id": "E005",
+   "name": "Sara Klein",
+   "email": "sara.klein@example.test",
+   "role": "approver",
+   "bank_hash": "452724d7549deb8420a2c789146bfdf92688b2eefbb34ef5a38e93f8c75710e0",
+   "bank_last4": "7865"
+  },
+  {
+   "id": "E006",
+   "name": "Tom Okafor",
+   "email": "tom.okafor@example.test",
+   "role": "controller",
+   "bank_hash": "a8c6e3031b5cf96fc2628cb42bd0a4e8a59eae3668fbf2b541ddadf509983941",
+   "bank_last4": "1948"
+  },
+  {
+   "id": "E007",
+   "name": "Lena Silva",
+   "email": "lena.silva@example.test",
+   "role": "controller",
+   "bank_hash": "a4dc64cb85c8e23bf7da74c3a18e2507aa3efdbbacd5a7bdb334caf7b7066026",
+   "bank_last4": "6252"
+  },
+  {
+   "id": "E008",
+   "name": "Omar Tanaka",
+   "email": "omar.tanaka@example.test",
+   "role": "auditor",
+   "bank_hash": "512f34ce66199fe2e951432b8c9604bf40d75a4796adeab0fed5179799e68bd8",
+   "bank_last4": "5979"
+  },
+  {
+   "id": "E009",
+   "name": "Yuki Moreau",
+   "email": "yuki.moreau@example.test",
+   "role": "admin",
+   "bank_hash": "c981ff3cf7566f9f0521928a22b1b5b426c3b7cfbbbd3aa09e2d15b9517135fa",
+   "bank_last4": "9746"
+  },
+  {
+   "id": "E010",
+   "name": "Ines Haddad",
+   "email": "ines.haddad@example.test",
+   "role": "clerk",
+   "bank_hash": "760eaa8e7b12864b241bf824340fbd404dffed4a581355c3a19304941d393b4c",
+   "bank_last4": "5136"
+  }
+ ],
+ "purchase_orders": [
+  {
+   "po_number": "PO-4501",
+   "vendor_id": "V001",
+   "currency": "USD",
+   "order_date": "2026-08-25",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Aluminium sheet 2mm",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 3850,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Steel bracket M8",
+     "quantity": "50",
+     "uom": "each",
+     "unit_price_minor": 425,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "50",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 3,
+     "description": "Copper wire 2.5mm roll",
+     "quantity": "20",
+     "uom": "each",
+     "unit_price_minor": 6400,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4502",
+   "vendor_id": "V001",
+   "currency": "USD",
+   "order_date": "2026-08-10",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Steel bracket M8",
+     "quantity": "20",
+     "uom": "each",
+     "unit_price_minor": 425,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4503",
+   "vendor_id": "V001",
+   "currency": "USD",
+   "order_date": "2026-07-09",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Copper wire 2.5mm roll",
+     "quantity": "50",
+     "uom": "each",
+     "unit_price_minor": 6400,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "50",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4504",
+   "vendor_id": "V001",
+   "currency": "USD",
+   "order_date": "2026-08-22",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Aluminium sheet 2mm",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 3850,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Hex bolt M10 (box of 100)",
+     "quantity": "5",
+     "uom": "box",
+     "unit_price_minor": 2200,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "5",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 3,
+     "description": "Copper wire 2.5mm roll",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 6400,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4505",
+   "vendor_id": "V002",
+   "currency": "USD",
+   "order_date": "2026-07-28",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Toner cartridge black",
+     "quantity": "3",
+     "uom": "each",
+     "unit_price_minor": 8900,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "A4 copy paper (ream)",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 650,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4506",
+   "vendor_id": "V002",
+   "currency": "USD",
+   "order_date": "2026-08-11",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Ballpoint pens (box of 50)",
+     "quantity": "20",
+     "uom": "box",
+     "unit_price_minor": 1400,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Sticky notes pack",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 320,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4507",
+   "vendor_id": "V002",
+   "currency": "USD",
+   "order_date": "2026-09-06",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Toner cartridge black",
+     "quantity": "5",
+     "uom": "each",
+     "unit_price_minor": 8900,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4508",
+   "vendor_id": "V002",
+   "currency": "USD",
+   "order_date": "2026-08-23",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Toner cartridge black",
+     "quantity": "10",
+     "uom": "each",
+     "unit_price_minor": 8900,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "10",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "A4 copy paper (ream)",
+     "quantity": "10",
+     "uom": "each",
+     "unit_price_minor": 650,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4509",
+   "vendor_id": "V002",
+   "currency": "USD",
+   "order_date": "2026-08-24",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Sticky notes pack",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 320,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Toner cartridge black",
+     "quantity": "3",
+     "uom": "each",
+     "unit_price_minor": 8900,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "3",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 3,
+     "description": "Ballpoint pens (box of 50)",
+     "quantity": "20",
+     "uom": "box",
+     "unit_price_minor": 1400,
+     "gl_account": "6000",
+     "cost_center": "CC100",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4510",
+   "vendor_id": "V003",
+   "currency": "USD",
+   "order_date": "2026-08-13",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Compute instances - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 42000,
+     "gl_account": "6030",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Object storage 10 TB",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 23000,
+     "gl_account": "6030",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4511",
+   "vendor_id": "V003",
+   "currency": "USD",
+   "order_date": "2026-08-25",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Compute instances - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 42000,
+     "gl_account": "6030",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4512",
+   "vendor_id": "V003",
+   "currency": "USD",
+   "order_date": "2026-07-16",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Compute instances - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 42000,
+     "gl_account": "6030",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Object storage 10 TB",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 23000,
+     "gl_account": "6030",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4513",
+   "vendor_id": "V003",
+   "currency": "USD",
+   "order_date": "2026-07-05",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Compute instances - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 42000,
+     "gl_account": "6030",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4514",
+   "vendor_id": "V004",
+   "currency": "USD",
+   "order_date": "2026-09-03",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Pallet wrap roll",
+     "quantity": "5",
+     "uom": "each",
+     "unit_price_minor": 1800,
+     "gl_account": "5010",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "5",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Shipping carton 40x30x30",
+     "quantity": "50",
+     "uom": "each",
+     "unit_price_minor": 115,
+     "gl_account": "5010",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "50",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4515",
+   "vendor_id": "V004",
+   "currency": "USD",
+   "order_date": "2026-09-03",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Product labels (roll of 1000)",
+     "quantity": "10",
+     "uom": "each",
+     "unit_price_minor": 2700,
+     "gl_account": "5010",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4516",
+   "vendor_id": "V004",
+   "currency": "USD",
+   "order_date": "2026-08-16",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Shipping carton 40x30x30",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 115,
+     "gl_account": "5010",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Pallet wrap roll",
+     "quantity": "20",
+     "uom": "each",
+     "unit_price_minor": 1800,
+     "gl_account": "5010",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4517",
+   "vendor_id": "V005",
+   "currency": "USD",
+   "order_date": "2026-07-12",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Electricity - monthly service",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 184000,
+     "gl_account": "6050",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4518",
+   "vendor_id": "V005",
+   "currency": "USD",
+   "order_date": "2026-08-17",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Electricity - monthly service",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 184000,
+     "gl_account": "6050",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4519",
+   "vendor_id": "V005",
+   "currency": "USD",
+   "order_date": "2026-07-31",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Electricity - monthly service",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 184000,
+     "gl_account": "6050",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4520",
+   "vendor_id": "V005",
+   "currency": "USD",
+   "order_date": "2026-08-25",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Electricity - monthly service",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 184000,
+     "gl_account": "6050",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4521",
+   "vendor_id": "V006",
+   "currency": "EUR",
+   "order_date": "2026-08-08",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "User seat - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 4500,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4522",
+   "vendor_id": "V006",
+   "currency": "EUR",
+   "order_date": "2026-07-11",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Analytics platform licence - annual",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 220000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4523",
+   "vendor_id": "V006",
+   "currency": "EUR",
+   "order_date": "2026-07-14",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "User seat - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 4500,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Analytics platform licence - annual",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 220000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4524",
+   "vendor_id": "V006",
+   "currency": "EUR",
+   "order_date": "2026-08-03",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Analytics platform licence - annual",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 220000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4525",
+   "vendor_id": "V007",
+   "currency": "USD",
+   "order_date": "2026-07-09",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Contract review - hours",
+     "quantity": "4",
+     "uom": "hour",
+     "unit_price_minor": 35000,
+     "gl_account": "6100",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "4",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4526",
+   "vendor_id": "V007",
+   "currency": "USD",
+   "order_date": "2026-09-02",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Contract review - hours",
+     "quantity": "8",
+     "uom": "hour",
+     "unit_price_minor": 35000,
+     "gl_account": "6100",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "8",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4527",
+   "vendor_id": "V007",
+   "currency": "USD",
+   "order_date": "2026-08-09",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Contract review - hours",
+     "quantity": "24",
+     "uom": "hour",
+     "unit_price_minor": 35000,
+     "gl_account": "6100",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "24",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4528",
+   "vendor_id": "V007",
+   "currency": "USD",
+   "order_date": "2026-08-13",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Contract review - hours",
+     "quantity": "10",
+     "uom": "hour",
+     "unit_price_minor": 35000,
+     "gl_account": "6100",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4529",
+   "vendor_id": "V008",
+   "currency": "USD",
+   "order_date": "2026-08-22",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Inbound freight - pallet",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 9500,
+     "gl_account": "5020",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4530",
+   "vendor_id": "V008",
+   "currency": "USD",
+   "order_date": "2026-07-22",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Inbound freight - pallet",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 9500,
+     "gl_account": "5020",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4531",
+   "vendor_id": "V008",
+   "currency": "USD",
+   "order_date": "2026-07-20",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Inbound freight - pallet",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 9500,
+     "gl_account": "5020",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4532",
+   "vendor_id": "V008",
+   "currency": "USD",
+   "order_date": "2026-08-27",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Inbound freight - pallet",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 9500,
+     "gl_account": "5020",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4533",
+   "vendor_id": "V009",
+   "currency": "INR",
+   "order_date": "2026-09-10",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Hex bolt M10 (box of 100)",
+     "quantity": "1",
+     "uom": "box",
+     "unit_price_minor": 176000,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Aluminium sheet 2mm",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 308000,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4534",
+   "vendor_id": "V009",
+   "currency": "INR",
+   "order_date": "2026-07-19",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Copper wire 2.5mm roll",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 512000,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Hex bolt M10 (box of 100)",
+     "quantity": "3",
+     "uom": "box",
+     "unit_price_minor": 176000,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "3",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4535",
+   "vendor_id": "V009",
+   "currency": "INR",
+   "order_date": "2026-08-23",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Hex bolt M10 (box of 100)",
+     "quantity": "20",
+     "uom": "box",
+     "unit_price_minor": 176000,
+     "gl_account": "5000",
+     "cost_center": "CC200",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4536",
+   "vendor_id": "V010",
+   "currency": "USD",
+   "order_date": "2026-07-26",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Mobile plan - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 3800,
+     "gl_account": "6040",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Business fibre 1 Gbps - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 31000,
+     "gl_account": "6040",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4537",
+   "vendor_id": "V010",
+   "currency": "USD",
+   "order_date": "2026-07-03",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Mobile plan - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 3800,
+     "gl_account": "6040",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4538",
+   "vendor_id": "V010",
+   "currency": "USD",
+   "order_date": "2026-09-05",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Business fibre 1 Gbps - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 31000,
+     "gl_account": "6040",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4539",
+   "vendor_id": "V010",
+   "currency": "USD",
+   "order_date": "2026-08-06",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Mobile plan - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 3800,
+     "gl_account": "6040",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Business fibre 1 Gbps - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 31000,
+     "gl_account": "6040",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4540",
+   "vendor_id": "V011",
+   "currency": "USD",
+   "order_date": "2026-08-21",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Site guarding - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 260000,
+     "gl_account": "6090",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4541",
+   "vendor_id": "V011",
+   "currency": "USD",
+   "order_date": "2026-08-06",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Site guarding - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 260000,
+     "gl_account": "6090",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4542",
+   "vendor_id": "V011",
+   "currency": "USD",
+   "order_date": "2026-07-22",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Site guarding - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 260000,
+     "gl_account": "6090",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4543",
+   "vendor_id": "V012",
+   "currency": "USD",
+   "order_date": "2026-08-22",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Pipette tips (rack)",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 980,
+     "gl_account": "6200",
+     "cost_center": "CC800",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Nitrile gloves (box of 100)",
+     "quantity": "2",
+     "uom": "box",
+     "unit_price_minor": 1150,
+     "gl_account": "6200",
+     "cost_center": "CC800",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4544",
+   "vendor_id": "V012",
+   "currency": "USD",
+   "order_date": "2026-07-16",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Nitrile gloves (box of 100)",
+     "quantity": "3",
+     "uom": "box",
+     "unit_price_minor": 1150,
+     "gl_account": "6200",
+     "cost_center": "CC800",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Pipette tips (rack)",
+     "quantity": "50",
+     "uom": "each",
+     "unit_price_minor": 980,
+     "gl_account": "6200",
+     "cost_center": "CC800",
+     "is_service": false,
+     "received_qty": "50",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4545",
+   "vendor_id": "V012",
+   "currency": "USD",
+   "order_date": "2026-08-31",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Nitrile gloves (box of 100)",
+     "quantity": "3",
+     "uom": "box",
+     "unit_price_minor": 1150,
+     "gl_account": "6200",
+     "cost_center": "CC800",
+     "is_service": false,
+     "received_qty": "3",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4546",
+   "vendor_id": "V013",
+   "currency": "USD",
+   "order_date": "2026-07-24",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Process consulting - days",
+     "quantity": "16",
+     "uom": "day",
+     "unit_price_minor": 120000,
+     "gl_account": "6120",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "16",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4547",
+   "vendor_id": "V013",
+   "currency": "USD",
+   "order_date": "2026-07-30",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Process consulting - days",
+     "quantity": "10",
+     "uom": "day",
+     "unit_price_minor": 120000,
+     "gl_account": "6120",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4548",
+   "vendor_id": "V013",
+   "currency": "USD",
+   "order_date": "2026-08-26",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Process consulting - days",
+     "quantity": "10",
+     "uom": "day",
+     "unit_price_minor": 120000,
+     "gl_account": "6120",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4549",
+   "vendor_id": "V013",
+   "currency": "USD",
+   "order_date": "2026-08-11",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Process consulting - days",
+     "quantity": "10",
+     "uom": "day",
+     "unit_price_minor": 120000,
+     "gl_account": "6120",
+     "cost_center": "CC100",
+     "is_service": true,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4550",
+   "vendor_id": "V014",
+   "currency": "USD",
+   "order_date": "2026-09-09",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Temporary warehouse staff - hours",
+     "quantity": "10",
+     "uom": "hour",
+     "unit_price_minor": 2800,
+     "gl_account": "6130",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4551",
+   "vendor_id": "V014",
+   "currency": "USD",
+   "order_date": "2026-07-11",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Temporary warehouse staff - hours",
+     "quantity": "16",
+     "uom": "hour",
+     "unit_price_minor": 2800,
+     "gl_account": "6130",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "16",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4552",
+   "vendor_id": "V014",
+   "currency": "USD",
+   "order_date": "2026-07-14",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Temporary warehouse staff - hours",
+     "quantity": "24",
+     "uom": "hour",
+     "unit_price_minor": 2800,
+     "gl_account": "6130",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "24",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4553",
+   "vendor_id": "V014",
+   "currency": "USD",
+   "order_date": "2026-08-23",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Temporary warehouse staff - hours",
+     "quantity": "8",
+     "uom": "hour",
+     "unit_price_minor": 2800,
+     "gl_account": "6130",
+     "cost_center": "CC200",
+     "is_service": true,
+     "received_qty": "8",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4554",
+   "vendor_id": "V015",
+   "currency": "USD",
+   "order_date": "2026-09-01",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Team lunch - per person",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 1800,
+     "gl_account": "6250",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4555",
+   "vendor_id": "V015",
+   "currency": "USD",
+   "order_date": "2026-08-26",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Team lunch - per person",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 1800,
+     "gl_account": "6250",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4556",
+   "vendor_id": "V015",
+   "currency": "USD",
+   "order_date": "2026-08-04",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Team lunch - per person",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 1800,
+     "gl_account": "6250",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4557",
+   "vendor_id": "V015",
+   "currency": "USD",
+   "order_date": "2026-07-06",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Team lunch - per person",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 1800,
+     "gl_account": "6250",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4558",
+   "vendor_id": "V015",
+   "currency": "USD",
+   "order_date": "2026-08-30",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Team lunch - per person",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 1800,
+     "gl_account": "6250",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4559",
+   "vendor_id": "V016",
+   "currency": "USD",
+   "order_date": "2026-09-11",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Laptop 14in 32GB",
+     "quantity": "3",
+     "uom": "each",
+     "unit_price_minor": 265000,
+     "gl_account": "1500",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "3",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "USB-C docking station",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 18900,
+     "gl_account": "6010",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 3,
+     "description": "Wireless keyboard",
+     "quantity": "50",
+     "uom": "each",
+     "unit_price_minor": 5900,
+     "gl_account": "6010",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "50",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4560",
+   "vendor_id": "V016",
+   "currency": "USD",
+   "order_date": "2026-08-12",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Laptop 14in 32GB",
+     "quantity": "5",
+     "uom": "each",
+     "unit_price_minor": 265000,
+     "gl_account": "1500",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "5",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "USB-C docking station",
+     "quantity": "10",
+     "uom": "each",
+     "unit_price_minor": 18900,
+     "gl_account": "6010",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "10",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4561",
+   "vendor_id": "V016",
+   "currency": "USD",
+   "order_date": "2026-07-20",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Laptop 14in 32GB",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 265000,
+     "gl_account": "1500",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Wireless keyboard",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 5900,
+     "gl_account": "6010",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 3,
+     "description": "USB-C docking station",
+     "quantity": "5",
+     "uom": "each",
+     "unit_price_minor": 18900,
+     "gl_account": "6010",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "5",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4562",
+   "vendor_id": "V016",
+   "currency": "USD",
+   "order_date": "2026-07-30",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Wireless keyboard",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 5900,
+     "gl_account": "6010",
+     "cost_center": "CC300",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4563",
+   "vendor_id": "V017",
+   "currency": "USD",
+   "order_date": "2026-09-11",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Water and sewer - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 26000,
+     "gl_account": "6051",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4564",
+   "vendor_id": "V017",
+   "currency": "USD",
+   "order_date": "2026-08-16",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Water and sewer - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 26000,
+     "gl_account": "6051",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4565",
+   "vendor_id": "V017",
+   "currency": "USD",
+   "order_date": "2026-08-18",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Water and sewer - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 26000,
+     "gl_account": "6051",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4566",
+   "vendor_id": "V017",
+   "currency": "USD",
+   "order_date": "2026-08-09",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Water and sewer - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 26000,
+     "gl_account": "6051",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4567",
+   "vendor_id": "V017",
+   "currency": "USD",
+   "order_date": "2026-08-19",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Water and sewer - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 26000,
+     "gl_account": "6051",
+     "cost_center": "CC700",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4568",
+   "vendor_id": "V018",
+   "currency": "USD",
+   "order_date": "2026-08-15",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Trade show banner",
+     "quantity": "5",
+     "uom": "each",
+     "unit_price_minor": 14500,
+     "gl_account": "6162",
+     "cost_center": "CC500",
+     "is_service": false,
+     "received_qty": "5",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Product brochure (100)",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 7200,
+     "gl_account": "6162",
+     "cost_center": "CC500",
+     "is_service": false,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4569",
+   "vendor_id": "V018",
+   "currency": "USD",
+   "order_date": "2026-07-23",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Trade show banner",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 14500,
+     "gl_account": "6162",
+     "cost_center": "CC500",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4570",
+   "vendor_id": "V018",
+   "currency": "USD",
+   "order_date": "2026-08-18",
+   "requester_id": "E002",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Trade show banner",
+     "quantity": "2",
+     "uom": "each",
+     "unit_price_minor": 14500,
+     "gl_account": "6162",
+     "cost_center": "CC500",
+     "is_service": false,
+     "received_qty": "2",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Product brochure (100)",
+     "quantity": "3",
+     "uom": "each",
+     "unit_price_minor": 7200,
+     "gl_account": "6162",
+     "cost_center": "CC500",
+     "is_service": false,
+     "received_qty": "3",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4571",
+   "vendor_id": "V018",
+   "currency": "USD",
+   "order_date": "2026-07-25",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Trade show banner",
+     "quantity": "20",
+     "uom": "each",
+     "unit_price_minor": 14500,
+     "gl_account": "6162",
+     "cost_center": "CC500",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Product brochure (100)",
+     "quantity": "20",
+     "uom": "each",
+     "unit_price_minor": 7200,
+     "gl_account": "6162",
+     "cost_center": "CC500",
+     "is_service": false,
+     "received_qty": "20",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4572",
+   "vendor_id": "V019",
+   "currency": "INR",
+   "order_date": "2026-08-07",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Analytics platform licence - annual",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 17600000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4573",
+   "vendor_id": "V019",
+   "currency": "INR",
+   "order_date": "2026-08-16",
+   "requester_id": "E004",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "User seat - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 360000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Analytics platform licence - annual",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 17600000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4574",
+   "vendor_id": "V019",
+   "currency": "INR",
+   "order_date": "2026-08-31",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "User seat - monthly",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 360000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    },
+    {
+     "line_no": 2,
+     "description": "Analytics platform licence - annual",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 17600000,
+     "gl_account": "6020",
+     "cost_center": "CC300",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4575",
+   "vendor_id": "V020",
+   "currency": "GBP",
+   "order_date": "2026-07-26",
+   "requester_id": "E005",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Workshop seat",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 45000,
+     "gl_account": "6140",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4576",
+   "vendor_id": "V020",
+   "currency": "GBP",
+   "order_date": "2026-08-01",
+   "requester_id": "E003",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Workshop seat",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 45000,
+     "gl_account": "6140",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4577",
+   "vendor_id": "V020",
+   "currency": "GBP",
+   "order_date": "2026-09-08",
+   "requester_id": "E010",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Workshop seat",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 45000,
+     "gl_account": "6140",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4578",
+   "vendor_id": "V020",
+   "currency": "GBP",
+   "order_date": "2026-07-22",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Workshop seat",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 45000,
+     "gl_account": "6140",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  },
+  {
+   "po_number": "PO-4579",
+   "vendor_id": "V020",
+   "currency": "GBP",
+   "order_date": "2026-07-14",
+   "requester_id": "E001",
+   "lines": [
+    {
+     "line_no": 1,
+     "description": "Workshop seat",
+     "quantity": "1",
+     "uom": "each",
+     "unit_price_minor": 45000,
+     "gl_account": "6140",
+     "cost_center": "CC600",
+     "is_service": true,
+     "received_qty": "1",
+     "billed_qty": "0"
+    }
+   ],
+   "status": "open"
+  }
+ ],
+ "goods_receipts": [
+  {
+   "grn_number": "GRN-4501",
+   "po_number": "PO-4501",
+   "received_date": "2026-09-01",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "2"
+    },
+    {
+     "po_line": 2,
+     "quantity": "50"
+    },
+    {
+     "po_line": 3,
+     "quantity": "20"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4502",
+   "po_number": "PO-4502",
+   "received_date": "2026-08-17",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "20"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4503",
+   "po_number": "PO-4503",
+   "received_date": "2026-07-16",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "50"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4504",
+   "po_number": "PO-4504",
+   "received_date": "2026-08-29",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    },
+    {
+     "po_line": 2,
+     "quantity": "5"
+    },
+    {
+     "po_line": 3,
+     "quantity": "2"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4505",
+   "po_number": "PO-4505",
+   "received_date": "2026-08-04",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    },
+    {
+     "po_line": 2,
+     "quantity": "2"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4506",
+   "po_number": "PO-4506",
+   "received_date": "2026-08-18",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "20"
+    },
+    {
+     "po_line": 2,
+     "quantity": "1"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4507",
+   "po_number": "PO-4507",
+   "received_date": "2026-09-13",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "2"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4508",
+   "po_number": "PO-4508",
+   "received_date": "2026-08-30",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "10"
+    },
+    {
+     "po_line": 2,
+     "quantity": "10"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4509",
+   "po_number": "PO-4509",
+   "received_date": "2026-08-31",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "2"
+    },
+    {
+     "po_line": 2,
+     "quantity": "3"
+    },
+    {
+     "po_line": 3,
+     "quantity": "20"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4514",
+   "po_number": "PO-4514",
+   "received_date": "2026-09-10",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "5"
+    },
+    {
+     "po_line": 2,
+     "quantity": "50"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4515",
+   "po_number": "PO-4515",
+   "received_date": "2026-09-10",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "10"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4516",
+   "po_number": "PO-4516",
+   "received_date": "2026-08-23",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "2"
+    },
+    {
+     "po_line": 2,
+     "quantity": "20"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4533",
+   "po_number": "PO-4533",
+   "received_date": "2026-09-17",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    },
+    {
+     "po_line": 2,
+     "quantity": "2"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4534",
+   "po_number": "PO-4534",
+   "received_date": "2026-07-26",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    },
+    {
+     "po_line": 2,
+     "quantity": "3"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4535",
+   "po_number": "PO-4535",
+   "received_date": "2026-08-30",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "20"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4543",
+   "po_number": "PO-4543",
+   "received_date": "2026-08-29",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    },
+    {
+     "po_line": 2,
+     "quantity": "2"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4544",
+   "po_number": "PO-4544",
+   "received_date": "2026-07-23",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    },
+    {
+     "po_line": 2,
+     "quantity": "50"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4545",
+   "po_number": "PO-4545",
+   "received_date": "2026-09-07",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "3"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4559",
+   "po_number": "PO-4559",
+   "received_date": "2026-09-18",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "3"
+    },
+    {
+     "po_line": 2,
+     "quantity": "2"
+    },
+    {
+     "po_line": 3,
+     "quantity": "50"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4560",
+   "po_number": "PO-4560",
+   "received_date": "2026-08-19",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "5"
+    },
+    {
+     "po_line": 2,
+     "quantity": "10"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4561",
+   "po_number": "PO-4561",
+   "received_date": "2026-07-27",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    },
+    {
+     "po_line": 2,
+     "quantity": "2"
+    },
+    {
+     "po_line": 3,
+     "quantity": "5"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4562",
+   "po_number": "PO-4562",
+   "received_date": "2026-08-06",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "1"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4568",
+   "po_number": "PO-4568",
+   "received_date": "2026-08-22",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "5"
+    },
+    {
+     "po_line": 2,
+     "quantity": "1"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4569",
+   "po_number": "PO-4569",
+   "received_date": "2026-07-30",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "2"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4570",
+   "po_number": "PO-4570",
+   "received_date": "2026-08-25",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "2"
+    },
+    {
+     "po_line": 2,
+     "quantity": "3"
+    }
+   ]
+  },
+  {
+   "grn_number": "GRN-4571",
+   "po_number": "PO-4571",
+   "received_date": "2026-08-01",
+   "lines": [
+    {
+     "po_line": 1,
+     "quantity": "20"
+    },
+    {
+     "po_line": 2,
+     "quantity": "20"
+    }
+   ]
+  }
+ ],
+ "contracts": [
+  {
+   "id": "K003",
+   "vendor_id": "V003",
+   "description": "Cobalt Cloud Services LLC master service agreement",
+   "monthly_cap_minor": 126000,
+   "currency": "USD",
+   "start": "2025-01-01",
+   "end": "2027-12-31"
+  },
+  {
+   "id": "K005",
+   "vendor_id": "V005",
+   "description": "Evergreen Power & Light master service agreement",
+   "monthly_cap_minor": 552000,
+   "currency": "USD",
+   "start": "2025-01-01",
+   "end": "2027-12-31"
+  },
+  {
+   "id": "K006",
+   "vendor_id": "V006",
+   "description": "Fjord Analytics GmbH master service agreement",
+   "monthly_cap_minor": 660000,
+   "currency": "EUR",
+   "start": "2025-01-01",
+   "end": "2027-12-31"
+  },
+  {
+   "id": "K010",
+   "vendor_id": "V010",
+   "description": "Juniper Telecom master service agreement",
+   "monthly_cap_minor": 93000,
+   "currency": "USD",
+   "start": "2025-01-01",
+   "end": "2027-12-31"
+  },
+  {
+   "id": "K011",
+   "vendor_id": "V011",
+   "description": "Kestrel Security Services master service agreement",
+   "monthly_cap_minor": 780000,
+   "currency": "USD",
+   "start": "2025-01-01",
+   "end": "2027-12-31"
+  },
+  {
+   "id": "K017",
+   "vendor_id": "V017",
+   "description": "Quartz Water Utility master service agreement",
+   "monthly_cap_minor": 78000,
+   "currency": "USD",
+   "start": "2025-01-01",
+   "end": "2027-12-31"
+  },
+  {
+   "id": "K019",
+   "vendor_id": "V019",
+   "description": "Saffron Software Pvt Ltd master service agreement",
+   "monthly_cap_minor": 660000,
+   "currency": "INR",
+   "start": "2025-01-01",
+   "end": "2027-12-31"
+  }
+ ]
+}

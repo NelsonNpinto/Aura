@@ -18,7 +18,7 @@ export default function PlaygroundPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <h1 className="text-2xl font-semibold">Model playground</h1>
       <Card>
         <Label htmlFor="input">Input (task: playground)</Label>

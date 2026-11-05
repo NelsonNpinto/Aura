@@ -7,7 +7,7 @@ cd "$(dirname "$0")/../apps/api"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 uv export --no-dev --no-hashes --frozen --no-emit-project -o "$TMP/req.txt" >/dev/null
-uv pip install --quiet --target "$TMP/site" -r "$TMP/req.txt"
+uv pip install --quiet --no-deps --target "$TMP/site" -r "$TMP/req.txt"  # pinned by uv.lock (incl. overrides)
 if [ -d "$TMP/site/torch" ]; then echo "FAIL: torch found in api bundle"; exit 1; fi
 python3 app/scripts/prune_bundle.py "$TMP/site"
 python3 - "$TMP/site" "$LIMIT_MB" <<'PY'

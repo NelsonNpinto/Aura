@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import io
 from dataclasses import dataclass
 
 from app.core.errors import AppError
@@ -33,18 +32,12 @@ def sniff_mime(data: bytes, filename: str) -> str:
 
 
 def _pdf_pages(data: bytes, max_pages: int) -> list[str]:
-    from pypdf import PdfReader
-    from pypdf.errors import PdfReadError
+    from app.services.pdf import PdfRejected, extract_text
 
     try:
-        reader = PdfReader(io.BytesIO(data))
-    except PdfReadError as exc:
-        raise UnsupportedDocument("Corrupt PDF") from exc
-    if reader.is_encrypted:
-        raise UnsupportedDocument("Password-protected PDFs are not accepted")
-    if len(reader.pages) > max_pages:
-        raise UnsupportedDocument(f"PDF has {len(reader.pages)} pages; limit is {max_pages}")
-    return [(p.extract_text() or "") for p in reader.pages]
+        return extract_text(data, max_pages=max_pages).pages
+    except PdfRejected as exc:
+        raise UnsupportedDocument(exc.message) from exc
 
 
 async def extract(

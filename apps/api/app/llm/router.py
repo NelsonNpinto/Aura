@@ -97,9 +97,22 @@ class RouterResult:
         }
 
 
+IMAGE_TOKEN_ESTIMATE = 1300  # roughly what Gemini bills per page image
+
+
 def _estimate_tokens(messages: list[dict[str, Any]], max_tokens: int) -> int:
-    chars = sum(len(str(m.get("content", ""))) for m in messages)
-    return chars // 4 + max_tokens
+    chars, images = 0, 0
+    for m in messages:
+        content = m.get("content", "")
+        if isinstance(content, list):  # multimodal parts: count text, not base64 image bytes
+            for part in content:
+                if part.get("type") == "text":
+                    chars += len(str(part.get("text", "")))
+                else:
+                    images += 1
+        else:
+            chars += len(str(content))
+    return chars // 4 + images * IMAGE_TOKEN_ESTIMATE + max_tokens
 
 
 def stable_variant(task: TaskSpec, run_id: str | None) -> str | None:
