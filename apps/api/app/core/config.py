@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     blob_read_write_token: SecretStr | None = None
     local_blob_dir: str = ".local/blob"
 
-    embed_model: str = "BAAI/bge-small-en-v1.5"
+    embed_model: str = "aura/bge-small-en-v1.5-int8"
     rerank_model: str = "aura/ms-marco-MiniLM-L-6-v2-int8"
     fastembed_cache_dir: str = "model_cache"
     kb_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1)

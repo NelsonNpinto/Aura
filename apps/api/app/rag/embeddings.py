@@ -21,10 +21,35 @@ class Reranker(Protocol):
     async def rerank(self, query: str, docs: list[str]) -> list[float]: ...
 
 
+# int8 build of bge-small-en-v1.5 (same model, quantized): ~33 MB instead of ~66 MB.
+INT8_EMBEDDER = "aura/bge-small-en-v1.5-int8"
+
+
+def _register_int8_embedder() -> None:
+    from fastembed import TextEmbedding
+    from fastembed.common.model_description import ModelSource, PoolingType
+
+    if any(m["model"] == INT8_EMBEDDER for m in TextEmbedding.list_supported_models()):
+        return
+    TextEmbedding.add_custom_model(
+        model=INT8_EMBEDDER,
+        pooling=PoolingType.CLS,
+        normalization=True,
+        sources=ModelSource(hf="Xenova/bge-small-en-v1.5"),
+        dim=EMBED_DIM,
+        model_file="onnx/model_quantized.onnx",
+        description="BAAI bge-small-en-v1.5, int8 ONNX",
+        license="mit",
+        size_in_gb=0.034,
+    )
+
+
 class FastEmbedder:
     def __init__(self, model: str, cache_dir: str) -> None:
         from fastembed import TextEmbedding
 
+        if model == INT8_EMBEDDER:
+            _register_int8_embedder()
         self._m = TextEmbedding(model_name=model, cache_dir=cache_dir, threads=1)
 
     async def embed(self, texts: list[str], *, query: bool = False) -> list[list[float]]:
