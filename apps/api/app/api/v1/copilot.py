@@ -61,6 +61,13 @@ async def ask(body: Question, request: Request, p: CurrentPrincipal) -> dict[str
             response.parsed.model_dump() if response.parsed else json.loads(response.text)
         )
         cited = set(re.findall(r"\[([A-Za-z0-9_]+)\]", parsed.answer))
+        if not cited and parsed.evidence_ids and set(parsed.evidence_ids) <= set(evidence):
+            # Some structured-output models return valid references outside the prose. Render
+            # those verified identifiers ourselves rather than silently dropping the citations.
+            parsed.answer += "\n\nSources: " + " ".join(
+                f"[{key}]" for key in dict.fromkeys(parsed.evidence_ids)
+            )
+            cited = set(parsed.evidence_ids)
         valid = bool(cited) and cited == set(parsed.evidence_ids) and cited <= set(evidence)
         if not valid:
             return {

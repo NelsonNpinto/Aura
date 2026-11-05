@@ -6,6 +6,8 @@ Spec: [AURA_BUILD_PROMPT.md](AURA_BUILD_PROMPT.md). Mode: **auto** (stops at hum
 
 Owner: **codex**. User authorized implementation of all phases, important work first. Order: release repairs → assignment workflow → focused retrieval/copilot → evaluation/reliability → remaining model/launch work within free-tier checkpoints.
 
+**Release checkpoint:** implementation pushed in [PR #6](https://github.com/NelsonNpinto/Aura/pull/6), head `d41c714`. GitHub API, web, security and preview checks passed ([CI run](https://github.com/NelsonNpinto/Aura/actions/runs/42025490732)). After an automatic approval rejection, the user explicitly approved merging this PR and production deployment including additive migrations. A live extraction smoke then caught Decimal serialization in the router's cache; fixing and verifying it before the authorized rollout. Gmail sender credentials, HF token and Kaggle credentials were checked by presence only and are not configured.
+
 - [ ] Repair demo policy seeding without requiring CI to hold private-upload credentials; make seeded sources readable from bundled synthetic data. Files: blob storage, seed script, knowledge API. Verify: immutable content/hash boundaries and seeded file retrieval. No dependency additions.
 - [ ] Correct fixture/replay labels. Verify: simulated responses cannot claim recorded live evidence.
 - [ ] Add vendor-scoped purchasing documents, sequential L1/finance decisions, paid confirmation and notification outbox. Files: domain/service/API, migration, auth roles, web workflow. Verify: tenant/vendor isolation, ordered approvals, changed-evidence invalidation, duplicate payment protection.

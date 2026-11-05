@@ -94,6 +94,38 @@ class Scripted:
         return ProviderResponse(item, 10, 5, req.model)
 
 
+async def test_decimal_document_quantities_survive_json_cache_roundtrip():
+    from decimal import Decimal
+
+    payload = {
+        "number": "PO-1",
+        "po_number": "PO-1",
+        "currency": "INR",
+        "tax_minor": 0,
+        "total_minor": 250,
+        "lines": [
+            {"sku": "CABLE", "description": "Cable", "quantity": "2.5", "unit_price_minor": 100}
+        ],
+    }
+    transport = Scripted({"groq/openai/gpt-oss-20b": [json.dumps(payload)]})
+    router, _ = make_router(
+        {
+            "extract": {
+                "chain": ["groq/openai/gpt-oss-20b"],
+                "prompt": {"name": "p", "label": "production"},
+                "output_schema": "app.domain.procurement:EvidenceDocument",
+            }
+        },
+        transport,
+    )
+    first = await router.run("extract", {"q": "Read quantity"}, CallContext("org"))
+    second = await router.run("extract", {"q": "Read quantity"}, CallContext("org"))
+    assert first.parsed.lines[0].quantity == Decimal("2.5")
+    assert second.cache_hit and second.parsed.lines[0].quantity == Decimal("2.5")
+    assert first.public()["parsed"]["lines"][0]["quantity"] == "2.5"
+    assert len(transport.calls) == 1
+
+
 CHAIN = {
     "t": {
         "chain": ["groq/openai/gpt-oss-20b", "gemini/gemini-3.5-flash-lite"],

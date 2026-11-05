@@ -41,7 +41,11 @@ async def test_case_copilot_enforces_vendor_scope_and_rejects_invented_citations
         async def run(self, *args):
             return SimpleNamespace(
                 parsed=copilot.CaseAnswer(
-                    answer="Waiting for L1 [status]" if valid else "Paid [invented]",
+                    answer="Waiting for L1 [status]"
+                    if valid is True
+                    else "Waiting for L1"
+                    if valid == "plain"
+                    else "Paid [invented]",
                     evidence_ids=["status"],
                     needs_more_evidence=False,
                 ),
@@ -64,6 +68,10 @@ async def test_case_copilot_enforces_vendor_scope_and_rejects_invented_citations
         principal = Principal("vendor-acme", org_id, frozenset({"vendor"}), "api_key")
         response = await client.post("/api/v1/procurement/copilot/ask", json=body)
         assert response.json()["citation_valid"] is True
+        valid = "plain"
+        response = await client.post("/api/v1/procurement/copilot/ask", json=body)
+        assert response.json()["citation_valid"] is True
+        assert "[status]" in response.json()["answer"]
         valid = False
         response = await client.post("/api/v1/procurement/copilot/ask", json=body)
         assert response.json()["citation_valid"] is False and not response.json()["sources"]

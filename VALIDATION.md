@@ -11,6 +11,8 @@ Dated evidence of what was actually run. Nothing here is projected.
 - Browser: local `/app/procurement` redirects unauthenticated visitors to login. A complete signed-in multi-account walkthrough was not performed.
 - Real Gmail delivery, new live document/scan extraction and new production deployment have not yet been verified. No real funds moved or emails sent during this validation.
 
+Additional live synthetic smoke: Gemini 3.6 Flash extracted PO-1001 as 2 laptops at INR 500.00 each, total INR 1,000.00. This found and fixed Decimal JSON-cache serialization; a regression test verifies cached decimal quantities. Groq's case answer correctly described the 2 ordered/invoiced versus 1 received shortfall, but omitted inline references while returning valid structured source IDs. The API now renders those verified IDs itself; unknown references still fail closed. Representative PDF/scan extraction and signed-in browser acceptance remain pending.
+
 ## 2026-11-04 — Phase 0, local (macOS, Docker Postgres 17 + pgvector 0.8.7, Redis via serverless-redis-http)
 
 | Check | Result | Evidence |
