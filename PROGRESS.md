@@ -6,11 +6,11 @@ Spec: [AURA_BUILD_PROMPT.md](AURA_BUILD_PROMPT.md). Mode: **auto** (stops at hum
 
 - **Phase:** 0 deploy blocked on HC-1/HC-2; **Phase 1 local work in progress** (§A4: continue work that doesn't depend on the checkpoint)
 - **Branch:** `rebuild/finance-ops` (rebuild of this repo, chosen by the human on 2026-11-04 over a new repo)
-- **Last verified production deploy:** none yet for the rebuild. The previous product (AI eval platform) lives under `legacy/` for reference and code porting.
+- **Last verified production deploy:** https://aura-henna-one.vercel.app · git `863bb78` · 2026-11-05 · deploy run 41986749429 (test → migrate → deploy → smoke all green). `/api/v1/ready`: Postgres ok, Redis ok, Groq + Gemini configured. Turnstile widget renders with the real site key and gates "Enter the demo".
 
 ## Next step
 
-**Blocked on HC-1 + HC-2** for the first deploy. All Phase 0 local work is done and green (see VALIDATION.md).
+Phase 0 is deployed. Remaining Phase 0 checks need a human in a browser (Turnstile cannot be automated): guest demo, sign-up/login, playground, knowledge upload/ask on Neon; then the Langfuse no-raw-PII check on the resulting traces. Merge PR #3 (CI/deploy concurrency fix). Then Phase 1 continues with 1.4 audit lineage.
 When the human reports HC-1/HC-2 done: verify provider model IDs against Groq/Gemini `/models`, run `deploy.yml` (or a manual first deploy), smoke-test the live URL, check Langfuse for unredacted PII, tick the acceptance boxes, then start Phase 1 (synthetic world generator).
 
 ## Open human checkpoints
@@ -42,7 +42,7 @@ Reply "HC-1 done" (listing which ones exist) when finished. Work continues local
 
 </details>
 
-### HC-2 — deploy (IN PROGRESS)
+### HC-2 — deploy (DONE 2026-11-05)
 
 Done: Vercel CLI 65.11.0 logged in; repo linked to the **existing** project `aura` (prj_…Cnl, Services preset, iad1, `aura-henna-one.vercel.app`, Git-connected to NelsonNpinto/Aura). Vercel MCP (`https://mcp.vercel.com`, user scope) + Vercel plugin installed. Existing project env vars are from the legacy app: `API_KEY`, `VITE_API_TIMEOUT_MS` (unused by the rebuild), `DATABASE_URL`, `WEBHOOK_SECRET` (must be replaced).
 
@@ -113,4 +113,4 @@ Order chosen so each step is testable without cloud accounts. Live acceptance (f
 - [ ] Knowledge upload, hybrid search + rerank, cited answer on Neon; no torch in api bundle; bundle < 450 MB
 - [x] RLS blocks cross-org reads (test); rate limit returns 429 + `Retry-After`
 - [ ] Langfuse traces with no raw PII
-- [ ] CI green; deploy.yml migrates before deploy; rollback documented
+- [x] CI green; deploy.yml migrates before deploy; rollback documented (run 41986749429; RUNBOOK)
