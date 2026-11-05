@@ -14,6 +14,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const onToken = useCallback((t: string | null) => setCaptcha(t), []);
+  // Turnstile tokens are single-use: after any attempt, render a fresh widget for the next one.
+  const [widget, setWidget] = useState(0);
   const needsCaptcha = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   async function submit(form: FormData) {
@@ -28,6 +30,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         : await authClient.signIn.email({ email, password, fetchOptions });
     setBusy(false);
     if (res.error) {
+      setCaptcha(null);
+      setWidget((w) => w + 1);
       setError(res.error.message ?? "Authentication failed");
       return;
     }
@@ -57,7 +61,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <Input id="password" name="password" type="password" required minLength={10} maxLength={128}
               autoComplete={mode === "signup" ? "new-password" : "current-password"} />
           </div>
-          <Turnstile onToken={onToken} />
+          <Turnstile key={widget} onToken={onToken} />
           <ErrorNote error={error} />
           <Button type="submit" className="w-full" disabled={busy || (needsCaptcha && !captcha)}>
             {busy ? "Please wait…" : mode === "signup" ? "Sign up" : "Log in"}

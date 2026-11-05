@@ -286,3 +286,17 @@ async def test_api_key_lifecycle(client, mint, org_id):
     assert (
         await client.get("/api/v1/me", headers={"x-api-key": key[:-2] + "zz"})
     ).status_code == 401
+
+
+def test_pdf_text_strips_nul_bytes():
+    from fpdf import FPDF
+
+    from app.services.pdf import extract_text
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(0, 10, "Invoice number Z7X39XKJ 0003")
+    data = bytes(pdf.output()).replace(b"Z7X39XKJ 0003", b"Z7X39XKJ\x000003")
+    text = extract_text(data).pages[0]
+    assert "\x00" not in text

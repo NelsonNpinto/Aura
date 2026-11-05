@@ -101,7 +101,8 @@ def extract_text(data: bytes, max_pages: int = 20) -> PdfText:
             page = doc[pi]
             tp = page.get_textpage()
             try:
-                pages.append(tp.get_text_range())
+                # Postgres text cannot hold NUL bytes; some generators embed them in strings.
+                pages.append(tp.get_text_range().replace("\x00", ""))
                 w, h = page.get_size()
                 n = raw.FPDFText_CountChars(tp.raw)
                 cur_reason: str | None = None

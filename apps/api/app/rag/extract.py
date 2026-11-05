@@ -57,4 +57,4 @@ async def extract(
                 "not the knowledge base."
             )
         return ExtractedDoc(mime, pages)
-    return ExtractedDoc(mime, [data.decode("utf-8")])
+    return ExtractedDoc(mime, [data.decode("utf-8").replace("\x00", "")])
