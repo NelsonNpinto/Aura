@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     neo4j_uri: str | None = None
     neo4j_username: str | None = None
     neo4j_password: SecretStr | None = None
+    # AuraDB Free names its database after the instance id (= username), not "neo4j".
+    neo4j_database: str | None = None
 
     langfuse_public_key: str | None = None
     langfuse_secret_key: SecretStr | None = None

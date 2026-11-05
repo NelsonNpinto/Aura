@@ -109,7 +109,7 @@ async def test_playground_fallback_reason_stored(client, mint, org_id, scripted_
     scripted_router(
         {
             "groq/openai/gpt-oss-20b": [ProviderError("rate_limited", "429")],
-            "gemini/gemini-2.5-flash-lite": ["hello from gemini"],
+            "gemini/gemini-3.5-flash-lite": ["hello from gemini"],
         }
     )
     tok = mint(org_id, ["admin"])
@@ -120,7 +120,7 @@ async def test_playground_fallback_reason_stored(client, mint, org_id, scripted_
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["model"] == "gemini/gemini-2.5-flash-lite"
+    assert body["model"] == "gemini/gemini-3.5-flash-lite"
     assert body["fallback_reason"] == "groq/openai/gpt-oss-20b:rate_limited"
     async with system_tx() as s:
         rows = (
@@ -139,7 +139,7 @@ async def test_playground_fallback_reason_stored(client, mint, org_id, scripted_
         ).one()
     assert [(r.model, r.status) for r in rows] == [
         ("groq/openai/gpt-oss-20b", "error"),
-        ("gemini/gemini-2.5-flash-lite", "ok"),
+        ("gemini/gemini-3.5-flash-lite", "ok"),
     ]
     assert rows[1].fallback_reason == "groq/openai/gpt-oss-20b:rate_limited"
     assert rows[0].prompt_version >= 1

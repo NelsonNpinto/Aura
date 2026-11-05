@@ -15,7 +15,12 @@ When the human reports HC-1/HC-2 done: verify provider model IDs against Groq/Ge
 
 ## Open human checkpoints
 
-### HC-1 — accounts and keys (OPEN)
+### HC-1 — accounts and keys (DONE 2026-11-05, verified live)
+
+Verified 2026-11-05 with live probes (values never printed): Neon pooled + direct (Postgres 18.6, pgvector available, not migrated yet), Upstash PING, Neo4j AuraDB (database name = instance id → `NEO4J_DATABASE`), Langfuse auth, Groq (`/models` + a live router call), Gemini (live router call via forced Groq 429), Turnstile secret accepted by Cloudflare. Model changes: Groq retired `qwen3-32b` → `qwen/qwen3.8-27b`; Gemini 2.5 is closed to new accounts → `gemini-3.6-flash` / `gemini-3.5-flash-lite` (free-tier RPM/RPD not published; conservative values in tasks.yaml). Router now falls back on HTTP 404 (`model_unavailable`). Still open: Hugging Face account (Phase 4), Vercel Blob store (HC-2).
+
+<details><summary>Original checklist</summary>
+
 
 Create these accounts. **Do not paste any secret into chat.** Put values in `.env.local` at the repo root (git-ignored); variable names are in `.env.example`.
 
@@ -35,7 +40,12 @@ Create these accounts. **Do not paste any secret into chat.** Put values in `.en
 
 Reply "HC-1 done" (listing which ones exist) when finished. Work continues locally meanwhile.
 
-### HC-2 — deploy (OPEN, after HC-1)
+</details>
+
+### HC-2 — deploy (IN PROGRESS)
+
+Done: Vercel CLI 65.11.0 logged in; repo linked to the **existing** project `aura` (prj_…Cnl, Services preset, iad1, `aura-henna-one.vercel.app`, Git-connected to NelsonNpinto/Aura). Vercel MCP (`https://mcp.vercel.com`, user scope) + Vercel plugin installed. Existing project env vars are from the legacy app: `API_KEY`, `VITE_API_TIMEOUT_MS` (unused by the rebuild), `DATABASE_URL`, `WEBHOOK_SECRET` (must be replaced).
+
 
 Run these yourself (never paste values into chat):
 

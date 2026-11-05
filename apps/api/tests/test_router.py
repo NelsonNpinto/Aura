@@ -28,7 +28,7 @@ MODELS = {
         "price_out": 300000,
         "open_weight": True,
     },
-    "gemini/gemini-2.5-flash-lite": {
+    "gemini/gemini-3.5-flash-lite": {
         "rpm": 15,
         "tpm": 250000,
         "rpd": 1000,
@@ -96,7 +96,7 @@ class Scripted:
 
 CHAIN = {
     "t": {
-        "chain": ["groq/openai/gpt-oss-20b", "gemini/gemini-2.5-flash-lite"],
+        "chain": ["groq/openai/gpt-oss-20b", "gemini/gemini-3.5-flash-lite"],
         "prompt": {"name": "p"},
         "cache": "none",
     }
@@ -108,12 +108,12 @@ async def test_groq_429_falls_back_to_gemini_and_records_reason():
     t = Scripted(
         {
             "groq/openai/gpt-oss-20b": [ProviderError("rate_limited", "429")],
-            "gemini/gemini-2.5-flash-lite": ["hi"],
+            "gemini/gemini-3.5-flash-lite": ["hi"],
         }
     )
     router, sink = make_router(CHAIN, t)
     res = await router.run("t", {"q": "x"}, US)
-    assert res.model == "gemini/gemini-2.5-flash-lite"
+    assert res.model == "gemini/gemini-3.5-flash-lite"
     assert res.fallback_reason == "groq/openai/gpt-oss-20b:rate_limited"
     assert [r.status for r in sink.records] == ["error", "ok"]
     assert sink.records[1].fallback_reason == "groq/openai/gpt-oss-20b:rate_limited"
@@ -122,7 +122,7 @@ async def test_groq_429_falls_back_to_gemini_and_records_reason():
 
 
 async def test_fault_injection_forces_fallback():
-    t = Scripted({"gemini/gemini-2.5-flash-lite": ["ok"]})
+    t = Scripted({"gemini/gemini-3.5-flash-lite": ["ok"]})
     router, _ = make_router(CHAIN, t, faults="groq/*=429")
     res = await router.run("t", {"q": "x"}, US)
     assert res.fallback_reason == "groq/openai/gpt-oss-20b:rate_limited"
@@ -135,22 +135,36 @@ async def test_eea_and_uk_visitors_never_reach_gemini_free_tier():
         router, _ = make_router(CHAIN, t)
         with pytest.raises(RouterError) as ei:
             await router.run("t", {"q": "x"}, CallContext(org_id="o", country=country))
-        assert all(c.model != "gemini/gemini-2.5-flash-lite" for c in t.calls)
+        assert all(c.model != "gemini/gemini-3.5-flash-lite" for c in t.calls)
         reasons = {a["model"]: a["reason"] for a in ei.value.details["attempts"]}
-        assert reasons["gemini/gemini-2.5-flash-lite"] == "geo_restricted_free_tier"
+        assert reasons["gemini/gemini-3.5-flash-lite"] == "geo_restricted_free_tier"
 
 
 async def test_all_models_failing_raises_with_attempts():
     t = Scripted(
         {
             "groq/openai/gpt-oss-20b": [ProviderError("server_error")],
-            "gemini/gemini-2.5-flash-lite": [ProviderError("timeout")],
+            "gemini/gemini-3.5-flash-lite": [ProviderError("timeout")],
         }
     )
     router, _ = make_router(CHAIN, t)
     with pytest.raises(RouterError) as ei:
         await router.run("t", {"q": "x"}, US)
     assert [a["reason"] for a in ei.value.details["attempts"]] == ["server_error", "timeout"]
+
+
+async def test_retired_model_falls_back():
+    t = Scripted(
+        {
+            "groq/openai/gpt-oss-20b": [ProviderError("model_unavailable")],
+            "gemini/gemini-3.5-flash-lite": ["ok"],
+        }
+    )
+    router, sink = make_router(CHAIN, t)
+    res = await router.run("t", {"q": "x"}, US)
+    assert res.model == "gemini/gemini-3.5-flash-lite"
+    assert sink.records[0].error_type == "model_unavailable"
+    assert res.fallback_reason == "groq/openai/gpt-oss-20b:model_unavailable"
 
 
 async def test_exact_cache_hits_on_second_call():
@@ -167,7 +181,7 @@ async def test_exact_cache_hits_on_second_call():
 async def test_structured_output_repair_then_fallback():
     tasks = {
         "t": {
-            "chain": ["groq/openai/gpt-oss-20b", "gemini/gemini-2.5-flash-lite"],
+            "chain": ["groq/openai/gpt-oss-20b", "gemini/gemini-3.5-flash-lite"],
             "prompt": {"name": "p"},
             "cache": "none",
             "output_schema": "app.schemas.llm_outputs:DocClassification",
@@ -180,7 +194,7 @@ async def test_structured_output_repair_then_fallback():
                 "```json\n{}\n```",
                 '{"doc_type": "invoice", "confidence": NaN}',
             ],
-            "gemini/gemini-2.5-flash-lite": [good],
+            "gemini/gemini-3.5-flash-lite": [good],
         }
     )
     router, _ = make_router(tasks, t)
@@ -215,18 +229,18 @@ async def test_repair_succeeds_on_same_model():
 async def test_bucket_exhaustion_skips_without_waiting():
     tasks = {
         "t": {
-            "chain": ["groq/openai/gpt-oss-20b", "gemini/gemini-2.5-flash-lite"],
+            "chain": ["groq/openai/gpt-oss-20b", "gemini/gemini-3.5-flash-lite"],
             "prompt": {"name": "p"},
             "cache": "none",
         }
     }
     t = Scripted(
-        {"groq/openai/gpt-oss-20b": ["a"] * 40, "gemini/gemini-2.5-flash-lite": ["g"] * 40}
+        {"groq/openai/gpt-oss-20b": ["a"] * 40, "gemini/gemini-3.5-flash-lite": ["g"] * 40}
     )
     router, _ = make_router(tasks, t)
     models = [(await router.run("t", {"q": str(i)}, US)).model for i in range(31)]
     assert models[:30] == ["groq/openai/gpt-oss-20b"] * 30
-    assert models[30] == "gemini/gemini-2.5-flash-lite"
+    assert models[30] == "gemini/gemini-3.5-flash-lite"
 
 
 async def test_untrusted_variables_are_spotlighted():
@@ -257,7 +271,7 @@ def test_open_weight_only_rejects_closed_chain():
                 },
                 "tasks": {
                     "x": {
-                        "chain": ["gemini/gemini-2.5-flash-lite"],
+                        "chain": ["gemini/gemini-3.5-flash-lite"],
                         "open_weight_only": True,
                         "prompt": {"name": "p"},
                     }

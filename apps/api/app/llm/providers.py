@@ -15,10 +15,18 @@ from typing import Any, Literal, Protocol
 from app.core.config import get_settings
 
 ErrorKind = Literal[
-    "rate_limited", "server_error", "timeout", "connection", "not_configured", "bad_request", "auth"
+    "rate_limited",
+    "server_error",
+    "timeout",
+    "connection",
+    "not_configured",
+    "model_unavailable",
+    "bad_request",
+    "auth",
 ]
 FALLBACK_KINDS: frozenset[str] = frozenset(
-    {"rate_limited", "server_error", "timeout", "connection", "not_configured"}
+    # model_unavailable: provider retired or renamed the model (HTTP 404) -> try the next one.
+    {"rate_limited", "server_error", "timeout", "connection", "not_configured", "model_unavailable"}
 )
 
 
@@ -145,6 +153,8 @@ async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
         raise ProviderError("server_error", type(exc).__name__) from exc
     except lx.APIConnectionError as exc:
         raise ProviderError("connection", type(exc).__name__) from exc
+    except lx.NotFoundError as exc:
+        raise ProviderError("model_unavailable", type(exc).__name__) from exc
     except lx.AuthenticationError as exc:
         raise ProviderError("auth", type(exc).__name__) from exc
     except lx.BadRequestError as exc:
