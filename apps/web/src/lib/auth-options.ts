@@ -95,7 +95,7 @@ export function buildAuthOptions(pool: Pool): BetterAuthOptions {
     plugins: [
       organization({
         ac,
-        roles: { guest: none, clerk: none, approver: none, controller: none, auditor: none, admin: orgAdmin },
+        roles: { vendor: none, purchasing: none, receiving: none, finance: none, guest: none, clerk: none, approver: none, controller: none, auditor: none, admin: orgAdmin },
         creatorRole: "admin",
         allowUserToCreateOrganization: async (user) => !(user as { isAnonymous?: boolean }).isAnonymous,
       }),

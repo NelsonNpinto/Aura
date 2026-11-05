@@ -123,7 +123,7 @@ export default function InboxPage() {
                   <td className="px-3 py-2 text-right tabular-nums">{money(r.total_minor, r.currency)}</td>
                   <td className="px-3 py-2"><StatusChip status={r.status} /></td>
                   <td className="px-3 py-2 text-muted">{r.risk_level ?? "—"}</td>
-                  <td className="px-3 py-2">{r.mode === "live" ? <span className="text-muted">live</span> : <Badge tone="warn">{r.mode === "replay" ? "recorded run" : r.mode}</Badge>}</td>
+                  <td className="px-3 py-2">{r.mode === "live" ? <span className="text-muted">live</span> : <Badge tone="warn">{r.mode === "replay" ? "simulated example" : r.mode}</Badge>}</td>
                   <td className="px-3 py-2 text-muted">{r.started_by.replace("persona:", "")}</td>
                 </tr>
               ))}

@@ -1,5 +1,5 @@
 /** AURA roles (§B1). Kept in one place for the web app; the API has its own allow-list. */
-export const ROLES = ["guest", "clerk", "approver", "controller", "auditor", "admin"] as const;
+export const ROLES = ["guest", "clerk", "approver", "controller", "auditor", "admin", "vendor", "purchasing", "receiving", "finance"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const DEMO_ORG_ID = "demo";

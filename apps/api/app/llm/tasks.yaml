@@ -108,3 +108,27 @@ tasks:
     budget_class: eval
     open_weight_only: true
     prompt: {name: paraphrase_data, label: production}
+  extract_procurement:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    max_tokens: 3000
+    timeout_s: 45
+    output_schema: app.domain.procurement:EvidenceDocument
+    prompt: {name: extract_procurement, label: production}
+  extract_procurement_vision:
+    chain: [gemini/gemini-3.6-flash, gemini/gemini-3.5-flash-lite]
+    max_tokens: 3000
+    timeout_s: 60
+    output_schema: app.domain.procurement:EvidenceDocument
+    prompt: {name: extract_procurement, label: production}
+  copilot_case:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    max_tokens: 1200
+    timeout_s: 30
+    output_schema: app.api.v1.copilot:CaseAnswer
+    prompt: {name: copilot_case, label: production}
+  marketing_draft:
+    chain: [groq/openai/gpt-oss-20b, gemini/gemini-3.5-flash-lite]
+    max_tokens: 300
+    timeout_s: 20
+    cache: none
+    prompt: {name: marketing_draft, label: production}

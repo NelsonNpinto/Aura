@@ -67,7 +67,7 @@ export default function RunPage() {
         <h1 className="text-2xl font-semibold">Run</h1>
         {d && <StatusChip status={d.run.status} />}
         {live && <Badge tone="accent">live</Badge>}
-        {(mode ?? d?.run.mode) === "replay" && <Badge tone="warn">recorded run · demo budget used up, no live model calls</Badge>}
+        {(mode ?? d?.run.mode) === "replay" && <Badge tone="warn">simulated example · demo budget used up, no live model calls</Badge>}
         {(mode ?? d?.run.mode) === "fake" && <Badge tone="warn">fixture mode</Badge>}
         {runId && <span className="font-mono text-xs text-muted">{runId}</span>}
         {runId && !live && <Link href={`/app/invoices/${runId}`} className="ml-auto text-sm text-accent underline-offset-2 hover:underline">Invoice, evidence and lineage →</Link>}

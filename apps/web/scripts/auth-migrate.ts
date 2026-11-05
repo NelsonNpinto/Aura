@@ -12,6 +12,7 @@ async function main() {
   if (!url) throw new Error("DATABASE_URL_UNPOOLED or DATABASE_URL required");
   const pool = new Pool({ connectionString: url, max: 1 });
   try {
+    await pool.query("CREATE SCHEMA IF NOT EXISTS auth");
     const { toBeCreated, toBeAdded, runMigrations } = await getMigrations(buildAuthOptions(pool));
     console.log(
       JSON.stringify({

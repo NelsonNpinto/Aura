@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     router_fault_injection: str = ""
 
     blob_read_write_token: SecretStr | None = None
+    mail_mode: Literal["preview", "gmail"] = "preview"
+    mail_from: str = ""
+    mail_allowed_recipients: str = ""
+    gmail_client_id: str = ""
+    gmail_client_secret: SecretStr | None = None
+    gmail_refresh_token: SecretStr | None = None
     local_blob_dir: str = ".local/blob"
 
     embed_model: str = "aura/bge-small-en-v1.5-int8"

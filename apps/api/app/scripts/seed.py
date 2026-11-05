@@ -33,7 +33,7 @@ async def seed() -> dict[str, list[str]]:
             current = (
                 await s.execute(
                     text(
-                        "SELECT p.system, p.template FROM ai.prompt_labels l JOIN ai.prompts p"
+                        "SELECT p.system, p.template, p.config FROM ai.prompt_labels l JOIN ai.prompts p"
                         " ON p.name = l.name AND p.version = l.version"
                         " WHERE l.name=:n AND l.label='production'"
                     ),
@@ -44,6 +44,7 @@ async def seed() -> dict[str, list[str]]:
                 current
                 and current.system == spec.get("system", "")
                 and current.template == spec["template"]
+                and current.config == spec.get("config", {})
             ):
                 continue
             # Changed defaults become a NEW immutable version; the label move is audited.

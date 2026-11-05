@@ -2,6 +2,53 @@
 
 Spec: [AURA_BUILD_PROMPT.md](AURA_BUILD_PROMPT.md). Mode: **auto** (stops at human checkpoints, failures, destructive actions).
 
+## Active implementation — 2026-11-05
+
+Owner: **codex**. User authorized implementation of all phases, important work first. Order: release repairs → assignment workflow → focused retrieval/copilot → evaluation/reliability → remaining model/launch work within free-tier checkpoints.
+
+- [ ] Repair demo policy seeding without requiring CI to hold private-upload credentials; make seeded sources readable from bundled synthetic data. Files: blob storage, seed script, knowledge API. Verify: immutable content/hash boundaries and seeded file retrieval. No dependency additions.
+- [ ] Correct fixture/replay labels. Verify: simulated responses cannot claim recorded live evidence.
+- [ ] Add vendor-scoped purchasing documents, sequential L1/finance decisions, paid confirmation and notification outbox. Files: domain/service/API, migration, auth roles, web workflow. Verify: tenant/vendor isolation, ordered approvals, changed-evidence invalidation, duplicate payment protection.
+- [ ] Add focused copilot and measured evaluation/quality workflows, adapting legacy code.
+- [ ] Complete phase acceptance and deploy verified increments; record exact remaining cloud/account checkpoints.
+
+Risks: current deploy seeding failure; local tools on external exFAT disk; actual email delivery requires a configured sender. Never fabricate metrics, delivery or phase completion.
+
+### Implemented increment (branch `codex/procurement-workflow`)
+
+- Release repair: bundled immutable synthetic policies seed without Blob credentials; private uploads still require configured storage. Policies included in Vercel bundle; authenticated source-file endpoint added. Fixture fallback labels now say simulated example.
+- Purchasing API/UI: vendor account assignment and workspace switcher, PO/invoice/receipt intake, PDF/image extraction through router with human confirmation, deterministic comparison, sequential L1/finance, changed-evidence invalidation, duplicate invoice checks, simulated paid confirmation and notification outbox.
+- Access: cross-vendor and cross-org checks; vendor restriction on older broad APIs; assignment overrides stale broader JWTs and checks revoked registered memberships. Local real-auth integration test verifies repeated assignment creates one membership.
+- Copilot API/UI: selected-case read-only evidence or existing policy RAG; tenant/vendor scope; unknown/inconsistent citation identifiers rejected. No durable chat history, tool-planning loop or long-term memory yet.
+- Quality API/UI: stored public synthetic reports, model judge, genuine human labeling/calibration, marketing draft generation. Errors stay unscored; unsupported claims fail. CLI workflow evaluation and CI gate/artifact added. No production human labels invented.
+- Verification: 127 API tests passed; lint/mypy and web typecheck/lint/3 tests/production build passed. Five-case fixture workflow gate passed 5/5 with zero inappropriate auto routes. One real synthetic marketing judgment via Groq gpt-oss-120b scored 0.2 and rejected both unsupported claims. These are not golden-set accuracy or general reliability measurements.
+- Human checkpoint: user requested Gmail setup instructions; [GMAIL_SETUP.md](docs/GMAIL_SETUP.md) supplied. Sender credentials and real inbox delivery are still pending. Authenticated browser walkthrough also pending; browser opened local Purchasing and correctly reached login.
+- Remaining: production rollout/smoke; representative scan/extraction verification, batch/receipt automation, full golden/live evals, feedback triage/experiments, context/contract upgrades, graph/memory/MCP extras, training and launch stretch work. **No entire phase is newly marked complete.**
+
+## Project explanation and Applied Retention coverage — 2026-11-05
+
+- **Owner:** codex. User asks for the full project explanation and whether Applied Retention should be covered. Recommendation: keep three connected capabilities in one portal—invoice operations, evidence-based document questions, and reusable AI evaluation/reliability. Assignment-first remains the implementation priority, with basic evaluation acceptance alongside it and the complete quality module in Phase 3.
+- Applied Retention coverage requires measured datasets, deterministic checks, judge/human calibration, regression gates, tracing/rollback and failures becoming regression cases. Legacy evaluator code is reusable but is not yet the new portal's completed quality module. A small marketing-content evaluation pack is proposed to demonstrate the same infrastructure on unsupported product claims and human approval; no separate application is needed.
+- This turn is explanation only. No application code, tests, deployments, account configuration or emails changed. Optional graph/memory/fine-tuning/infrastructure stretch work remains secondary to the simplified core described below.
+
+## Latest scope clarification — 2026-11-05
+
+- **Owner:** codex. User requests a simple, strong project, broader hiring research beyond the three supplied JDs, and advice on remaining phases only. No application restructuring is requested in this turn.
+- Broader employer pages checked through the requested Search Service: 6sense, Everbridge, QuantCo, AHEAD, Anaplan, Arionkoder and YipitData. Current accessible postings emphasize useful full-stack delivery, bounded tool use, retrieval/context quality, evaluation, operations and security; model-training roles require additional specialized evidence. Search snippets for Pinecone/Flodesk did not resolve to available role pages and are excluded from current-opening evidence.
+- **Proposed simplification:** finish Phase 0 repairs and Phase 1 assignment; keep Phase 2 to Postgres hybrid retrieval and a small read-only copilot; finish Phase 3 measured evaluation and reliability; bring forward launch documentation/demo from Phase 5. Treat Phase 4 training and the graph/memory/browser-agent/Kubernetes/stretch systems as optional, driven by demonstrated need. Keep existing useful LangGraph/checkpoints, ERP MCP, auth, router and audit implementations; avoid a rewrite. For the demo's basic relationship checks, use tenant-scoped Postgres queries exposed through ERP tools instead of adding Neo4j sync.
+- These are discussion recommendations, not completed changes or a formally rewritten build specification. The earlier assignment-first priority and $0 constraint still apply. No tests, deployment, emails or service-account changes were performed.
+
+## Latest review and user direction — 2026-11-05
+
+- **Owner:** codex. **Task:** project/JD/hiring review and discussion; complete. No application implementation, new tests, emails, or deployments performed in this review.
+- **User priority:** finish the interview assignment first, and review all remaining phases; stay in this portal and at $0. The assignment requires separate vendor access, buyer PO/GRN intake, mandatory L1 → finance approval, manual mark-paid, and an actual payment notification email. These extend the original draft-only, risk-selected-approval design.
+- **Current evidence supersedes the older tables below:** Phase 1 core code exists. `docs/PROJECT_CONTEXT.md` describes it; graph/matching/approvals/ERP code was inspected. Phases 2–5 remain largely planned. Detailed gaps and proposed backlog: [PROJECT_IMPROVEMENT_REVIEW.md](docs/PROJECT_IMPROVEMENT_REVIEW.md).
+- **Observed live deployment:** public `/api/v1/health` returned `ok`, production, SHA `b4fdfa9591892dd6475fab94aed1c6b949e511bb` on 2026-11-05. This was a health-only check, not a new end-to-end acceptance run. Working branch at review: `docs/project-context`, HEAD `66ee276`.
+- **Release blocker confirmed:** [deploy run 41995246447](https://github.com/NelsonNpinto/Aura/actions/runs/41995246447) passed its existing API/web/security jobs but failed at API migrations/demo seeding with `BLOB_READ_WRITE_TOKEN required outside local/test`; deploy/smoke were skipped. Status and validation documents need reconciliation.
+- **Next implementation milestone proposed:** repair release/seed and fixture labels, then implement the assignment extension with vendor isolation, document versions, ordered approvals, payment/outbox idempotency and measured acceptance evidence. Current turn requests discussion/review; this note does not claim these changes have been implemented or approved as a complete phase plan.
+
+The following progress sections are retained as historical build notes; several predate the Phase 1 implementation and are no longer the latest status.
+
 ## Current
 
 - **Phase:** 0 deploy blocked on HC-1/HC-2; **Phase 1 local work in progress** (§A4: continue work that doesn't depend on the checkpoint)

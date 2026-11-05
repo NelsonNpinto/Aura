@@ -22,6 +22,9 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const demo = isGuest || orgName?.toLowerCase().includes("demo");
   const items = [
+    { href: "/app/procurement", label: "Purchasing", icon: CheckSquare, show: true },
+    { href: "/app/quality", label: "AI quality", icon: FlaskConical, show: true },
+    { href: "/app/copilot", label: "Copilot", icon: BookOpen, show: true },
     { href: "/app", label: "Dashboard", icon: LayoutDashboard, show: true },
     { href: "/app/inbox", label: "Invoices", icon: Inbox, show: true },
     { href: "/app/approvals", label: "Approvals", icon: CheckSquare, show: true },
@@ -36,7 +39,7 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
         {isGuest && <Badge tone="warn">guest</Badge>}
       </div>
       <nav className="flex gap-1 overflow-x-auto px-2 md:flex-col" aria-label="Main">
-        {items.filter((i) => i.show).map(({ href, label, icon: Icon }) => (
+        {items.filter((i) => i.show && (!roles.includes("vendor") || i.href === "/app/procurement")).map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href}
             className={clsx("flex items-center gap-2 rounded-md px-3 py-2 text-sm",
               path === href || (href !== "/app" && path.startsWith(href)) ? "bg-surface-2 font-medium" : "text-muted hover:bg-surface-2")}>

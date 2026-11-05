@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Annotated, Literal
@@ -16,11 +16,35 @@ from fastapi import Depends, Request
 from sqlalchemy import text
 
 from app.core.config import get_settings
-from app.core.db import system_tx
+from app.core.db import system_tx, tenant_tx
 from app.core.errors import Forbidden, Unauthorized
 
-Role = Literal["guest", "clerk", "approver", "controller", "auditor", "admin"]
-ROLES: frozenset[str] = frozenset({"guest", "clerk", "approver", "controller", "auditor", "admin"})
+Role = Literal[
+    "guest",
+    "clerk",
+    "approver",
+    "controller",
+    "auditor",
+    "admin",
+    "vendor",
+    "purchasing",
+    "receiving",
+    "finance",
+]
+ROLES: frozenset[str] = frozenset(
+    {
+        "guest",
+        "clerk",
+        "approver",
+        "controller",
+        "auditor",
+        "admin",
+        "vendor",
+        "purchasing",
+        "receiving",
+        "finance",
+    }
+)
 DEMO_ORG_ID = "demo"
 
 
@@ -156,6 +180,33 @@ async def get_principal(request: Request) -> Principal:
             principal = await asyncio.to_thread(verify_jwt, token)
     else:
         raise Unauthorized("Authentication required")
+    async with tenant_tx(principal.org_id, principal.user_id) as session:
+        membership = (
+            await session.execute(
+                text("SELECT role FROM ap.procurement_members WHERE user_id=:u"),
+                {"u": principal.user_id},
+            )
+        ).first()
+    if membership:
+        if principal.kind == "jwt":
+            async with system_tx() as owner:
+                current = (
+                    await owner.execute(
+                        text(
+                            'SELECT role FROM auth.member WHERE "organizationId"=:o AND "userId"=:u'
+                        ),
+                        {"o": principal.org_id, "u": principal.user_id},
+                    )
+                ).first()
+            if not current or membership.role not in current.role.split(","):
+                raise Forbidden("Workspace access was revoked or changed")
+        principal = replace(principal, roles=frozenset({membership.role}))
+    if (
+        "vendor" in principal.roles
+        and request.url.path not in ("/api/v1/me", "/api/v1/usage")
+        and not request.url.path.startswith("/api/v1/procurement/")
+    ):
+        raise Forbidden("Vendor accounts can access only their procurement workspace")
     request.state.principal = principal
     return principal
 
