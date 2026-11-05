@@ -46,6 +46,8 @@ Reply "HC-1 done" (listing which ones exist) when finished. Work continues local
 
 Done: Vercel CLI 65.11.0 logged in; repo linked to the **existing** project `aura` (prj_…Cnl, Services preset, iad1, `aura-henna-one.vercel.app`, Git-connected to NelsonNpinto/Aura). Vercel MCP (`https://mcp.vercel.com`, user scope) + Vercel plugin installed. Existing project env vars are from the legacy app: `API_KEY`, `VITE_API_TIMEOUT_MS` (unused by the rebuild), `DATABASE_URL`, `WEBHOOK_SECRET` (must be replaced).
 
+2026-11-05: private Blob store `aura-files` (iad1) connected with `BLOB_READ_WRITE_TOKEN` (Production + Preview). 34 Production vars written by `scripts/vercel_env_sync.py` (values via stdin; production-only secrets generated into git-ignored `.local/prod-secrets.env`). Legacy `API_KEY`, `VITE_API_TIMEOUT_MS` removed. **Preview still holds legacy `DATABASE_URL` + `WEBHOOK_SECRET`** (not the Neon `preview` branch). Remaining HC-2: Turnstile hostname, GitHub `production` environment secrets, repo public, PR + merge.
+
 
 Run these yourself (never paste values into chat):
 
