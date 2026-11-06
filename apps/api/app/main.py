@@ -10,6 +10,7 @@ from app.api.v1 import (
     copilot,
     health,
     knowledge,
+    marketing_quality,
     playground,
     procurement,
     prompts,
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
         runs.router,
         procurement.router,
         quality.router,
+        marketing_quality.router,
         copilot.router,
     ):
         limited.include_router(r)

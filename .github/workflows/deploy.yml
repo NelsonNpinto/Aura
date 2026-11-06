@@ -17,6 +17,11 @@ concurrency:
 jobs:
   test:
     uses: ./.github/workflows/ci.yml
+    with:
+      live-marketing-gate: ${{ vars.AURA_MARKETING_LIVE_GATE == 'true' }}
+    secrets:
+      GROQ_API_KEY: ${{ vars.AURA_MARKETING_LIVE_GATE == 'true' && github.ref == 'refs/heads/main' && secrets.GROQ_API_KEY || '' }}
+      GEMINI_API_KEY: ${{ vars.AURA_MARKETING_LIVE_GATE == 'true' && github.ref == 'refs/heads/main' && secrets.GEMINI_API_KEY || '' }}
 
   migrate:
     needs: test

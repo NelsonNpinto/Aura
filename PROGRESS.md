@@ -2,6 +2,13 @@
 
 Spec: [AURA_BUILD_PROMPT.md](AURA_BUILD_PROMPT.md). Mode: **auto** (stops at human checkpoints, failures, destructive actions).
 
+## Marketing regression gate — 2026-11-06
+
+- **Owner:** codex. Added six synthetic marketing cases, shared judge scoring, fixture checks in PR and deployment CI, and a live gate available before production migrations. No new dependencies.
+- AI Quality now compares current and proposed judge configurations against the same snapshot. The guest simulation shows a deliberate false approval. Live runs pin selected prompt and model versions, require the review file, and leave the deployment decision to CI.
+- Local fixture gate passed 6/6. A deliberate fixture mutation let the inflated battery and discount claim through, and the gate returned exit 1 with the case ID.
+- **Human checkpoint:** a reviewer must label the cases against their supplied facts. The live gate requires that review snapshot and a provider key. Live calibration remains unmeasured. Setup and commands are in [EVALS.md](docs/EVALS.md).
+
 ## Active implementation — 2026-11-05
 
 Owner: **codex**. User authorized implementation of all phases, important work first. Order: release repairs → assignment workflow → focused retrieval/copilot → evaluation/reliability → remaining model/launch work within free-tier checkpoints.

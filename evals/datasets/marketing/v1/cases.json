@@ -1,0 +1,50 @@
+[
+  {
+    "id": "battery-supported",
+    "synthetic": true,
+    "facts": "The headphones deliver up to 8 hours of playback per charge. The launch discount is up to 10%.",
+    "draft": "Get up to 8 hours of playback and save up to 10% during launch.",
+    "expected_fixture_pass": true,
+    "fixture_unsupported_claims": []
+  },
+  {
+    "id": "battery-and-discount-inflated",
+    "synthetic": true,
+    "facts": "The headphones deliver up to 8 hours of playback per charge. The launch discount is up to 10%.",
+    "draft": "Enjoy 48 hours of playback per charge and save 30% today.",
+    "expected_fixture_pass": false,
+    "fixture_unsupported_claims": ["48 hours per charge", "30% discount"]
+  },
+  {
+    "id": "shipping-qualification-preserved",
+    "synthetic": true,
+    "facts": "Standard shipping is free on orders of $50 or more within the contiguous United States.",
+    "draft": "Get free standard shipping on orders of $50 or more in the contiguous US.",
+    "expected_fixture_pass": true,
+    "fixture_unsupported_claims": []
+  },
+  {
+    "id": "shipping-qualification-dropped",
+    "synthetic": true,
+    "facts": "Standard shipping is free on orders of $50 or more within the contiguous United States.",
+    "draft": "Every order ships free anywhere in the world.",
+    "expected_fixture_pass": false,
+    "fixture_unsupported_claims": ["Free shipping on every order worldwide"]
+  },
+  {
+    "id": "warranty-scope-preserved",
+    "synthetic": true,
+    "facts": "The kettle has a two-year warranty for manufacturing defects. Accidental damage is excluded.",
+    "draft": "Includes a two-year warranty for manufacturing defects.",
+    "expected_fixture_pass": true,
+    "fixture_unsupported_claims": []
+  },
+  {
+    "id": "invented-certification",
+    "synthetic": true,
+    "facts": "The bottle is made from stainless steel. The listed capacity is 500 mL.",
+    "draft": "A 500 mL stainless steel bottle certified carbon neutral by an independent auditor.",
+    "expected_fixture_pass": false,
+    "fixture_unsupported_claims": ["Independently certified carbon neutral"]
+  }
+]
