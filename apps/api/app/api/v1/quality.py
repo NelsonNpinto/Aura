@@ -17,17 +17,12 @@ from app.core.db import system_tx, tenant_tx
 from app.core.errors import Forbidden, NotFound
 from app.core.limits import charge_run
 from app.evaluation.calibration import calibration
+from app.evaluation.judge import JudgeRequest, score_judgment
 from app.guardrails.pii import redact
 from app.llm.router import get_router
+from app.schemas.llm_outputs import JudgeOut
 
 router = APIRouter(tags=["quality"])
-
-
-class JudgeRequest(BaseModel):
-    question: str = Field(min_length=1, max_length=2000)
-    answer: str = Field(min_length=1, max_length=8000)
-    context: str = Field(default="", max_length=12000)
-    reference: str = Field(default="", max_length=4000)
 
 
 class DraftRequest(BaseModel):
@@ -52,7 +47,7 @@ async def judge(body: JudgeRequest, request: Request, p: CurrentPrincipal) -> di
     if not p.has_any("admin", "controller", "approver"):
         raise Forbidden("Quality reviewer access required")
     await charge_run(p)
-    variables = {k: redact(v) for k, v in body.model_dump().items()}
+    variables = body.variables()
     result: dict[str, Any] = {
         "input": variables,
         "verdict": None,
@@ -64,19 +59,16 @@ async def judge(body: JudgeRequest, request: Request, p: CurrentPrincipal) -> di
     try:
         response = await get_router().run("judge", variables, call_context(request, p))
         model = response.model
-        verdict = response.parsed.model_dump() if response.parsed else None
-        if verdict is None:
+        if not isinstance(response.parsed, JudgeOut):
             raise ValueError("Judge output is unscored")
+        verdict = response.parsed.model_dump()
         if not body.context:
             verdict["faithfulness"] = None
-        values = [x["score"] for x in verdict.values() if isinstance(x, dict) and "score" in x]
-        score = sum(values) / len(values) if values and (body.context or body.reference) else None
+        score, passed = score_judgment(body, response.parsed)
         result.update(
             verdict=verdict,
             score=score,
-            passed=(score >= 0.8 and not verdict["unsupported_claims"])
-            if score is not None
-            else None,
+            passed=passed,
             model=model,
             prompt_version=response.prompt_version,
         )
