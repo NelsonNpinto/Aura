@@ -9,7 +9,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
         variant === "primary" && "bg-accent text-accent-fg hover:opacity-90",
         variant === "secondary" && "border border-border bg-surface hover:bg-surface-2",
         variant === "ghost" && "hover:bg-surface-2",
@@ -21,14 +21,14 @@ export function Button({
 }
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={clsx("rounded-lg border border-border bg-surface p-5", className)} {...props} />;
+  return <div className={clsx("min-w-0 rounded-xl border border-border bg-surface p-5 shadow-xs", className)} {...props} />;
 }
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       className={clsx(
-        "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted",
+        "min-h-10 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted",
         className,
       )}
       {...props}
@@ -40,7 +40,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={clsx(
-        "w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm placeholder:text-muted",
+        "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted",
         className,
       )}
       {...props}

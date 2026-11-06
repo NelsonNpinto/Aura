@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { SafeMarkdown } from "@/components/safe-markdown";
@@ -21,8 +22,9 @@ export default function CopilotPage() {
       api<{
         answer: string;
         citation_valid: boolean;
+        source_only?: boolean;
         needs_more_evidence?: boolean;
-        sources: { id: string; evidence: unknown }[];
+        sources: { id: string; evidence: { filename?: string; heading?: string; text?: string } }[];
         llm?: { model: string; latency_ms: number };
       }>("/procurement/copilot/ask", {
         method: "POST",
@@ -32,6 +34,10 @@ export default function CopilotPage() {
         }),
       }),
   });
+  const result = ask.data;
+  const hasSources = Boolean(result?.sources.length);
+  const referencesChecked = hasSources && result?.citation_valid && !result.needs_more_evidence;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <h1 className="text-2xl font-semibold">Finance copilot</h1>
@@ -85,29 +91,38 @@ export default function CopilotPage() {
       </Card>
       {ask.data && (
         <Card className="space-y-3">
-          <Badge tone={ask.data.citation_valid ? "ok" : "warn"}>
-            {ask.data.citation_valid
+          <Badge tone={referencesChecked ? "ok" : "warn"}>
+            {ask.data.source_only ? "Policy search results" : referencesChecked
               ? "Evidence references checked"
-              : "More evidence needed"}
+              : hasSources ? "More evidence needed" : "No matching evidence"}
           </Badge>
           <SafeMarkdown>{ask.data.answer}</SafeMarkdown>
+          {!hasSources && !caseId && (
+            <p className="text-sm text-muted">
+              Check the indexed documents for this workspace in{" "}
+              <Link className="text-accent underline" href="/app/knowledge">Knowledge</Link>.
+            </p>
+          )}
           {ask.data.llm && (
             <p className="text-xs text-muted">
               {ask.data.llm.model} · {ask.data.llm.latency_ms} ms
             </p>
           )}
           {ask.data.sources.map((s) => (
-            <details key={s.id}>
-              <summary className="cursor-pointer">Source [{s.id}]</summary>
+            <details key={s.id} open={ask.data.source_only || undefined}>
+              <summary className="cursor-pointer">
+                Source [{s.id}]{s.evidence.filename && ` · ${s.evidence.filename}`}
+                {s.evidence.heading && ` · ${s.evidence.heading}`}
+              </summary>
               <pre className="overflow-auto whitespace-pre-wrap text-xs">
-                {JSON.stringify(s.evidence, null, 2)}
+                {ask.data.source_only ? s.evidence.text : JSON.stringify(s.evidence, null, 2)}
               </pre>
             </details>
           ))}
-          <p className="text-xs text-muted">
+          {referencesChecked && !ask.data.source_only && <p className="text-xs text-muted">
             A valid reference identifies evidence; check whether it supports the
             answer.
-          </p>
+          </p>}
         </Card>
       )}
     </div>

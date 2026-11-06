@@ -2,7 +2,22 @@
 
 Spec: [AURA_BUILD_PROMPT.md](AURA_BUILD_PROMPT.md). Mode: **auto** (stops at human checkpoints, failures, destructive actions).
 
+## Local purchasing demo extraction — 2026-11-06
+
+- [x] Use professional payment confirmation copy in vendor emails and existing previews. Verified the paid demo case shows the revised preview through the local API. All eight payment email and procurement tests passed.
+
+- [x] Show account names for L1 approvals, Finance approvals, and payment records in Purchasing. Names are resolved only for actors on visible cases, and audit records retain actor IDs. Verified the existing L1 approval resolves to Aura Demo L1 reviewer through the live local API. Procurement tests and web typecheck passed.
+
+- [x] Show field-specific confirmation errors in Purchasing and catch blank document numbers, item codes, and descriptions before submitting. Reproduced the blank-field rejection and verified that both demo receipt drafts pass request validation through the live API.
+
+- [x] Add a local-only draft for the four prepared PDFs on PO-DEMO-1001. Files: procurement API and Purchasing page. No new dependencies. The PDF and case access checks still run, and the user reviews and confirms the draft.
+- [x] Verified all four PDF bytes through the extraction function with storage and access stubbed. Verified the expected quantities and that no model or demo budget is used. All four existing procurement tests passed with the Windows selector event loop.
+- [x] Uploaded all four PDFs through the running local API using the Purchasing and Vendor demo accounts. All returned HTTP 200 with the expected draft. The smoke check stopped before document confirmation.
+- **Scope:** other uploads require a configured extraction provider. The UI labels drafts from the demo fixtures.
+
 ## Marketing regression gate — 2026-11-06
+
+- Refreshed the landing page and workspace shell with grouped navigation, a mobile menu, dashboard shortcuts, and consistent controls. Verified the landing page, mobile navigation, and invoice shortcut in the local guest session.
 
 - **Owner:** codex. Added six synthetic marketing cases, shared judge scoring, fixture checks in PR and deployment CI, and a live gate available before production migrations. No new dependencies.
 - AI Quality now compares current and proposed judge configurations against the same snapshot. The guest simulation shows a deliberate false approval. Live runs pin selected prompt and model versions, require the review file, and leave the deployment decision to CI.

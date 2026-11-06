@@ -8,7 +8,57 @@ from sqlalchemy import text
 
 from app.core.auth import Principal, get_principal
 from app.core.db import tenant_tx
+from app.llm.router import CallContext, RouterError
 from app.main import create_app
+from app.rag import service
+
+
+@pytest.mark.parametrize("configured", [True, False])
+async def test_policy_answer_returns_passages_when_models_are_unavailable(monkeypatch, configured):
+    hit = service.Hit(
+        "chunk",
+        "doc",
+        "policy.md",
+        "Bank changes",
+        "A controller reviews bank changes.",
+        None,
+        "policy",
+        1.0,
+        1,
+        1,
+    )
+
+    async def search(*args, **kwargs):
+        assert (kwargs["embedder"] is not None) == configured
+        return [hit]
+
+    async def charge_run(_principal):
+        assert configured, "Policy search must work after the AI run quota is exhausted"
+
+    class Router:
+        config = SimpleNamespace(
+            tasks={"rag_answer": SimpleNamespace(chain=["test/model"], variants=[])}
+        )
+
+        async def run(self, *args):
+            assert configured, "Unconfigured providers must be skipped"
+            raise RouterError("All models failed for task rag_answer")
+
+    monkeypatch.setattr(service, "search", search)
+    monkeypatch.setattr(service, "charge_run", charge_run)
+    monkeypatch.setattr(service, "provider_configured", lambda model: configured)
+    monkeypatch.setattr(service, "get_embedder", object)
+    monkeypatch.setattr(service, "get_reranker", object)
+    result = await service.answer(
+        Principal("guest", "demo", frozenset({"guest"}), "api_key"),
+        "Who reviews bank changes?",
+        router=Router(),
+        ctx=CallContext(org_id="demo"),
+    )
+    assert result.source_only
+    assert result.sources == [hit]
+    assert result.llm is None
+    assert not result.citations["valid"]
 
 
 @pytest.mark.db

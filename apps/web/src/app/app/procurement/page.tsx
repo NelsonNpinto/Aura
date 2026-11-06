@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { FileText, Upload } from "lucide-react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, apiToken, clearApiToken, money } from "@/lib/api";
+import { api, ApiError, apiToken, clearApiToken, money } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { Badge, Button, Card, ErrorNote, Input, Label } from "@/components/ui";
 
@@ -34,8 +35,13 @@ type Case = {
       missing: string[];
       findings: Record<string, string>[];
     };
-    approvals: { actor: string; stage: string; comment: string }[];
-    payment?: { reference: string; date: string; amount_minor: number };
+    approvals: { actor_name?: string | null; stage: string; comment: string }[];
+    payment?: {
+      reference: string;
+      date: string;
+      amount_minor: number;
+      actor_name?: string | null;
+    };
     notification?: {
       status: string;
       notice?: string;
@@ -45,6 +51,33 @@ type Case = {
   };
 };
 const selectClass = "rounded border border-border bg-surface px-3 py-2 text-sm";
+const documentFields: Record<string, string> = {
+  number: "Document number",
+  sku: "Item code",
+  description: "Description",
+  quantity: "Quantity",
+  unit_price_minor: "Unit price",
+  tax_minor: "Tax",
+  total_minor: "Total",
+};
+
+function documentError(error: unknown) {
+  if (!(error instanceof ApiError) || error.code !== "validation_error") {
+    return error;
+  }
+  if (!Array.isArray(error.details)) return error;
+  const messages = error.details.flatMap((detail) => {
+    const { loc, msg } = detail ?? {};
+    if (!Array.isArray(loc) || typeof msg !== "string") return [];
+    const field = documentFields[loc.at(-1)];
+    const item =
+      loc[1] === "lines" && typeof loc[2] === "number"
+        ? `Item ${loc[2] + 1} · `
+        : "";
+    return [field ? `${item}${field}: ${msg}` : msg];
+  });
+  return messages.length ? new Error(messages.join(". ")) : error;
+}
 
 function DocumentForm({
   item,
@@ -67,17 +100,24 @@ function DocumentForm({
   const [source, setSource] = useState(initial?.source_document_id ?? null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [extractedName, setExtractedName] = useState("");
+  const [usedDemoFields, setUsedDemoFields] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [fileError, setFileError] = useState<unknown>(null);
   const total =
     lines.reduce((n, l) => n + Number(l.quantity) * l.unit_price_minor, 0) +
     tax;
   async function extract(file: File) {
+    setExtracting(true);
     setBusy(true);
-    setError(null);
+    setFileError(null);
     try {
       const body = new FormData();
       body.append("file", file);
       body.append("synthetic_confirmed", "true");
-      const res = await api<{ draft: Doc }>(
+      const res = await api<{ draft: Doc; extraction_mode?: "demo_fixture" }>(
         `/procurement/cases/${item.id}/extract/${kind}`,
         { method: "POST", body },
       );
@@ -86,15 +126,42 @@ function DocumentForm({
       setLines(res.draft.lines);
       setTax(res.draft.tax_minor);
       setSource(res.draft.source_document_id ?? null);
+      setSelectedFile(null);
+      setExtractedName(file.name);
+      setUsedDemoFields(res.extraction_mode === "demo_fixture");
     } catch (e) {
-      setError(e);
+      setFileError(e);
     } finally {
+      setExtracting(false);
       setBusy(false);
     }
   }
   async function confirm() {
-    setBusy(true);
     setError(null);
+    if (!number.trim()) {
+      setError(new Error("Enter the document number."));
+      return;
+    }
+    const incompleteItem = lines.findIndex(
+      (line) => !line.sku.trim() || !line.description.trim(),
+    );
+    if (incompleteItem !== -1) {
+      setError(
+        new Error(
+          `Enter the item code and description for item ${incompleteItem + 1}.`,
+        ),
+      );
+      return;
+    }
+    if (!Number.isSafeInteger(total)) {
+      setError(
+        new Error(
+          "Check the quantities and prices. The total must be a whole number of paise or cents.",
+        ),
+      );
+      return;
+    }
+    setBusy(true);
     try {
       await api(`/procurement/cases/${item.id}/documents/${kind}`, {
         method: "PUT",
@@ -110,7 +177,7 @@ function DocumentForm({
       });
       refresh();
     } catch (e) {
-      setError(e);
+      setError(documentError(e));
     } finally {
       setBusy(false);
     }
@@ -126,25 +193,91 @@ function DocumentForm({
         · {initial ? "confirmed" : "required"}
       </summary>
       <div className="mt-3 space-y-3">
-        <Label>
-          Extract a synthetic PDF or image, then review every field
+        <div className="space-y-3 rounded-xl border border-dashed border-border bg-surface-2 p-4">
+          <div className="flex items-start gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-surface text-accent">
+              <FileText size={18} aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Add a source document</p>
+              <p className="text-xs text-muted">
+                Synthetic PDF, PNG or JPEG up to 10 MB.
+              </p>
+            </div>
+          </div>
           <input
+            ref={picker}
             type="file"
             accept=".pdf,.png,.jpg,.jpeg"
             disabled={busy}
-            className="mt-2 block text-sm"
+            hidden
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void extract(f);
+              const file = e.currentTarget.files?.[0];
+              e.currentTarget.value = "";
+              if (!file) return;
+              if (file.size > 10 * 1024 * 1024) {
+                setFileError(
+                  new Error("Choose a file that is 10 MB or smaller."),
+                );
+                return;
+              }
+              setFileError(null);
+              setSelectedFile(file);
             }}
           />
-        </Label>
+          <div role="status" className="break-all text-sm text-muted">
+            {selectedFile
+              ? selectedFile.name
+              : extractedName
+                ? `${usedDemoFields ? "Demo fields ready to review" : "Ready to review"} · ${extractedName}`
+                : "No file selected"}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={selectedFile ? "secondary" : "primary"}
+              disabled={busy}
+              onClick={() => picker.current?.click()}
+            >
+              <Upload size={16} aria-hidden />
+              {selectedFile ? "Change file" : "Choose PDF or image"}
+            </Button>
+            {selectedFile && (
+              <>
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void extract(selectedFile)}
+                >
+                  {extracting ? "Extracting…" : "Extract details"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setFileError(null);
+                  }}
+                >
+                  Remove selection
+                </Button>
+              </>
+            )}
+          </div>
+          <ErrorNote error={fileError} />
+        </div>
         <p className="text-xs text-muted">
-          Only synthetic demo documents are allowed. Scans need vision
-          extraction. You can also enter the document below. Item codes must
-          identify the same item in all three documents. Editing resets
-          approvals.
+          Review the extracted fields before confirming, or enter the details
+          below. Use the same item code across all three documents. Editing
+          resets approvals.
         </p>
+        {kind === "receipt" && (
+          <p className="text-xs text-muted">
+            Enter the quantity actually received. For a receipt that lists
+            quantities only, leave the unit price and tax at zero.
+          </p>
+        )}
         <Label>
           Document number
           <Input
@@ -239,7 +372,7 @@ function DocumentForm({
         </p>
         <ErrorNote error={error} />
         <Button
-          disabled={busy || !number || !Number.isSafeInteger(total)}
+          disabled={busy || Boolean(selectedFile)}
           onClick={() => void confirm()}
         >
           {busy ? "Working…" : "Confirm document details"}
@@ -361,7 +494,8 @@ function CaseCard({
       )}
       {item.state.approvals.map((a) => (
         <p key={a.stage} className="text-sm">
-          {a.stage} approved by {a.actor}: {a.comment}
+          {a.stage === "l1" ? "L1" : "Finance"} approved by{" "}
+          {a.actor_name ?? "a reviewer"} · {a.comment}
         </p>
       ))}
       {((item.state.status === "awaiting_l1" && can("approver")) ||
@@ -442,9 +576,7 @@ function CaseCard({
                 defaultValue={new Date().toISOString().slice(0, 10)}
               />
             </Label>
-            <Button disabled={mutate.isPending}>
-              Record simulated payment
-            </Button>
+            <Button disabled={mutate.isPending}>Record payment</Button>
           </form>
         )}
       {item.state.payment && (
@@ -455,14 +587,18 @@ function CaseCard({
             item.state.documents.invoice?.currency,
           )}{" "}
           · {item.state.payment.date}
+          {item.state.payment.actor_name &&
+            ` · Recorded by ${item.state.payment.actor_name}`}
         </p>
       )}
       {item.state.notification && (
         <div className="rounded border border-border p-3 text-sm">
           <strong>Vendor email: {item.state.notification.status}</strong>
-          <p>
-            {item.state.notification.notice ?? item.state.notification.error}
-          </p>
+          {item.state.notification.status !== "preview" && (
+            <p>
+              {item.state.notification.notice ?? item.state.notification.error}
+            </p>
+          )}
           {item.state.notification.body && (
             <pre className="mt-2 whitespace-pre-wrap">
               {item.state.notification.body}

@@ -17,7 +17,9 @@ async def test_preview_never_calls_a_provider(monkeypatch):
     monkeypatch.setattr(get_settings(), "mail_mode", "preview")
     result = await send(PAYLOAD, [])
     assert result["status"] == "preview"
-    assert "no funds were transferred" in result["body"]
+    assert result["subject"] == "Payment confirmation for invoice INV-1"
+    assert "We have recorded payment for invoice INV-1." in result["body"]
+    assert "Payment reference: DEMO-1" in result["body"]
 
 
 @pytest.mark.parametrize("mode", ["accepted", "ambiguous", "unauthorized"])

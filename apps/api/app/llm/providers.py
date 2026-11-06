@@ -107,9 +107,11 @@ def _api_key_for(model: str) -> str | None:
     return secret.get_secret_value() if secret else None
 
 
-def _configured(model: str) -> bool:
+def provider_configured(model: str) -> bool:
     s = get_settings()
     p = provider_of(model)
+    if p == "fake":
+        return True
     if p in ("groq", "gemini"):
         return _api_key_for(model) is not None
     if p == "bedrock":
@@ -120,7 +122,7 @@ def _configured(model: str) -> bool:
 
 
 async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
-    if not _configured(req.model):
+    if not provider_configured(req.model):
         raise ProviderError("not_configured", req.model)
     import litellm
     from litellm import exceptions as lx
