@@ -112,7 +112,7 @@ async def extract_document(
     )
     if fixture:
         _, number, quantity, price = fixture
-        draft = EvidenceDocument(
+        fixture_draft = EvidenceDocument(
             number=number,
             po_number="PO-DEMO-1001",
             currency="INR",
@@ -128,7 +128,7 @@ async def extract_document(
             source_document_id=source["document_id"],
         )
         return {
-            "draft": draft.model_dump(mode="json"),
+            "draft": fixture_draft.model_dump(mode="json"),
             "source_document_id": source["document_id"],
             "requires_human_confirmation": True,
             "extraction_mode": "demo_fixture",
