@@ -17,7 +17,6 @@ from app.core.errors import Forbidden
 from app.core.limits import charge_run
 from app.guardrails.pii import redact
 from app.llm.router import get_router
-from app.rag.embeddings import get_embedder, get_reranker
 from app.rag.service import answer
 
 router = APIRouter(prefix="/procurement/copilot", tags=["copilot"])
@@ -86,14 +85,11 @@ async def ask(body: Question, request: Request, p: CurrentPrincipal) -> dict[str
             "needs_more_evidence": parsed.needs_more_evidence,
             "llm": response.public(),
         }
-    await charge_run(p)
     result = await answer(
         p,
         redact(body.question),
         router=get_router(),
         ctx=context,
-        embedder=get_embedder(),
-        reranker=get_reranker(),
     )
     return {
         "answer": result.text,
@@ -101,5 +97,6 @@ async def ask(body: Question, request: Request, p: CurrentPrincipal) -> dict[str
             {"id": str(i), "evidence": asdict(hit)} for i, hit in enumerate(result.sources, 1)
         ],
         "citation_valid": result.citations["valid"],
+        "source_only": result.source_only,
         "llm": result.llm,
     }

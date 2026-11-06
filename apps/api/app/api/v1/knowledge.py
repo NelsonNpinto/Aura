@@ -13,7 +13,6 @@ from app.core.auth import CurrentPrincipal, Principal, require_roles
 from app.core.config import get_settings
 from app.core.db import tenant_tx
 from app.core.errors import AppError, NotFound
-from app.core.limits import charge_run
 from app.llm.router import get_router
 from app.monitoring.tracing import get_tracer
 from app.rag import service
@@ -123,7 +122,6 @@ async def source_file(document_id: str, p: CurrentPrincipal) -> Response:
 
 @router.post("/ask")
 async def ask(body: AskRequest, request: Request, p: CurrentPrincipal) -> dict[str, Any]:
-    await charge_run(p)
     async with get_tracer().span(
         p.org_id, "kb.ask", kind="chain", input={"question": body.question}
     ) as sp:
@@ -132,8 +130,6 @@ async def ask(body: AskRequest, request: Request, p: CurrentPrincipal) -> dict[s
             body.question,
             router=get_router(),
             ctx=call_context(request, p),
-            embedder=get_embedder(),
-            reranker=get_reranker(),
             doc_types=body.doc_types,
         )
         sp.set_output(ans.text, citations=ans.citations)
@@ -141,6 +137,7 @@ async def ask(body: AskRequest, request: Request, p: CurrentPrincipal) -> dict[s
         "answer": ans.text,
         "sources": [{"n": i, **asdict(h)} for i, h in enumerate(ans.sources, start=1)],
         "citations": ans.citations,
+        "source_only": ans.source_only,
         "llm": ans.llm,
         "trace_id": sp.trace_id,
     }

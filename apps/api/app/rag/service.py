@@ -14,10 +14,12 @@ from sqlalchemy import text
 from app.core.auth import Principal
 from app.core.db import tenant_tx
 from app.core.errors import AppError
-from app.llm.router import CallContext, ModelRouter
+from app.core.limits import charge_run
+from app.llm.providers import provider_configured
+from app.llm.router import CallContext, ModelRouter, RouterError
 from app.rag.chunking import chunk_pages
 from app.rag.citations import NOT_IN_DATA, check_citations
-from app.rag.embeddings import Embedder, Reranker
+from app.rag.embeddings import Embedder, Reranker, get_embedder, get_reranker
 from app.rag.extract import extract
 from app.services.blob import BlobStore
 
@@ -58,6 +60,7 @@ class Answer:
     sources: list[Hit]
     citations: dict[str, Any]
     llm: dict[str, Any] | None = field(default=None)
+    source_only: bool = False
 
 
 async def ingest(
@@ -156,15 +159,16 @@ async def search(
     p: Principal,
     query: str,
     *,
-    embedder: Embedder,
+    embedder: Embedder | None,
     reranker: Reranker | None,
     doc_types: list[str] | None = None,
     as_of: date | None = None,
     top_k: int = TOP_K,
 ) -> list[Hit]:
-    qvec = (await embedder.embed([query], query=True))[0]
     filters = "c.org_id = :o"
-    params: dict[str, Any] = {"o": p.org_id, "q": query, "e": json.dumps(qvec), "n": CANDIDATES}
+    params: dict[str, Any] = {"o": p.org_id, "q": query, "n": CANDIDATES}
+    if embedder is not None:
+        params["e"] = json.dumps((await embedder.embed([query], query=True))[0])
     if doc_types:
         filters += " AND d.doc_type = ANY(:dts)"
         params["dts"] = doc_types
@@ -176,16 +180,28 @@ async def search(
         params["asof"] = as_of
     base = _SELECT + filters  # constant fragments only; all values are bound parameters
     async with tenant_tx(p.org_id, p.user_id) as s:
-        vec_rows = (
-            await s.execute(
-                text(base + " ORDER BY c.embedding <=> CAST(:e AS vector) LIMIT :n"), params
+        vec_rows = []
+        if embedder is not None:
+            vec_rows = list(
+                (
+                    await s.execute(
+                        text(base + " ORDER BY c.embedding <=> CAST(:e AS vector) LIMIT :n"), params
+                    )
+                ).all()
             )
-        ).all()
+        # Whole questions contain words that may never appear in the same passage.
+        # Without semantic search, rank passages by any matching normalized keyword.
+        keywords = "websearch_to_tsquery('english', :q)"
+        if embedder is None:
+            keywords = (
+                "to_tsquery('simple', COALESCE((SELECT string_agg(quote_literal(term), ' | ') "
+                "FROM unnest(tsvector_to_array(to_tsvector('english', :q))) AS terms(term)), ''))"
+            )
         kw_rows = (
             await s.execute(
                 text(
-                    base + " AND c.tsv @@ websearch_to_tsquery('english', :q)"
-                    " ORDER BY ts_rank_cd(c.tsv, websearch_to_tsquery('english', :q)) DESC LIMIT :n"
+                    base + f" AND c.tsv @@ {keywords}"
+                    f" ORDER BY ts_rank_cd(c.tsv, {keywords}) DESC LIMIT :n"
                 ),
                 params,
             )
@@ -236,16 +252,37 @@ async def answer(
     *,
     router: ModelRouter,
     ctx: CallContext,
-    embedder: Embedder,
-    reranker: Reranker | None,
     doc_types: list[str] | None = None,
 ) -> Answer:
-    hits = await search(p, question, embedder=embedder, reranker=reranker, doc_types=doc_types)
+    task = router.config.tasks["rag_answer"]
+    models = task.chain + [model for variant in task.variants for model in (variant.chain or [])]
+    can_generate = any(provider_configured(model) for model in models)
+    hits = await search(
+        p,
+        question,
+        embedder=get_embedder() if can_generate else None,
+        reranker=get_reranker() if can_generate else None,
+        doc_types=doc_types,
+    )
     if not hits:
         return Answer(NOT_IN_DATA, [], {"used": [], "invalid": [], "uncited": False, "valid": True})
-    res = await router.run(
-        "rag_answer", {"question": question, "sources": format_sources(hits)}, ctx
+    source_only = Answer(
+        "AI answer unavailable. Review these matching policy passages.",
+        hits,
+        {"used": [], "invalid": [], "uncited": False, "valid": False},
+        source_only=True,
     )
+    if not can_generate:
+        return source_only
+    await charge_run(p)
+    try:
+        res = await router.run(
+            "rag_answer", {"question": question, "sources": format_sources(hits)}, ctx
+        )
+    except RouterError as exc:
+        if exc.code != "router_exhausted":
+            raise
+        return source_only
     report = check_citations(res.text, len(hits))
     return Answer(
         res.text,

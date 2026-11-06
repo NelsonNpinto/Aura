@@ -48,7 +48,7 @@ export default function InboxPage() {
       <section aria-labelledby="demo-h">
         <h2 id="demo-h" className="mb-3 text-sm font-medium uppercase tracking-wide text-muted">Demo invoices</h2>
         <ErrorNote error={demos.error} />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
           {demos.isLoading && Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-40" />)}
           {demos.data?.invoices.map((d) => (
             <Card key={d.key} className="flex flex-col">
@@ -61,7 +61,7 @@ export default function InboxPage() {
                 <Button className="flex-1" onClick={() => router.push(`/app/runs/new?demo=${d.key}`)}>
                   <Play size={14} className="mr-1 inline" aria-hidden /> Run
                 </Button>
-                <a href={`/demo-files/${d.file}`} className="rounded p-2 text-muted hover:bg-surface-2" title="View the invoice file"
+                <a href={`/demo-files/${d.file}`} className="grid size-10 shrink-0 place-items-center rounded-lg border border-border text-muted hover:bg-surface-2" title="View the invoice file"
                    target="_blank" rel="noreferrer"><FileText size={16} aria-label="View file" /></a>
               </div>
             </Card>

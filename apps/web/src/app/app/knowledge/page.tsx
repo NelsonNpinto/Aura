@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 type Doc = { id: string; filename: string; doc_type: string; chunk_count: number; created_at: string; synthetic: boolean };
 type Hit = { chunk_id: string; filename: string; heading: string; text: string; page: number | null; rrf: number;
   vector_rank: number | null; keyword_rank: number | null; rerank_score: number | null; n?: number };
-type AskRes = { answer: string; sources: Hit[]; citations: { used: number[]; invalid: number[]; uncited: boolean; valid: boolean };
+type AskRes = { answer: string; sources: Hit[]; source_only?: boolean; citations: { used: number[]; invalid: number[]; uncited: boolean; valid: boolean };
   llm: { model: string; latency_ms: number; tokens_in: number; tokens_out: number; fallback_reason: string | null; cache_hit: boolean } | null };
 
 export default function KnowledgePage() {
@@ -67,9 +67,9 @@ export default function KnowledgePage() {
 
       <Card>
         <h2 className="font-semibold">Search and ask</h2>
-        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (query.trim().length > 2) search.mutate(query); }}>
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. who approves a bank detail change?" maxLength={500} aria-label="Question" />
-          <Button type="submit" variant="secondary" disabled={search.isPending}>Search</Button>
+        <form className="mt-3 grid grid-cols-[1fr_1fr] gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={(e) => { e.preventDefault(); if (query.trim().length > 2) search.mutate(query); }}>
+          <Input className="col-span-2 sm:col-span-1" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. who approves a bank detail change?" maxLength={500} aria-label="Question" />
+          <Button type="submit" variant="secondary" disabled={search.isPending || query.trim().length < 3}>Search</Button>
           <Button type="button" disabled={ask.isPending || query.trim().length < 3} onClick={() => ask.mutate(query)}>Ask</Button>
         </form>
         <div className="mt-2 space-y-2"><ErrorNote error={search.error} /><ErrorNote error={ask.error} /></div>
@@ -77,7 +77,7 @@ export default function KnowledgePage() {
           <div className="mt-4 rounded-md border border-border p-4">
             <div className="mb-2 flex flex-wrap gap-2">
               <Badge tone={ask.data.citations.valid ? "ok" : "danger"}>
-                {ask.data.citations.valid ? "citations valid" : ask.data.citations.invalid.length ? `invalid citations: ${ask.data.citations.invalid.join(", ")}` : "uncited answer"}
+                {ask.data.source_only ? "Policy search results" : ask.data.citations.valid ? "citations valid" : ask.data.citations.invalid.length ? `invalid citations: ${ask.data.citations.invalid.join(", ")}` : "uncited answer"}
               </Badge>
               {ask.data.llm && <Badge>{ask.data.llm.model} · {ask.data.llm.latency_ms} ms</Badge>}
               {ask.data.llm?.fallback_reason && <Badge tone="warn">fallback: {ask.data.llm.fallback_reason}</Badge>}
@@ -86,10 +86,13 @@ export default function KnowledgePage() {
             <SafeMarkdown>{ask.data.answer}</SafeMarkdown>
             <ol className="mt-3 space-y-2 text-xs text-muted">
               {ask.data.sources.map((s) => (
-                <li key={s.chunk_id}><strong>[{s.n}]</strong> {s.filename}{s.heading ? ` — ${s.heading}` : ""}{s.page ? `, p.${s.page}` : ""}</li>
+                <li key={s.chunk_id}>
+                  <strong>[{s.n}]</strong> {s.filename}{s.heading ? ` — ${s.heading}` : ""}{s.page ? `, p.${s.page}` : ""}
+                  {ask.data.source_only && <p className="mt-1 whitespace-pre-wrap text-sm text-text">{s.text}</p>}
+                </li>
               ))}
             </ol>
-            <p className="mt-2 text-xs text-muted">A citation is a pointer to evidence, not proof. Check the source.</p>
+            {!ask.data.source_only && <p className="mt-2 text-xs text-muted">A citation is a pointer to evidence, not proof. Check the source.</p>}
           </div>
         )}
         {search.data && (

@@ -4,6 +4,15 @@ name: ci
 on:
   pull_request:
   workflow_call:
+    inputs:
+      live-marketing-gate:
+        type: boolean
+        default: false
+    secrets:
+      GROQ_API_KEY:
+        required: false
+      GEMINI_API_KEY:
+        required: false
 
 permissions:
   contents: read
@@ -33,6 +42,7 @@ jobs:
     env:
       APP_ENV: test
       DATABASE_URL: postgresql://aura:aura-ci-only@localhost:5432/aura
+      GIT_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3
@@ -73,6 +83,27 @@ jobs:
         with:
           name: invoice-workflow-evaluation
           path: /tmp/aura-workflow-report.json
+      - name: Marketing judge fixture gate
+        run: uv run aura-eval run --dataset marketing --gate --output /tmp/aura-marketing-fixture.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: marketing-judge-fixture
+          path: /tmp/aura-marketing-fixture.json
+      - name: Human-reviewed live marketing gate
+        if: inputs.live-marketing-gate
+        env:
+          GROQ_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GROQ_API_KEY || '' }}
+          GEMINI_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GEMINI_API_KEY || '' }}
+        run: >-
+          uv run aura-eval run --dataset marketing --live --gate
+          --labels ../../evals/datasets/marketing/v1/human-labels.json
+          --output /tmp/aura-marketing-live.json
+      - uses: actions/upload-artifact@v6
+        if: always() && inputs.live-marketing-gate
+        with:
+          name: marketing-judge-live
+          path: /tmp/aura-marketing-live.json
       - uses: actions/cache@v6
         with:
           path: apps/api/model_cache

@@ -33,6 +33,53 @@ When no public database report exists, the API serves the explicitly published r
 
 Human labels are stored under the actual reviewer's identity in `ai.judge_labels`. Each person has one current label per judgment. Calibration uses majority human verdicts from at most the latest 100 judgments, excludes ties/unscored judgments, and reports agreement, Cohen's kappa, false passes and false fails. Kappa is undefined when chance agreement equals one.
 
+## Marketing regression suite
+
+Open **AI Quality → Compare judge versions** for a side-by-side example using the marketing
+dataset. It shows the product facts, draft, expected verdict, and why a permissive candidate would
+fail the gate. This simulation is available to guests. Quality reviewers can run a live comparison
+with a valid review file and provider credentials. Select two distinct combinations of saved judge
+prompt version and configured model. Each side uses its selected model with caching and fallbacks
+disabled. The result evaluates the same gate rule, and GitHub Actions owns the deployment decision.
+
+The synthetic pack in `evals/datasets/marketing/v1/cases.json` includes supported claims, inflated
+specs and discounts, missing shipping qualifiers, and an invented certification. The fixture gate
+exercises the same scoring policy as AI Quality. It uses simulated judge outputs, so it measures
+whether the application handles those outputs correctly. Every pull request and deployment runs
+this gate and publishes a JSON artifact.
+
+From `apps/api`:
+
+```sh
+uv run aura-eval run --dataset marketing --gate
+```
+
+For live evaluation, first have a human read the facts and draft for each case and record an
+independent pass/fail decision with a reason. Save the resulting JSON as
+`evals/datasets/marketing/v1/human-labels.json`. Its top-level fields are `dataset_sha256` (copy from
+the fixture report), `reviewer` (reviewer's name or agreed identifier), and `cases` (an object keyed
+by case ID). Each case entry has a boolean `passed` and a nonempty `reason`. Both verdict classes
+must be represented. Review the complete dataset again when the snapshot changes. Only use
+synthetic, publishable product material in this repository.
+
+With a migrated, seeded local database and a Groq or Gemini key in the git-ignored environment:
+
+```sh
+uv run aura-eval run --dataset marketing --live --gate --labels ../../evals/datasets/marketing/v1/human-labels.json
+```
+
+The live run calls the branch's configured judge without the response cache. It reports human–judge
+agreement, kappa, false passes, false fails, unscored errors, and per-case model, prompt version,
+latency and estimated cost when available. A false pass is a draft the human rejected and the judge
+approved. Any disagreement or unscored case fails this small release suite.
+
+To require the live suite before deploying from `main`, commit the completed review file, add a
+repository Actions secret `GROQ_API_KEY` or `GEMINI_API_KEY`, and set the repository Actions variable
+`AURA_MARKETING_LIVE_GATE` to `true`. The deployment calls CI before production migrations.
+The live gate fails if enabled with missing or stale reviews, missing credentials, or failed
+judgments. Pull requests run the fixture gate without credentials. Requiring the CI check for PR
+merges is a repository branch protection setting.
+
 ## Still required
 
-Full golden-set and extraction benchmarks, representative held-out data, larger marketing regression datasets, semantic citation-support evaluation, model/prompt experiments, reviewed failures promoted into datasets, live nightly/weekly evaluation jobs and actual human calibration. None are implied by the five-case fixture result.
+Full golden-set and extraction benchmarks, representative held-out data, genuine reviews and live results for the marketing suite, semantic citation-support evaluation, model/prompt experiments, reviewed failures promoted into datasets, and live nightly/weekly evaluation jobs.

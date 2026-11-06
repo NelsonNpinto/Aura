@@ -3,13 +3,13 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #f7f8fa;
+  --bg: #f4f7fa;
   --surface: #ffffff;
-  --surface-2: #f0f2f5;
-  --border: #dde1e7;
-  --text: #14171c;
-  --muted: #5b6573;
-  --accent: #0f766e;
+  --surface-2: #edf2f7;
+  --border: #dbe4ed;
+  --text: #142235;
+  --muted: #526277;
+  --accent: #2453a6;
   --accent-fg: #ffffff;
   --danger: #b42318;
   --warn: #9a6700;
@@ -23,8 +23,8 @@
   --border: #2a333d;
   --text: #e8ecf1;
   --muted: #9aa5b1;
-  --accent: #2dd4bf;
-  --accent-fg: #062b27;
+  --accent: #a7c5ff;
+  --accent-fg: #14243a;
   --danger: #ff7b72;
   --warn: #e3b341;
   --ok: #56d364;
@@ -51,6 +51,36 @@ body {
   background: var(--bg);
   color: var(--text);
 }
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+.workspace-nav {
+  --surface: #14243a;
+  --surface-2: #21364e;
+  --border: #30475f;
+  --text: #f1f7fc;
+  --muted: #b0c0d2;
+  --accent: #bed4fa;
+  --accent-fg: #102239;
+  color: var(--text);
+}
+
+.workspace-hero {
+  --accent: #dbe9ff;
+  --accent-fg: #14243a;
+  background: radial-gradient(ellipse at 100% 0%, #294772 0%, transparent 65%), #14243a;
+  color: #f1f7fc;
+}
+
+.workspace-content h1 {
+  font-size: clamp(1.65rem, 3vw, 2.125rem);
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.workspace-content :is(td, p, pre) { overflow-wrap: anywhere; }
 
 :focus-visible {
   outline: 2px solid var(--accent);

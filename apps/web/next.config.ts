@@ -41,7 +41,12 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // macOS writes AppleDouble (._*) files on exFAT drives, which corrupt Turbopack's on-disk cache.
-  experimental: { turbopackFileSystemCacheForDev: false, turbopackFileSystemCacheForBuild: false },
+  experimental: {
+    turbopackFileSystemCacheForDev: false,
+    turbopackFileSystemCacheForBuild: false,
+    // Allow the local API's paced marketing comparison to finish before the dev proxy times out.
+    proxyTimeout: isDev ? 250_000 : undefined,
+  },
   turbopack: {
     rules: {
       "*.css": { loaders: ["@tailwindcss/turbopack"], as: "*.css" },

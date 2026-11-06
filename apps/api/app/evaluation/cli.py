@@ -182,13 +182,18 @@ async def run(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["run"])
-    parser.add_argument("--dataset", choices=["demo", "golden_invoices"], default="demo")
+    parser.add_argument(
+        "--dataset", choices=["demo", "golden_invoices", "marketing"], default="demo"
+    )
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument(
         "--live", action="store_true", help="Calls real providers; consumes configured quotas"
     )
     parser.add_argument("--gate", action="store_true")
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--labels", type=Path, help="Human review file for live marketing evaluation"
+    )
     parser.add_argument(
         "--delay",
         type=float,
@@ -200,7 +205,19 @@ def main() -> None:
         parser.error("limit must be between 1 and 250")
     if not 0 <= args.delay <= 60:
         parser.error("delay must be between 0 and 60 seconds")
-    report = asyncio.run(run(args.dataset, args.limit, not args.live, delay=args.delay))
+    if args.dataset == "marketing":
+        from app.evaluation.marketing import run as run_marketing
+
+        if args.live != (args.labels is not None):
+            parser.error("Marketing --live and --labels must be supplied together")
+        try:
+            report = asyncio.run(run_marketing(args.labels, delay=args.delay))
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+    else:
+        if args.labels is not None:
+            parser.error("--labels is only supported for marketing")
+        report = asyncio.run(run(args.dataset, args.limit, not args.live, delay=args.delay))
     rendered = json.dumps(report, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Card, ErrorNote, Metric } from "@/components/ui";
 import { api } from "@/lib/api";
 import { JudgeWorkbench } from "@/components/judge-workbench";
+import { MarketingComparison } from "@/components/marketing-comparison";
 
 type Report = {
   id: string;
@@ -51,6 +52,7 @@ export default function QualityPage() {
         workflow using supplied extraction data. They do not establish live
         model accuracy.
       </p>
+      <MarketingComparison />
       <ErrorNote error={query.error} />
       {query.isPending && <p>Loading evaluation evidence…</p>}
       {query.data?.reports.length === 0 && (
@@ -138,7 +140,7 @@ export default function QualityPage() {
       <Card>
         <h2 className="font-semibold">Remaining quality coverage</h2>
         <p className="mt-2 text-sm text-muted">
-          Model/prompt experiments, a larger marketing regression dataset and
+          A larger marketing regression dataset and
           feedback-to-dataset triage remain. A passing fixture gate does not
           certify live model quality.
         </p>

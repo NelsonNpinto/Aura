@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import json
 import uuid
 from datetime import UTC, date, datetime
@@ -17,18 +18,48 @@ from sqlalchemy import text
 from app.api.deps import call_context
 from app.audit.chain import AuditEvent, append
 from app.core.auth import CurrentPrincipal, Principal
+from app.core.config import get_settings
 from app.core.db import system_tx, tenant_tx
-from app.core.errors import Conflict, Forbidden, NotFound
+from app.core.errors import AppError, Conflict, Forbidden, NotFound
 from app.core.limits import charge_run
-from app.domain.procurement import EvidenceDocument, compare, transition
+from app.domain.procurement import EvidenceDocument, Line, compare, transition
 from app.guardrails.pii import redact
+from app.llm.providers import provider_configured
 from app.llm.router import get_router
 from app.services.blob import get_blob_store
-from app.services.payment_email import dispatch
+from app.services.payment_email import dispatch, payment_message
 from app.services.pdf import extract_text, render_pages_png
 from app.services.runs import create_document
 
 router = APIRouter(prefix="/procurement", tags=["procurement"])
+
+# Fingerprints of the four synthetic PDFs supplied with the local purchasing demo.
+_DEMO_DOCUMENTS = {
+    "cb1a816dfe8bfdd821d81b26855a50671af69d14cbb1bb0696986051d87a886e": (
+        "po",
+        "PO-DEMO-1001",
+        2,
+        5000000,
+    ),
+    "f3c9d345723f154a6b605a3fdc76472fa3beb396b8d52032775404cae89d36dd": (
+        "invoice",
+        "INV-DEMO-1001",
+        2,
+        5000000,
+    ),
+    "412fb89f777b8c0c764e00829ae248df4df0f6529e66312edb439fea8a5d44d6": (
+        "receipt",
+        "GRN-DEMO-1001-A",
+        1,
+        0,
+    ),
+    "b9940d896bde945aa2699e33093cfacd564e8da6531886f81b53e80622c4b98c": (
+        "receipt",
+        "GRN-DEMO-1001-B",
+        2,
+        0,
+    ),
+}
 
 
 @router.post("/cases/{case_id}/extract/{kind}")
@@ -60,9 +91,49 @@ async def extract_document(
     pdf = await asyncio.to_thread(extract_text, data, 20) if data.startswith(b"%PDF-") else None
     if pdf and pdf.hidden:
         raise Conflict("Document needs manual review: hidden text detected")
+    fixture = (
+        _DEMO_DOCUMENTS.get(hashlib.sha256(data).hexdigest())
+        if get_settings().app_env == "local"
+        else None
+    )
+    if fixture and (fixture[0] != kind or row["po_number"] != "PO-DEMO-1001"):
+        raise Conflict("Use this demo PDF in its matching document section on PO-DEMO-1001.")
+    task = "extract_procurement" if pdf and pdf.has_text_layer else "extract_procurement_vision"
+    if not fixture and not any(
+        provider_configured(model) for model in get_router().config.tasks[task].chain
+    ):
+        raise AppError(
+            "Document extraction needs a configured AI provider. Enter the details manually.",
+            code="extraction_provider_unavailable",
+            status_code=503,
+        )
     source = await create_document(
         p.org_id, p.user_id, file.filename or "document.pdf", data, guest=p.is_guest
     )
+    if fixture:
+        _, number, quantity, price = fixture
+        fixture_draft = EvidenceDocument(
+            number=number,
+            po_number="PO-DEMO-1001",
+            currency="INR",
+            lines=[
+                Line(
+                    sku="LAPTOP-01",
+                    description="14-inch business laptop",
+                    quantity=quantity,
+                    unit_price_minor=price,
+                )
+            ],
+            total_minor=quantity * price,
+            source_document_id=source["document_id"],
+        )
+        return {
+            "draft": fixture_draft.model_dump(mode="json"),
+            "source_document_id": source["document_id"],
+            "requires_human_confirmation": True,
+            "extraction_mode": "demo_fixture",
+            "llm": None,
+        }
     await charge_run(p)
     if pdf and pdf.has_text_layer:
         result = await get_router().run(
@@ -336,7 +407,36 @@ async def cases(p: CurrentPrincipal) -> dict[str, Any]:
             .mappings()
             .all()
         )
-    return {"roles": sorted(roles), "vendor_id": vendor, "cases": [dict(x) for x in rows]}
+    visible_cases = [dict(row) for row in rows]
+    for case in visible_cases:
+        state = case["state"]
+        notification = state.get("notification")
+        if notification and notification["status"] == "preview" and state.get("payment"):
+            subject, body = payment_message(
+                {
+                    "invoice_number": state["documents"]["invoice"]["number"],
+                    "po_number": case["po_number"],
+                    "payment": state["payment"],
+                }
+            )
+            notification.update(subject=subject, body=body)
+    history = [
+        entry
+        for case in visible_cases
+        for entry in [*case["state"]["approvals"], case["state"].get("payment")]
+        if entry and entry.get("actor")
+    ]
+    if history:
+        # Resolve names only for history on cases already filtered by tenant and vendor.
+        async with system_tx() as s:
+            users = await s.execute(
+                text('SELECT id, name FROM auth."user" WHERE id = ANY(:ids)'),
+                {"ids": sorted({entry["actor"] for entry in history})},
+            )
+            names = {user.id: user.name.strip() for user in users if user.name}
+        for entry in history:
+            entry["actor_name"] = names.get(entry["actor"]) or None
+    return {"roles": sorted(roles), "vendor_id": vendor, "cases": visible_cases}
 
 
 @router.put("/cases/{case_id}/documents/{kind}")

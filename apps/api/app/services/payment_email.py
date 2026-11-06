@@ -15,17 +15,25 @@ from app.core.config import get_settings
 from app.core.db import system_tx, tenant_tx
 
 
-async def send(payload: dict[str, Any], recipients: list[str]) -> dict[str, Any]:
-    settings = get_settings()
+def payment_message(payload: dict[str, Any]) -> tuple[str, str]:
     invoice_number = str(payload["invoice_number"]).replace("\r", " ").replace("\n", " ")
-    subject = f"AURA DEMO — payment recorded for invoice {invoice_number}"
+    subject = f"Payment confirmation for invoice {invoice_number}"
     payment = payload["payment"]
     body = (
-        f"This is a simulated payment notification; no funds were transferred.\n\n"
-        f"Invoice: {payload['invoice_number']}\nPO: {payload['po_number']}\n"
-        f"Amount: {payment.get('currency', '')} {payment['amount_minor'] // 100}.{payment['amount_minor'] % 100:02d}\nDate: {payment['date']}\n"
-        f"Reference: {payment['reference']}\n"
+        f"Hello,\n\n"
+        f"We have recorded payment for invoice {invoice_number}.\n\n"
+        f"Purchase order: {payload['po_number']}\n"
+        f"Amount: {payment.get('currency', '')} {payment['amount_minor'] // 100}.{payment['amount_minor'] % 100:02d}\n"
+        f"Payment date: {payment['date']}\n"
+        f"Payment reference: {payment['reference']}\n\n"
+        f"Thank you,\nAccounts Payable\n"
     )
+    return subject, body
+
+
+async def send(payload: dict[str, Any], recipients: list[str]) -> dict[str, Any]:
+    settings = get_settings()
+    subject, body = payment_message(payload)
     if settings.mail_mode == "preview":
         return {
             "status": "preview",
