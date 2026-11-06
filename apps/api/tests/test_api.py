@@ -199,6 +199,9 @@ async def test_knowledge_upload_dedup_search_and_cited_answer(
 
     monkeypatch.setattr(kn, "get_embedder", lambda: HashEmbedder())
     monkeypatch.setattr(kn, "get_reranker", lambda: OverlapReranker())
+    monkeypatch.setattr(kn.service, "get_embedder", lambda: HashEmbedder())
+    monkeypatch.setattr(kn.service, "get_reranker", lambda: OverlapReranker())
+    monkeypatch.setattr(kn.service, "provider_configured", lambda model: True)
     tok = mint(org_id, ["clerk"])
     files = {"file": ("ap-policy.md", POLICY_MD, "text/markdown")}
     r1 = await client.post(
