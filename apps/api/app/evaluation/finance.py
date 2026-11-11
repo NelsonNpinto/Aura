@@ -151,14 +151,15 @@ def evaluation_router() -> tuple[ModelRouter, str]:
     router = ModelRouter(
         prompts=StaticPromptSource(prompts), store=MemoryStore(), sink=MemorySink(), faults=""
     )
-    return router, hashlib.sha256(source).hexdigest()
+    return router, hashlib.sha256(source.replace(b"\r\n", b"\n")).hexdigest()
 
 
 async def run(*, live: bool, delay: float, labels_path: Path | None = None) -> dict[str, Any]:
     path = datasets_root() / "finance_copilot/v1/cases.json"
     data = await asyncio.to_thread(path.read_bytes)
     dataset = Dataset.model_validate_json(data)
-    snapshot = hashlib.sha256(data).hexdigest()
+    canonical = json.dumps(dataset.model_dump(mode="json"), sort_keys=True)
+    snapshot = hashlib.sha256(canonical.encode()).hexdigest()
     reviews = None
     if labels_path is not None:
         if not live:

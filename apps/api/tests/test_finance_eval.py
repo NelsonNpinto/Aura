@@ -17,13 +17,17 @@ async def test_fixture_gate_rejects_citation_regression(monkeypatch, tmp_path):
 
     relative = "finance_copilot/v1/cases.json"
     data = json.loads((finance.datasets_root() / relative).read_text(encoding="utf-8"))
-    candidate = data["cases"][0]["candidates"][0]
-    candidate["answer"] = candidate["answer"].replace("[comparison]", "[invented_receipt]")
     path = tmp_path / relative
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(data), encoding="utf-8")
     monkeypatch.setattr(finance, "datasets_root", lambda: tmp_path)
 
+    same_snapshot = await finance.run(live=False, delay=0)
+    assert same_snapshot["dataset_sha256"] == baseline["dataset_sha256"]
+
+    candidate = data["cases"][0]["candidates"][0]
+    candidate["answer"] = candidate["answer"].replace("[comparison]", "[invented_receipt]")
+    path.write_text(json.dumps(data), encoding="utf-8")
     regression = await finance.run(live=False, delay=0)
     assert not regression["gate_passed"]
     assert regression["failed_expected_passes"] == ["quantity-hold/supported"]
