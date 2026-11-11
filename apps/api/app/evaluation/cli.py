@@ -183,7 +183,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["run"])
     parser.add_argument(
-        "--dataset", choices=["demo", "golden_invoices", "marketing"], default="demo"
+        "--dataset",
+        choices=["demo", "golden_invoices", "marketing", "finance_copilot"],
+        default="demo",
     )
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument(
@@ -192,7 +194,7 @@ def main() -> None:
     parser.add_argument("--gate", action="store_true")
     parser.add_argument("--output", type=Path)
     parser.add_argument(
-        "--labels", type=Path, help="Human review file for live marketing evaluation"
+        "--labels", type=Path, help="Human review file for live marketing or finance evaluation"
     )
     parser.add_argument(
         "--delay",
@@ -214,9 +216,18 @@ def main() -> None:
             report = asyncio.run(run_marketing(args.labels, delay=args.delay))
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
+    elif args.dataset == "finance_copilot":
+        from app.evaluation.finance import run as run_finance
+
+        try:
+            report = asyncio.run(
+                run_finance(live=args.live, delay=args.delay, labels_path=args.labels)
+            )
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
     else:
         if args.labels is not None:
-            parser.error("--labels is only supported for marketing")
+            parser.error("--labels is only supported for marketing and finance_copilot")
         report = asyncio.run(run(args.dataset, args.limit, not args.live, delay=args.delay))
     rendered = json.dumps(report, indent=2)
     if args.output:

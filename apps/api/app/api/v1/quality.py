@@ -17,12 +17,18 @@ from app.core.db import system_tx, tenant_tx
 from app.core.errors import Forbidden, NotFound
 from app.core.limits import charge_run
 from app.evaluation.calibration import calibration
+from app.evaluation.finance import run as run_finance
 from app.evaluation.judge import JudgeRequest, score_judgment
 from app.guardrails.pii import redact
 from app.llm.router import get_router
 from app.schemas.llm_outputs import JudgeOut
 
 router = APIRouter(tags=["quality"])
+
+
+@router.get("/quality/finance-fixtures")
+async def finance_fixtures() -> dict[str, Any]:
+    return await run_finance(live=False, delay=0)
 
 
 class DraftRequest(BaseModel):

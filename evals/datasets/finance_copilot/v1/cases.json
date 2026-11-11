@@ -1,0 +1,416 @@
+{
+  "synthetic": true,
+  "cases": [
+    {
+      "id": "quantity-hold",
+      "documents": {
+        "po": {
+          "number": "PO-8401",
+          "po_number": "PO-8401",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "40",
+              "unit_price_minor": 4500
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 180000
+        },
+        "invoice": {
+          "number": "INV-8401",
+          "po_number": "PO-8401",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "40",
+              "unit_price_minor": 4500
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 180000
+        },
+        "receipt": {
+          "number": "GRN-8401",
+          "po_number": "PO-8401",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "30",
+              "unit_price_minor": 0
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 0
+        }
+      },
+      "status": "needs_correction",
+      "findings": [
+        "QUANTITY_SHORTFALL"
+      ],
+      "question": "Why is INV-8401 on hold, and how many invoiced units are missing from the receipt?",
+      "required_facts": [
+        "40 filters were invoiced and only 30 were received, a shortfall of 10."
+      ],
+      "candidates": [
+        {
+          "id": "supported",
+          "answer": "The invoice bills 40 filters, but the receipt confirms 30, leaving a shortfall of 10 [comparison].",
+          "expected_pass": true,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "40 invoiced, 30 received, shortfall of 10",
+                "verdict": "supported",
+                "source_ids": [
+                  "comparison"
+                ],
+                "reason": "The comparison records both quantities."
+              }
+            ],
+            "missing_required_facts": []
+          }
+        },
+        {
+          "id": "unsupported",
+          "answer": "Finance rejected the invoice [status].",
+          "expected_pass": false,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "Finance rejected the invoice",
+                "verdict": "insufficient_evidence",
+                "source_ids": [
+                  "status"
+                ],
+                "reason": "Needs correction does not record a Finance rejection."
+              }
+            ],
+            "missing_required_facts": [
+              "40 filters were invoiced and only 30 were received, a shortfall of 10."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "price-hold",
+      "documents": {
+        "po": {
+          "number": "PO-8402",
+          "po_number": "PO-8402",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "10",
+              "unit_price_minor": 4500
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 45000
+        },
+        "invoice": {
+          "number": "INV-8402",
+          "po_number": "PO-8402",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "10",
+              "unit_price_minor": 5200
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 52000
+        },
+        "receipt": {
+          "number": "GRN-8402",
+          "po_number": "PO-8402",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "10",
+              "unit_price_minor": 0
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 0
+        }
+      },
+      "status": "needs_correction",
+      "findings": [
+        "PRICE_VARIANCE"
+      ],
+      "question": "What unit price discrepancy needs to be fixed on INV-8402?",
+      "required_facts": [
+        "The PO allows USD 45 per filter and the invoice charges USD 52, a USD 7 difference per filter."
+      ],
+      "candidates": [
+        {
+          "id": "supported",
+          "answer": "The PO allows $45 per filter and the invoice charges $52, a $7 difference per filter [comparison].",
+          "expected_pass": true,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "$45 PO price, $52 invoice price, $7 difference",
+                "verdict": "supported",
+                "source_ids": [
+                  "comparison"
+                ],
+                "reason": "The comparison records prices of 4500 and 5200 cents."
+              }
+            ],
+            "missing_required_facts": []
+          }
+        },
+        {
+          "id": "unsupported",
+          "answer": "The invoice is priced at $42 per filter [invoice].",
+          "expected_pass": false,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "The invoice price is $42 per filter",
+                "verdict": "contradicted",
+                "source_ids": [
+                  "invoice"
+                ],
+                "reason": "The invoice records 5200 cents per filter."
+              }
+            ],
+            "missing_required_facts": [
+              "The PO allows USD 45 per filter and the invoice charges USD 52, a USD 7 difference per filter."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "partial-billing",
+      "documents": {
+        "po": {
+          "number": "PO-8403",
+          "po_number": "PO-8403",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "40",
+              "unit_price_minor": 4500
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 180000
+        },
+        "invoice": {
+          "number": "INV-8403",
+          "po_number": "PO-8403",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "15",
+              "unit_price_minor": 4500
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 67500
+        },
+        "receipt": {
+          "number": "GRN-8403",
+          "po_number": "PO-8403",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "20",
+              "unit_price_minor": 0
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 0
+        }
+      },
+      "status": "awaiting_l1",
+      "findings": [],
+      "question": "Can this partial invoice pass three-way matching?",
+      "required_facts": [
+        "15 billed units are within 20 received and 40 ordered, and the comparison matched."
+      ],
+      "candidates": [
+        {
+          "id": "supported",
+          "answer": "Yes. The invoice bills 15 [invoice], within 20 received [receipt] and 40 ordered [po]. Three-way matching passed [comparison].",
+          "expected_pass": true,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "15 billed, 20 received and 40 ordered",
+                "verdict": "supported",
+                "source_ids": [
+                  "invoice",
+                  "receipt",
+                  "po"
+                ],
+                "reason": "The document line quantities support the answer."
+              },
+              {
+                "claim": "Three-way matching passed",
+                "verdict": "supported",
+                "source_ids": [
+                  "comparison"
+                ],
+                "reason": "The comparison is matched."
+              }
+            ],
+            "missing_required_facts": []
+          }
+        },
+        {
+          "id": "unsupported",
+          "answer": "All 40 units have arrived [receipt].",
+          "expected_pass": false,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "All 40 units arrived",
+                "verdict": "contradicted",
+                "source_ids": [
+                  "receipt"
+                ],
+                "reason": "The receipt records 20."
+              }
+            ],
+            "missing_required_facts": [
+              "15 billed units are within 20 received and 40 ordered, and the comparison matched."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "approval-no-payment",
+      "documents": {
+        "po": {
+          "number": "PO-8404",
+          "po_number": "PO-8404",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "12",
+              "unit_price_minor": 4500
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 54000
+        },
+        "invoice": {
+          "number": "INV-8404",
+          "po_number": "PO-8404",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "12",
+              "unit_price_minor": 4500
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 54000
+        },
+        "receipt": {
+          "number": "GRN-8404",
+          "po_number": "PO-8404",
+          "currency": "USD",
+          "lines": [
+            {
+              "sku": "FILTER-02",
+              "description": "Air handler filter",
+              "quantity": "12",
+              "unit_price_minor": 0
+            }
+          ],
+          "tax_minor": 0,
+          "total_minor": 0
+        }
+      },
+      "status": "approved_for_payment",
+      "findings": [],
+      "approvals": [
+        {
+          "stage": "l1",
+          "actor": "synthetic:reviewer",
+          "revision": 3
+        },
+        {
+          "stage": "finance",
+          "actor": "synthetic:controller",
+          "revision": 3
+        }
+      ],
+      "question": "What is the approval status of INV-8404, and is there a recorded payment date?",
+      "required_facts": [
+        "The invoice is approved for payment and the supplied evidence has no recorded payment date."
+      ],
+      "candidates": [
+        {
+          "id": "supported",
+          "answer": "The invoice is approved for payment [status]. The supplied case has no recorded payment or payment date [payment].",
+          "expected_pass": true,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "Approved for payment with no recorded payment date",
+                "verdict": "supported",
+                "source_ids": [
+                  "status",
+                  "payment"
+                ],
+                "reason": "The status records approval and the payment source explicitly records no payment."
+              }
+            ],
+            "missing_required_facts": []
+          }
+        },
+        {
+          "id": "unsupported",
+          "answer": "It was paid on November 4 [approvals].",
+          "expected_pass": false,
+          "fixture": {
+            "claims": [
+              {
+                "claim": "The invoice was paid on November 4",
+                "verdict": "insufficient_evidence",
+                "source_ids": [
+                  "approvals"
+                ],
+                "reason": "The approval list contains no payment date or settlement record."
+              }
+            ],
+            "missing_required_facts": [
+              "The invoice is approved for payment and the supplied evidence has no recorded payment date."
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,17 @@
 
 Dated evidence of what was actually run. Nothing here is projected.
 
+## 2026-11-11 — Finance Copilot benchmark
+
+- The finance fixture CLI checked eight reference answers across four synthetic cases and exited 0. Replacing a valid citation with an invented receipt ID in an isolated dataset copy made the same command exit 1 and identify `quantity-hold/supported`.
+- The quality fixture endpoint returned HTTP 200 with all eight answers using the in-memory rate limiter. All four demo PDFs rendered and passed Aura's PDF text and hidden-text checks. Their quantities produced the expected shortfall and correction in the Purchasing comparison function.
+- API verification passed 99 tests after excluding database-dependent checks, including the JWT principal test that accesses Postgres. Ruff and mypy passed. Web type checking, lint and four Vitest tests passed.
+- The pre-key live check stopped before model calls. After a Groq key was configured, the first live run on `4dc7b56` rejected all four deliberately incorrect reference answers, accepted three of four correct references, and accepted two of four generated Copilot answers. Two generated answers were unscored when their judge calls failed. The gate failed. The rejected correct reference exposed that an approval status by itself does not provide explicit payment evidence.
+- The second live run classified all eight reference answers as expected. One of four generated answers passed. The price answer omitted the amount of the variance, the payment answer omitted approval status, and a judge request was unscored after a Groq bad request. The gate failed. The Copilot now calculates the same-currency price difference from stored comparison values, the payment question asks for approval status explicitly, and the judge can fall back to the configured smaller Groq model.
+- The third live run classified all eight reference answers as expected and accepted three of four generated answers. The quantity hold answer cited the 40 invoiced and 30 received correctly but omitted the ten-unit difference. The gate failed. The next version supplies the calculated unreceived quantity in the comparison evidence and asks for it explicitly.
+- A separate live smoke test of the synthetic invoice PDF passed all eight extraction assertions using Groq GPT-OSS 20B through the router. It read invoice `INV-8401`, PO `PO-8401`, USD, SKU `FILTER-02`, one line, 40 units, 4,500 minor units per item and 180,000 minor units total. The smoke test pinned the configured fallback model and used the same PDF parser, prompt and output schema as Purchasing.
+- Independent human agreement, the signed-in Purchasing walkthrough and production rollout remain unverified.
+
 ## 2026-11-05 — Purchasing, copilot and quality implementation
 
 - Local API suite: **127 passed** (7.40 s), including vendor assignment/stale-role restriction/revocation, cross-vendor/org access, ordered approval, changed evidence, payment idempotency, Gmail mocked transport outcomes, copilot citation/scope checks and human-label privacy/calibration.

@@ -97,6 +97,14 @@ tasks:
     budget_class: eval
     output_schema: app.schemas.llm_outputs:JudgeOut
     prompt: {name: judge, label: production}
+  finance_judge:
+    chain: [groq/openai/gpt-oss-120b, groq/openai/gpt-oss-20b, gemini/gemini-3.6-flash]
+    max_tokens: 1400
+    timeout_s: 35
+    cache: none
+    budget_class: eval
+    output_schema: app.schemas.llm_outputs:FinanceVerdict
+    prompt: {name: finance_judge, label: production}
   text2cypher:
     chain: [groq/openai/gpt-oss-120b, groq/qwen/qwen3.8-27b]
     max_tokens: 400
@@ -109,7 +117,7 @@ tasks:
     open_weight_only: true
     prompt: {name: paraphrase_data, label: production}
   extract_procurement:
-    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, groq/openai/gpt-oss-20b]
     max_tokens: 3000
     timeout_s: 45
     output_schema: app.domain.procurement:EvidenceDocument

@@ -8,6 +8,9 @@ on:
       live-marketing-gate:
         type: boolean
         default: false
+      live-finance-gate:
+        type: boolean
+        default: false
     secrets:
       GROQ_API_KEY:
         required: false
@@ -88,6 +91,26 @@ jobs:
         with:
           name: invoice-workflow-evaluation
           path: /tmp/aura-workflow-report.json
+      - name: Finance Copilot fixture gate
+        run: uv run aura-eval run --dataset finance_copilot --gate --output /tmp/aura-finance-fixture.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: finance-copilot-fixture
+          path: /tmp/aura-finance-fixture.json
+      - name: Live Finance Copilot gate
+        if: inputs.live-finance-gate
+        env:
+          GROQ_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GROQ_API_KEY || '' }}
+          GEMINI_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GEMINI_API_KEY || '' }}
+        run: >-
+          uv run aura-eval run --dataset finance_copilot --live --gate --delay 16
+          --output /tmp/aura-finance-live.json
+      - uses: actions/upload-artifact@v6
+        if: always() && inputs.live-finance-gate
+        with:
+          name: finance-copilot-live
+          path: /tmp/aura-finance-live.json
       - name: Marketing judge fixture gate
         run: uv run aura-eval run --dataset marketing --gate --output /tmp/aura-marketing-fixture.json
       - uses: actions/upload-artifact@v6

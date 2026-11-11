@@ -78,3 +78,15 @@ class JudgeOut(Strict):
     completeness: RubricScore
     clarity: RubricScore
     unsupported_claims: list[str] = Field(default_factory=list, max_length=50)
+
+
+class FinanceClaim(Strict):
+    claim: str = Field(min_length=1, max_length=600)
+    verdict: Literal["supported", "contradicted", "insufficient_evidence"]
+    source_ids: list[str] = Field(max_length=10)
+    reason: str = Field(min_length=1, max_length=600)
+
+
+class FinanceVerdict(Strict):
+    claims: list[FinanceClaim] = Field(max_length=30)
+    missing_required_facts: list[str] = Field(max_length=20)
