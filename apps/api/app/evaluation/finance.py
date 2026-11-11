@@ -13,14 +13,14 @@ from typing import Any, Literal
 import yaml
 from pydantic import Field, model_validator
 
-from app.api.v1.copilot import answer_case, citation_ids
+from app.api.v1.copilot import answer_case, case_evidence, citation_ids
 from app.core.config import datasets_root, get_settings
 from app.core.context import trace_id_var
 from app.core.store import MemoryStore
 from app.domain.procurement import EvidenceDocument, compare
 from app.evaluation.calibration import Reviews, calibration
 from app.evaluation.judge import JudgeRequest
-from app.llm.router import CallContext, ModelRouter
+from app.llm.router import CallContext, ModelRouter, RouterError
 from app.llm.telemetry import MemorySink
 from app.prompts.registry import PromptVersion, StaticPromptSource
 from app.schemas.llm_outputs import FinanceVerdict, Strict
@@ -54,14 +54,15 @@ class FinanceCase(Strict):
             raise ValueError(f"{self.id}: the expected findings differ from the Purchasing rules")
         if comparison["matched"] == (self.status == "needs_correction"):
             raise ValueError(f"{self.id}: status is inconsistent with the comparison")
-        evidence: dict[str, Any] = {
-            **documents,
-            "comparison": comparison,
-            "status": {"status": self.status, "revision": 3},
-        }
-        if self.approvals:
-            evidence["approvals"] = self.approvals
-        return evidence
+        return case_evidence(
+            {
+                "documents": documents,
+                "comparison": comparison,
+                "status": self.status,
+                "revision": 3,
+                "approvals": self.approvals,
+            }
+        )
 
 
 class Dataset(Strict):
@@ -154,6 +155,13 @@ def evaluation_router() -> tuple[ModelRouter, str]:
     return router, hashlib.sha256(source.replace(b"\r\n", b"\n")).hexdigest()
 
 
+def unscored(exc: Exception) -> dict[str, Any]:
+    result: dict[str, Any] = {"passed": None, "error": type(exc).__name__}
+    if isinstance(exc, RouterError) and isinstance(exc.details, dict):
+        result["attempts"] = exc.details.get("attempts", [])
+    return result
+
+
 async def run(*, live: bool, delay: float, labels_path: Path | None = None) -> dict[str, Any]:
     path = datasets_root() / "finance_copilot/v1/cases.json"
     data = await asyncio.to_thread(path.read_bytes)
@@ -189,7 +197,7 @@ async def run(*, live: bool, delay: float, labels_path: Path | None = None) -> d
                     case, candidate.answer, evidence, ctx, router, candidate.fixture
                 )
             except Exception as exc:
-                verdict = {"passed": None, "error": type(exc).__name__}
+                verdict = unscored(exc)
             finally:
                 trace_id_var.reset(token)
             results.append(
@@ -217,7 +225,7 @@ async def run(*, live: bool, delay: float, labels_path: Path | None = None) -> d
                 else:
                     result.update(passed=False, citation_valid=False, reason="invalid_citation")
             except Exception as exc:
-                result.update(passed=None, error=type(exc).__name__)
+                result.update(unscored(exc))
             finally:
                 trace_id_var.reset(token)
             results.append(

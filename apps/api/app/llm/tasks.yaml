@@ -99,7 +99,7 @@ tasks:
     prompt: {name: judge, label: production}
   finance_judge:
     chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
-    max_tokens: 900
+    max_tokens: 1400
     timeout_s: 35
     cache: none
     budget_class: eval

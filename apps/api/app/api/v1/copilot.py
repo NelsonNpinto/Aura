@@ -42,14 +42,7 @@ async def ask(body: Question, request: Request, p: CurrentPrincipal) -> dict[str
     if body.case_id:
         async with tenant_tx(p.org_id, p.user_id) as session:
             row = await case_row(session, p, body.case_id, vendor)
-        state = row["state"]
-        evidence = {
-            **state["documents"],
-            "status": {"status": state["status"], "revision": state["revision"]},
-        }
-        for key in ("comparison", "approvals", "payment"):
-            if state.get(key):
-                evidence[key] = state[key]
+        evidence = case_evidence(row["state"])
         await charge_run(p)
         return await answer_case(body.question, evidence, context, get_router())
     result = await answer(
@@ -67,6 +60,18 @@ async def ask(body: Question, request: Request, p: CurrentPrincipal) -> dict[str
         "source_only": result.source_only,
         "llm": result.llm,
     }
+
+
+def case_evidence(state: dict[str, Any]) -> dict[str, Any]:
+    evidence: dict[str, Any] = {
+        **state["documents"],
+        "status": {"status": state["status"], "revision": state["revision"]},
+        "payment": state.get("payment") or {"recorded": False},
+    }
+    for key in ("comparison", "approvals"):
+        if state.get(key):
+            evidence[key] = state[key]
+    return evidence
 
 
 async def answer_case(

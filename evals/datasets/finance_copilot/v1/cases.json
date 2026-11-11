@@ -373,7 +373,7 @@
       "candidates": [
         {
           "id": "supported",
-          "answer": "The invoice is approved for payment [status]. The supplied case has no recorded payment or payment date [status].",
+          "answer": "The invoice is approved for payment [status]. The supplied case has no recorded payment or payment date [payment].",
           "expected_pass": true,
           "fixture": {
             "claims": [
@@ -381,9 +381,10 @@
                 "claim": "Approved for payment with no recorded payment date",
                 "verdict": "supported",
                 "source_ids": [
-                  "status"
+                  "status",
+                  "payment"
                 ],
-                "reason": "The status is approved for payment and the supplied case has no payment record."
+                "reason": "The status records approval and the payment source explicitly records no payment."
               }
             ],
             "missing_required_facts": []

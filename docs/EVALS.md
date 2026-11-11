@@ -102,7 +102,7 @@ From `apps/api`:
 
 ```sh
 uv run aura-eval run --dataset finance_copilot --gate --output finance-fixture.json
-uv run aura-eval run --dataset finance_copilot --live --gate --delay 12 --output finance-live.json
+uv run aura-eval run --dataset finance_copilot --live --gate --delay 16 --output finance-live.json
 ```
 
 The live command needs a configured Groq or Gemini API key and uses checked-out prompt defaults,

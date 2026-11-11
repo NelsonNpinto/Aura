@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from app.api.v1.copilot import CaseAnswer, citation_ids
+from app.api.v1.copilot import CaseAnswer, case_evidence, citation_ids
 from app.domain.procurement import EvidenceDocument, compare
 from app.evaluation import finance
 from app.schemas.llm_outputs import FinanceClaim, FinanceVerdict
@@ -96,6 +96,13 @@ def test_finance_scoring_rejects_false_claims_and_invalid_judge_sources():
     assert finance.score(verdict, {"status"}) == (False, None)
     claim.source_ids = ["invented"]
     assert finance.score(verdict, {"status"}) == (None, "judge_invalid_source")
+
+
+def test_copilot_exposes_payment_evidence_independently_of_approval_status():
+    state = {"documents": {}, "status": "approved_for_payment", "revision": 3, "payment": None}
+    assert case_evidence(state)["payment"] == {"recorded": False}
+    state.update(status="paid", payment={"date": "2026-11-10", "reference": "SIM-8404"})
+    assert case_evidence(state)["payment"] == state["payment"]
 
 
 def test_purchasing_demo_documents_match_the_quantity_hold_and_correction():

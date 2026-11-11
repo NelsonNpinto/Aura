@@ -7,7 +7,8 @@ Dated evidence of what was actually run. Nothing here is projected.
 - The finance fixture CLI checked eight reference answers across four synthetic cases and exited 0. Replacing a valid citation with an invented receipt ID in an isolated dataset copy made the same command exit 1 and identify `quantity-hold/supported`.
 - The quality fixture endpoint returned HTTP 200 with all eight answers using the in-memory rate limiter. All four demo PDFs rendered and passed Aura's PDF text and hidden-text checks. Their quantities produced the expected shortfall and correction in the Purchasing comparison function.
 - API verification passed 99 tests after excluding database-dependent checks, including the JWT principal test that accesses Postgres. Ruff and mypy passed. Web type checking, lint and four Vitest tests passed.
-- The live finance CLI stopped before model calls because no Groq or Gemini key was configured. Live model scores, independent human agreement, the signed-in Purchasing walkthrough and production rollout remain unverified.
+- The pre-key live check stopped before model calls. After a Groq key was configured, the first live run on `4dc7b56` rejected all four deliberately incorrect reference answers, accepted three of four correct references, and accepted two of four generated Copilot answers. Two generated answers were unscored when their judge calls failed. The gate failed. The rejected correct reference exposed that an approval status by itself does not provide explicit payment evidence.
+- Independent human agreement, the signed-in Purchasing walkthrough and production rollout remain unverified.
 
 ## 2026-11-05 — Purchasing, copilot and quality implementation
 
