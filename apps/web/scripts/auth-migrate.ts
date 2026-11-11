@@ -6,6 +6,7 @@ import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 import { buildAuthOptions } from "../src/lib/auth-options";
 import { DEMO_ORG_ID } from "../src/lib/roles";
+import { seedPurchasingDemo } from "./seed-purchasing-demo";
 
 async function main() {
   const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
@@ -28,6 +29,10 @@ async function main() {
       [DEMO_ORG_ID],
     );
     console.log("auth migrations applied; demo org ensured");
+    if (process.env.AURA_SEED_PURCHASING_DEMO === "1") {
+      await seedPurchasingDemo(pool);
+      console.log("public Purchasing demo accounts ensured");
+    }
   } finally {
     await pool.end();
   }

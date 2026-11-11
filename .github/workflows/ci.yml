@@ -72,6 +72,11 @@ jobs:
           uv run alembic downgrade base
           uv run alembic upgrade head
       - run: uv run python -m app.scripts.seed
+      - name: Verify Purchasing demo account provisioning
+        working-directory: apps/web
+        run: npm exec -- tsx scripts/check-purchasing-demo.ts
+        env:
+          BETTER_AUTH_SECRET: ci-auth-migrations-only-placeholder-secret
       - run: uv run pytest -q
       - name: Deterministic invoice workflow gate
         run: uv run aura-eval run --dataset demo --gate --output /tmp/aura-workflow-report.json
