@@ -2,6 +2,13 @@
 
 Dated evidence of what was actually run. Nothing here is projected.
 
+## 2026-11-11 — Finance Copilot benchmark
+
+- The finance fixture CLI checked eight reference answers across four synthetic cases and exited 0. Replacing a valid citation with an invented receipt ID in an isolated dataset copy made the same command exit 1 and identify `quantity-hold/supported`.
+- The quality fixture endpoint returned HTTP 200 with all eight answers using the in-memory rate limiter. All four demo PDFs rendered and passed Aura's PDF text and hidden-text checks. Their quantities produced the expected shortfall and correction in the Purchasing comparison function.
+- API verification passed 99 tests after excluding database-dependent checks, including the JWT principal test that accesses Postgres. Ruff and mypy passed. Web type checking, lint and four Vitest tests passed.
+- The live finance CLI stopped before model calls because no Groq or Gemini key was configured. Live model scores, independent human agreement, the signed-in Purchasing walkthrough and production rollout remain unverified.
+
 ## 2026-11-05 — Purchasing, copilot and quality implementation
 
 - Local API suite: **127 passed** (7.40 s), including vendor assignment/stale-role restriction/revocation, cross-vendor/org access, ordered approval, changed evidence, payment idempotency, Gmail mocked transport outcomes, copilot citation/scope checks and human-label privacy/calibration.

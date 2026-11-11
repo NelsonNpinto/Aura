@@ -33,6 +33,20 @@ type Report = {
   }[];
 };
 
+type FinanceFixtures = {
+  gate_passed: boolean;
+  case_count: number;
+  results: {
+    id: string;
+    question: string;
+    answer: string;
+    passed: boolean | null;
+    verdict?: {
+      claims: { claim: string; verdict: string; reason: string }[];
+    };
+  }[];
+};
+
 export default function QualityPage() {
   const me = useQuery({
     queryKey: ["quality-permissions"],
@@ -41,6 +55,10 @@ export default function QualityPage() {
   const query = useQuery({
     queryKey: ["eval-report"],
     queryFn: () => api<{ reports: Report[]; notice: string }>("/eval-report"),
+  });
+  const finance = useQuery({
+    queryKey: ["finance-fixtures"],
+    queryFn: () => api<FinanceFixtures>("/quality/finance-fixtures"),
   });
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -52,6 +70,49 @@ export default function QualityPage() {
         workflow using supplied extraction data. They do not establish live
         model accuracy.
       </p>
+      <Card className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Finance Copilot regression examples</h2>
+          {finance.data && (
+            <Badge tone={finance.data.gate_passed ? "ok" : "danger"}>
+              {finance.data.gate_passed
+                ? "Fixture gate passed"
+                : "Fixture gate failed"}
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted">
+          Synthetic cases with supplied answers and judge verdicts. Live model
+          quality and human agreement are unmeasured.
+        </p>
+        <ErrorNote error={finance.error} />
+        {finance.isPending && (
+          <p className="text-sm">Loading finance examples…</p>
+        )}
+        {finance.data?.results.map((result) => (
+          <details
+            key={result.id}
+            className="rounded-lg border border-border p-3 text-sm"
+          >
+            <summary className="cursor-pointer">
+              {result.question} ·{" "}
+              {result.passed === null
+                ? "Unscored"
+                : result.passed
+                  ? "Accepted"
+                  : "Rejected"}
+            </summary>
+            <p className="mt-2">{result.answer}</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+              {result.verdict?.claims.map((claim, index) => (
+                <li key={index}>
+                  {claim.verdict.replaceAll("_", " ")} · {claim.reason}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ))}
+      </Card>
       <MarketingComparison />
       <ErrorNote error={query.error} />
       {query.isPending && <p>Loading evaluation evidence…</p>}
@@ -140,9 +201,8 @@ export default function QualityPage() {
       <Card>
         <h2 className="font-semibold">Remaining quality coverage</h2>
         <p className="mt-2 text-sm text-muted">
-          A larger marketing regression dataset and
-          feedback-to-dataset triage remain. A passing fixture gate does not
-          certify live model quality.
+          A larger marketing regression dataset and feedback-to-dataset triage
+          remain. A passing fixture gate does not certify live model quality.
         </p>
       </Card>
     </div>

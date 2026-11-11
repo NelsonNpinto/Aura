@@ -12,7 +12,7 @@
       "root": "apps/api/",
       "framework": "fastapi",
       "entrypoint": "app.main:app",
-      "buildCommand": "export UV_LINK_MODE=copy HF_HUB_DISABLE_XET=1 && mkdir -p data && cp -R ../../evals/datasets/demo ../../evals/datasets/policies ../../evals/datasets/reports ../../evals/datasets/marketing data/ && uv run --no-dev python -m app.scripts.fetch_models && uv run --no-dev python -m app.scripts.prune_bundle",
+      "buildCommand": "export UV_LINK_MODE=copy HF_HUB_DISABLE_XET=1 && mkdir -p data && cp -R ../../evals/datasets/demo ../../evals/datasets/policies ../../evals/datasets/reports ../../evals/datasets/marketing ../../evals/datasets/finance_copilot data/ && uv run --no-dev python -m app.scripts.fetch_models && uv run --no-dev python -m app.scripts.prune_bundle",
       "functions": {
         "app/main.py": {
           "maxDuration": 300,
