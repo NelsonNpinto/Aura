@@ -63,14 +63,29 @@ async def ask(body: Question, request: Request, p: CurrentPrincipal) -> dict[str
 
 
 def case_evidence(state: dict[str, Any]) -> dict[str, Any]:
+    documents = state["documents"]
     evidence: dict[str, Any] = {
-        **state["documents"],
+        **documents,
         "status": {"status": state["status"], "revision": state["revision"]},
         "payment": state.get("payment") or {"recorded": False},
     }
-    for key in ("comparison", "approvals"):
-        if state.get(key):
-            evidence[key] = state[key]
+    if approvals := state.get("approvals"):
+        evidence["approvals"] = approvals
+    if comparison := state.get("comparison"):
+        currency = documents.get("po", {}).get("currency")
+        if currency and currency == documents.get("invoice", {}).get("currency"):
+            findings = [
+                {
+                    **finding,
+                    "currency": currency,
+                    "difference_minor": finding["invoice_minor"] - finding["po_minor"],
+                }
+                if finding["code"] == "PRICE_VARIANCE"
+                else finding
+                for finding in comparison.get("findings", [])
+            ]
+            comparison = {**comparison, "findings": findings}
+        evidence["comparison"] = comparison
     return evidence
 
 

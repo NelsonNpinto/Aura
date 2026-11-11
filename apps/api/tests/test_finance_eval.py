@@ -105,6 +105,22 @@ def test_copilot_exposes_payment_evidence_independently_of_approval_status():
     assert case_evidence(state)["payment"] == state["payment"]
 
 
+def test_copilot_derives_same_currency_difference_without_changing_stored_comparison():
+    finding = {"code": "PRICE_VARIANCE", "po_minor": 4500, "invoice_minor": 5200}
+    state = {
+        "documents": {"po": {"currency": "USD"}, "invoice": {"currency": "USD"}},
+        "status": "needs_correction",
+        "revision": 3,
+        "comparison": {"findings": [finding]},
+    }
+    assert case_evidence(state)["comparison"]["findings"] == [
+        {**finding, "currency": "USD", "difference_minor": 700}
+    ]
+    assert "difference_minor" not in finding
+    state["documents"]["invoice"]["currency"] = "GBP"
+    assert case_evidence(state)["comparison"]["findings"] == [finding]
+
+
 def test_purchasing_demo_documents_match_the_quantity_hold_and_correction():
     folder = finance.datasets_root() / "finance_copilot/v1"
     dataset = finance.Dataset.model_validate_json((folder / "cases.json").read_bytes())

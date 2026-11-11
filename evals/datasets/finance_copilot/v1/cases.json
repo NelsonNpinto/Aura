@@ -366,7 +366,7 @@
           "revision": 3
         }
       ],
-      "question": "Has INV-8404 been paid? If so, what is the payment date?",
+      "question": "What is the approval status of INV-8404, and is there a recorded payment date?",
       "required_facts": [
         "The invoice is approved for payment and the supplied evidence has no recorded payment date."
       ],
