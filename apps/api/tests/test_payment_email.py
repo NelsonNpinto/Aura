@@ -22,6 +22,12 @@ async def test_preview_never_calls_a_provider(monkeypatch):
     assert "Payment reference: DEMO-1" in result["body"]
 
 
+async def test_public_demo_can_preview_with_gmail_enabled(monkeypatch):
+    monkeypatch.setattr(get_settings(), "mail_mode", "gmail")
+    result = await send(PAYLOAD, ["vendor@example.com"], preview_only=True)
+    assert result["status"] == "preview"
+
+
 @pytest.mark.parametrize("mode", ["accepted", "ambiguous", "unauthorized"])
 async def test_gmail_transport_and_no_blind_retry(monkeypatch, mode):
     from app.services import payment_email

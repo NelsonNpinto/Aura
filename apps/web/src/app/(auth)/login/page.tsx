@@ -3,6 +3,7 @@ import path from "node:path";
 import { headers } from "next/headers";
 import { Suspense } from "react";
 import { AuthForm, type DemoLogin } from "@/components/auth-form";
+import { purchasingDemoAccounts } from "@/lib/purchasing-demo";
 
 export const metadata = { title: "Log in" };
 
@@ -15,6 +16,9 @@ export default function LoginPage() {
 }
 
 async function LocalLoginForm() {
+  if (process.env.VERCEL_ENV === "production") {
+    return <AuthForm mode="login" demoLogins={purchasingDemoAccounts} publicDemo />;
+  }
   let demoLogins: DemoLogin[] | undefined;
   if (process.env.NODE_ENV === "development") {
     const host = (await headers()).get("host") ?? "";

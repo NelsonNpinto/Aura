@@ -53,6 +53,8 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Auth migrations
         working-directory: apps/web
+        env:
+          AURA_SEED_PURCHASING_DEMO: "1"
         run: |
           npm ci
           npm run auth:migrate
@@ -88,7 +90,10 @@ jobs:
       - name: Smoke test production
         env:
           BASE_URL: ${{ vars.PRODUCTION_URL || needs.deploy.outputs.url }}
-        run: bash scripts/smoke.sh "$BASE_URL"
+        run: |
+          bash scripts/smoke.sh "$BASE_URL"
+          curl -fsS --max-time 30 "$BASE_URL/login" -o /tmp/aura-login.html
+          grep -q 'Purchasing demo logins' /tmp/aura-login.html
       - name: Rollback instructions
         if: failure()
         run: |

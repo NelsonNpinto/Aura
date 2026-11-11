@@ -1,10 +1,12 @@
 import type { BetterAuthOptions } from "better-auth";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { anonymous, captcha, jwt, organization } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
 import { defaultStatements } from "better-auth/plugins/organization/access";
 import { Kysely, PostgresDialect } from "kysely";
 import type { Pool } from "pg";
 import { DEMO_ORG_ID, parseRoles } from "./roles";
+import { isPurchasingDemoUser, PURCHASING_DEMO_DOMAIN, PURCHASING_DEMO_ORG } from "./purchasing-demo";
 
 const ac = createAccessControl({ ...defaultStatements });
 const none = ac.newRole({ organization: [], member: [], invitation: [] });
@@ -21,10 +23,12 @@ export function buildAuthOptions(pool: Pool): BetterAuthOptions {
   /** Active org membership, falling back to the user's first membership (the session can be
    *  created before the sign-up hook has inserted it). */
   async function membership(userId: string, orgId: string | null | undefined) {
+    const demoOrg = isPurchasingDemoUser(userId) ? PURCHASING_DEMO_ORG : null;
     const r = await pool.query<{ organizationId: string; role: string }>(
       `SELECT "organizationId", role FROM auth.member WHERE "userId" = $1
+       AND ($3::text IS NULL OR "organizationId" = $3)
        ORDER BY ("organizationId" = $2) DESC NULLS LAST, "createdAt" LIMIT 1`,
-      [userId, orgId ?? null],
+      [userId, orgId ?? null, demoOrg],
     );
     const row = r.rows[0];
     return row ? { orgId: row.organizationId, roles: parseRoles(row.role) } : { orgId: null, roles: [] };
@@ -51,9 +55,23 @@ export function buildAuthOptions(pool: Pool): BetterAuthOptions {
         : {},
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
     advanced: { useSecureCookies: baseURL.startsWith("https://") },
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (!["/change-password", "/change-email", "/update-user", "/delete-user", "/link-social", "/unlink-account", "/organization/leave"].includes(ctx.path)) return;
+        const session = await getSessionFromCtx(ctx);
+        if (session && isPurchasingDemoUser(session.user.id)) {
+          throw new APIError("FORBIDDEN", { message: "Shared demo accounts cannot be changed" });
+        }
+      }),
+    },
     databaseHooks: {
       user: {
         create: {
+          before: async (user) => {
+            if (user.email.toLowerCase().endsWith(`@${PURCHASING_DEMO_DOMAIN}`)) {
+              throw new APIError("FORBIDDEN", { message: "This email domain is reserved for the Purchasing demo" });
+            }
+          },
           // Guests join the shared synthetic `demo` org; registered users get a personal org.
           after: async (user) => {
             const isAnon = Boolean((user as { isAnonymous?: boolean }).isAnonymous);
@@ -97,7 +115,8 @@ export function buildAuthOptions(pool: Pool): BetterAuthOptions {
         ac,
         roles: { vendor: none, purchasing: none, receiving: none, finance: none, guest: none, clerk: none, approver: none, controller: none, auditor: none, admin: orgAdmin },
         creatorRole: "admin",
-        allowUserToCreateOrganization: async (user) => !(user as { isAnonymous?: boolean }).isAnonymous,
+        allowUserToCreateOrganization: async (user) =>
+          !(user as { isAnonymous?: boolean }).isAnonymous && !isPurchasingDemoUser(user.id),
       }),
       anonymous({ emailDomainName: "guest.aura.invalid" }),
       jwt({

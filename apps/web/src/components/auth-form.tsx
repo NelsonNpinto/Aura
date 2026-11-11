@@ -10,7 +10,7 @@ import { authClient } from "@/lib/auth-client";
 
 export type DemoLogin = { label: string; email: string; password: string; workspaceId: string };
 
-export function AuthForm({ mode, demoLogins = [] }: { mode: "login" | "signup"; demoLogins?: DemoLogin[] }) {
+export function AuthForm({ mode, demoLogins = [], publicDemo = false }: { mode: "login" | "signup"; demoLogins?: DemoLogin[]; publicDemo?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
   const [captcha, setCaptcha] = useState<string | null>(null);
@@ -78,6 +78,7 @@ export function AuthForm({ mode, demoLogins = [] }: { mode: "login" | "signup"; 
           <div className="mb-5 space-y-2 rounded-lg border border-border bg-surface-2 p-3">
             <p className="text-sm font-semibold">Purchasing demo logins</p>
             <p className="text-xs text-muted">Choose a role to fill the form, then click Log in.</p>
+            {publicDemo && <p className="text-xs text-muted">Shared demo workspace. Use sample documents. Payment emails are previewed.</p>}
             <div className="grid grid-cols-2 gap-2">
               {demoLogins.map((login) => (
                 <Button key={login.email} type="button" variant="secondary" disabled={busy} onClick={() => fillDemo(login)}>

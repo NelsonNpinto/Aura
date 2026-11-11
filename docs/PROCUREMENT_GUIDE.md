@@ -4,6 +4,8 @@ This guide describes the new implementation. Check PROGRESS.md for whether its c
 
 ## Accounts
 
+The live login page has **Purchasing**, **Vendor**, **L1** and **Finance** shortcuts for the shared synthetic workspace. Pick a role, complete the sign-in check and click **Log in**. Start a case with a fresh PO number and vendor ID `ACME` so the Vendor account can see it. Public demo payment emails appear as previews. Use your own registered accounts and a vendor inbox you control to test Gmail delivery.
+
 1. Create an AURA account for the workspace owner, a vendor, an L1 reviewer and a finance reviewer. Use different accounts. The owner can perform purchasing/receiving in the demo.
 2. As the owner, open **Purchasing**. In **Assign a colleague or vendor**, enter each existing account email, its role and, for the vendor, an identifier such as `ACME`.
 3. The other users open Purchasing and select the owner's workspace. Their personal workspace is separate. The vendor identifier on a case must exactly match its account assignment.

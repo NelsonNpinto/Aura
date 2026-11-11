@@ -31,15 +31,19 @@ def payment_message(payload: dict[str, Any]) -> tuple[str, str]:
     return subject, body
 
 
-async def send(payload: dict[str, Any], recipients: list[str]) -> dict[str, Any]:
+async def send(
+    payload: dict[str, Any], recipients: list[str], *, preview_only: bool = False
+) -> dict[str, Any]:
     settings = get_settings()
     subject, body = payment_message(payload)
-    if settings.mail_mode == "preview":
+    if preview_only or settings.mail_mode == "preview":
         return {
             "status": "preview",
             "subject": subject,
             "body": body,
-            "notice": "Sender not enabled; no email sent",
+            "notice": "Public demo; no email sent"
+            if preview_only
+            else "Sender not enabled; no email sent",
         }
     allowed = {x.strip().lower() for x in settings.mail_allowed_recipients.split(",") if x.strip()}
     if not recipients or any(x.lower() not in allowed for x in recipients):
@@ -121,7 +125,9 @@ async def dispatch(org_id: str, case_id: uuid.UUID) -> dict[str, Any]:
                 {"ids": payload["recipients"]},
             )
         ).all()
-    outcome = await send(payload, [u.email for u in users])
+    outcome = await send(
+        payload, [u.email for u in users], preview_only=org_id == "purchasing-demo"
+    )
     async with tenant_tx(org_id) as session:
         # Lock the case only after sending; paid/edit paths never acquire the outbox lock.
         case = (
