@@ -121,6 +121,20 @@ def test_copilot_derives_same_currency_difference_without_changing_stored_compar
     assert case_evidence(state)["comparison"]["findings"] == [finding]
 
 
+def test_copilot_calculates_unreceived_quantity_with_decimal_precision():
+    finding = {"code": "QUANTITY_SHORTFALL", "invoiced": "40.25", "received": "30.10"}
+    state = {
+        "documents": {},
+        "status": "needs_correction",
+        "revision": 3,
+        "comparison": {"findings": [finding]},
+    }
+    assert case_evidence(state)["comparison"]["findings"] == [
+        {**finding, "unreceived_quantity": "10.15"}
+    ]
+    assert "unreceived_quantity" not in finding
+
+
 def test_purchasing_demo_documents_match_the_quantity_hold_and_correction():
     folder = finance.datasets_root() / "finance_copilot/v1"
     dataset = finance.Dataset.model_validate_json((folder / "cases.json").read_bytes())

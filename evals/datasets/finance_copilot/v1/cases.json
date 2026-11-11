@@ -54,7 +54,7 @@
       "findings": [
         "QUANTITY_SHORTFALL"
       ],
-      "question": "Why is INV-8401 on hold?",
+      "question": "Why is INV-8401 on hold, and how many invoiced units are missing from the receipt?",
       "required_facts": [
         "40 filters were invoiced and only 30 were received, a shortfall of 10."
       ],

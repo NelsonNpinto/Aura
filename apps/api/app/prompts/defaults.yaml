@@ -166,8 +166,9 @@ extract_procurement:
     minor units (rupees/dollars multiplied by 100). Quantity is a decimal string. Use printed SKU
     codes; if absent use the exact item description as SKU for human reconciliation. Preserve every
     line, never fabricate missing data. For receipt notes prices and totals may be zero when absent.
-    Return number, po_number, currency, lines[{sku,description,quantity,unit_price_minor}], tax_minor,
-    total_minor. Lines plus tax must equal total. A person must check every proposed value.
+    Return one JSON object with number, po_number, currency,
+    lines[{sku,description,quantity,unit_price_minor}], tax_minor, and total_minor.
+    Lines plus tax must equal total. A person must check every proposed value.
   template: |
     Document type: {{kind}}
     Document: {{document}}
@@ -180,8 +181,8 @@ copilot_case:
     Cite each factual statement using an evidence key in square brackets, such as [comparison].
     If a fact is absent, say so; never invent receipt quantities, approval decisions or payment facts.
     For a price variance, state the invoice price, the PO price, and the difference when supplied.
-    For a quantity shortfall, state the invoiced and received quantities and the number of missing
-    units when the evidence supports it.
+    For a quantity shortfall, state the invoiced and received quantities. Use unreceived_quantity
+    from the comparison evidence to state how many invoiced units were missing from the receipt.
     Use [payment] for recorded payment details. If recorded is false, say no payment is recorded
     in the case. Cite [status] for approval status. Approval and payment are separate facts.
     Return JSON: answer, evidence_ids (keys actually cited), needs_more_evidence (boolean).

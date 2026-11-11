@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 from dataclasses import asdict
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -73,19 +74,20 @@ def case_evidence(state: dict[str, Any]) -> dict[str, Any]:
         evidence["approvals"] = approvals
     if comparison := state.get("comparison"):
         currency = documents.get("po", {}).get("currency")
-        if currency and currency == documents.get("invoice", {}).get("currency"):
-            findings = [
-                {
+        same_currency = currency and currency == documents.get("invoice", {}).get("currency")
+        findings = []
+        for finding in comparison.get("findings", []):
+            if finding["code"] == "PRICE_VARIANCE" and same_currency:
+                finding = {
                     **finding,
                     "currency": currency,
                     "difference_minor": finding["invoice_minor"] - finding["po_minor"],
                 }
-                if finding["code"] == "PRICE_VARIANCE"
-                else finding
-                for finding in comparison.get("findings", [])
-            ]
-            comparison = {**comparison, "findings": findings}
-        evidence["comparison"] = comparison
+            elif finding["code"] == "QUANTITY_SHORTFALL":
+                unreceived = Decimal(finding["invoiced"]) - Decimal(finding["received"])
+                finding = {**finding, "unreceived_quantity": str(max(Decimal(0), unreceived))}
+            findings.append(finding)
+        evidence["comparison"] = {**comparison, "findings": findings}
     return evidence
 
 
