@@ -105,6 +105,22 @@ def test_copilot_exposes_payment_evidence_independently_of_approval_status():
     assert case_evidence(state)["payment"] == state["payment"]
 
 
+def test_copilot_links_unresolved_comparison_findings_to_the_correction_hold():
+    state = {
+        "documents": {},
+        "status": "needs_correction",
+        "revision": 3,
+        "comparison": {"matched": False, "findings": [{"code": "HEADER_MISMATCH"}]},
+    }
+    status = case_evidence(state)["status"]
+    assert status["status"] == "needs_correction"
+    assert "on hold for correction" in status["explanation"]
+    assert "before approval" in status["explanation"]
+
+    state["comparison"] = {"matched": True, "findings": []}
+    assert "explanation" not in case_evidence(state)["status"]
+
+
 def test_copilot_derives_same_currency_difference_without_changing_stored_comparison():
     finding = {"code": "PRICE_VARIANCE", "po_minor": 4500, "invoice_minor": 5200}
     state = {

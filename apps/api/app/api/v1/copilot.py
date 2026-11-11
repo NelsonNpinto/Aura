@@ -65,9 +65,10 @@ async def ask(body: Question, request: Request, p: CurrentPrincipal) -> dict[str
 
 def case_evidence(state: dict[str, Any]) -> dict[str, Any]:
     documents = state["documents"]
+    status = {"status": state["status"], "revision": state["revision"]}
     evidence: dict[str, Any] = {
         **documents,
-        "status": {"status": state["status"], "revision": state["revision"]},
+        "status": status,
         "payment": state.get("payment") or {"recorded": False},
     }
     if approvals := state.get("approvals"):
@@ -88,6 +89,11 @@ def case_evidence(state: dict[str, Any]) -> dict[str, Any]:
                 finding = {**finding, "unreceived_quantity": str(max(Decimal(0), unreceived))}
             findings.append(finding)
         evidence["comparison"] = {**comparison, "findings": findings}
+        if state["status"] == "needs_correction" and findings:
+            status["explanation"] = (
+                "The case is on hold for correction. Resolve the document comparison findings "
+                "before approval."
+            )
     return evidence
 
 
