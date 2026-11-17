@@ -1,0 +1,17 @@
+{
+  "copilot_tasks": {
+    "cases": 44,
+    "path": "datasets\\copilot_tasks\\v1\\cases.jsonl",
+    "sha256": "8d2ce5029321d44053b734de2a8475a4064ea285053649f436002b3066a71284"
+  },
+  "policy_qa": {
+    "cases": 62,
+    "path": "datasets\\policy_qa\\v1\\cases.jsonl",
+    "sha256": "c9a1809a2df1169e16e896cca562369627625b84a90b7933aaaaeba1722d0071"
+  },
+  "redteam": {
+    "cases": 65,
+    "path": "datasets\\redteam\\v1\\attacks.jsonl",
+    "sha256": "ae5186d3077b7daa00a05b742e4c024152ef6f7d6115ef0ce0df96e7bc3113bd"
+  }
+}
