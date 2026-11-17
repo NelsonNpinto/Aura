@@ -689,3 +689,274 @@ judge_labels = Table(
     schema="ai",
 )
 TENANT_TABLES.append("ai.judge_labels")
+
+
+# ================================================================ Phase 2: memory and graph
+memories = Table(
+    "memories",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("kind", Text, nullable=False),  # vendor | user
+    Column("subject_id", Text, nullable=False),
+    Column("fact", Text, nullable=False),
+    Column("fact_norm", Text, nullable=False),
+    Column("status", Text, nullable=False, server_default="pending"),
+    Column("observations", Integer, nullable=False, server_default="1"),
+    Column("confidence", Integer, nullable=False, server_default="50"),
+    Column("source_event_id", UUID(as_uuid=True)),
+    Column("created_by", Text, nullable=False),
+    Column("embedding", Vector(EMBED_DIM), nullable=False),
+    _now(),
+    _ts("last_used_at"),
+    _ts("expires_at"),
+    UniqueConstraint("org_id", "kind", "subject_id", "fact_norm"),
+    CheckConstraint("kind IN ('vendor','user')", name="kind_valid"),
+    CheckConstraint("status IN ('pending','active','retired')", name="status_valid"),
+    CheckConstraint("confidence BETWEEN 0 AND 100", name="confidence_range"),
+    Index(None, "org_id", "kind", "subject_id"),
+    schema="ai",
+)
+
+# ================================================================ Phase 3: trust layer
+guardrail_events = Table(
+    "guardrail_events",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("run_id", UUID(as_uuid=True)),
+    Column("surface", Text, nullable=False),  # document | chat | output | tool
+    Column("check", Text, nullable=False),
+    Column("verdict", Text, nullable=False),  # pass | flag | block
+    Column("severity", Text, nullable=False, server_default="LOW"),
+    Column("score", Integer),
+    Column("details", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    _now(),
+    CheckConstraint("verdict IN ('pass','flag','block')", name="verdict_valid"),
+    Index(None, "org_id", "created_at"),
+    schema="ai",
+)
+
+feedback_events = Table(
+    "feedback_events",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("event_id", Text, nullable=False),
+    Column("source", Text, nullable=False),
+    Column("payload", JSONB, nullable=False),
+    Column("payload_hash", Text, nullable=False),
+    Column("status", Text, nullable=False, server_default="new"),
+    Column("dataset", Text),
+    Column("case_id", Text),
+    Column("triaged_by", Text),
+    _ts("triaged_at"),
+    _now(),
+    UniqueConstraint("org_id", "event_id"),
+    CheckConstraint("status IN ('new','accepted','rejected')", name="status_valid"),
+    schema="ai",
+)
+
+baselines = Table(
+    "baselines",
+    metadata,
+    _org(),
+    Column("dataset", Text, nullable=False),
+    Column("run_id", UUID(as_uuid=True), ForeignKey("ai.dataset_runs.id"), nullable=False),
+    Column("case_snapshot", Text, nullable=False),
+    Column("mode", Text, nullable=False),
+    Column("metrics", JSONB, nullable=False),
+    Column("justification", Text, nullable=False, server_default=""),
+    Column("created_by", Text, nullable=False),
+    _now(),
+    PrimaryKeyConstraint("org_id", "dataset"),
+    schema="ai",
+)
+
+experiments = Table(
+    "experiments",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("name", Text, nullable=False),
+    Column("kind", Text, nullable=False),  # offline | online
+    Column("config", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("results", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("created_by", Text, nullable=False),
+    _now(),
+    CheckConstraint("kind IN ('offline','online')", name="kind_valid"),
+    Index(None, "org_id", "created_at"),
+    schema="ai",
+)
+
+eval_reports = Table(
+    "eval_reports",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("slug", Text, nullable=False),
+    Column("report", JSONB, nullable=False),
+    Column("published", Boolean, nullable=False, server_default=text("false")),
+    Column("git_sha", Text),
+    _now(),
+    UniqueConstraint("org_id", "slug"),
+    schema="ai",
+)
+
+challenge_attempts = Table(
+    "challenge_attempts",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("category", Text, nullable=False),
+    Column("attempt", Text, nullable=False),
+    Column("blocked", Boolean, nullable=False),
+    Column("verdicts", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("visitor_hash", Text, nullable=False, server_default=""),
+    _now(),
+    Index(None, "org_id", "created_at"),
+    schema="ai",
+)
+
+semantic_cache = Table(
+    "semantic_cache",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("task", Text, nullable=False),
+    Column("question", Text, nullable=False),
+    Column("answer", JSONB, nullable=False),
+    Column("embedding", Vector(EMBED_DIM), nullable=False),
+    Column("hits", Integer, nullable=False, server_default="0"),
+    _now(),
+    Index(None, "org_id", "task"),
+    schema="ai",
+)
+
+tool_registry = Table(
+    "tool_registry",
+    metadata,
+    Column("name", Text, primary_key=True),
+    Column("source", Text, nullable=False),
+    Column("description", Text, nullable=False),
+    Column("risk", Text, nullable=False),
+    Column("allowed_roles", ARRAY(Text), nullable=False),
+    Column("allowed_agents", ARRAY(Text), nullable=False),
+    Column("requires_approval", Boolean, nullable=False, server_default=text("false")),
+    Column("idempotent", Boolean, nullable=False, server_default=text("false")),
+    Column("rate_limit", Integer, nullable=False, server_default="60"),
+    Column("enabled", Boolean, nullable=False, server_default=text("true")),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("input_schema", JSONB, nullable=False),
+    Column("synced_at", TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")),
+    schema="ai",
+)
+
+drift_reports = Table(
+    "drift_reports",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("window_start", TIMESTAMP(timezone=True), nullable=False),
+    Column("window_end", TIMESTAMP(timezone=True), nullable=False),
+    Column("metrics", JSONB, nullable=False),
+    Column("breaches", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    _now(),
+    Index(None, "org_id", "created_at"),
+    schema="ops",
+)
+
+# ================================================================ Phase 4: model registry
+model_versions = Table(
+    "model_versions",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("name", Text, nullable=False),
+    Column("task", Text, nullable=False),
+    Column("base_model", Text, nullable=False),
+    Column("adapter_repo", Text, nullable=False, server_default=""),
+    Column("adapter_revision", Text, nullable=False, server_default=""),
+    Column("dataset_version", Text, nullable=False, server_default=""),
+    Column("metrics", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("status", Text, nullable=False, server_default="candidate"),
+    Column("canary_percent", Integer, nullable=False, server_default="0"),
+    Column("promoted_by", Text),
+    _ts("promoted_at"),
+    _now(),
+    UniqueConstraint("org_id", "name", "adapter_revision"),
+    CheckConstraint("status IN ('candidate','canary','production','retired')", name="status_valid"),
+    CheckConstraint("canary_percent BETWEEN 0 AND 100", name="canary_range"),
+    schema="ai",
+)
+
+# ================================================================ Phase 5: vendor onboarding pack
+onboarding_cases = Table(
+    "onboarding_cases",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("vendor_name", Text, nullable=False),
+    Column("status", Text, nullable=False, server_default="draft"),
+    Column("state", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("created_by", Text, nullable=False),
+    _now(),
+    Index(None, "org_id", "created_at"),
+    schema="ap",
+)
+
+TENANT_TABLES.extend(
+    [
+        "ai.memories",
+        "ai.guardrail_events",
+        "ai.feedback_events",
+        "ai.baselines",
+        "ai.experiments",
+        "ai.eval_reports",
+        "ai.challenge_attempts",
+        "ai.semantic_cache",
+        "ai.model_versions",
+        "ops.drift_reports",
+        "ap.onboarding_cases",
+    ]
+)
+
+
+# ---------------------------------------------------------------- copilot threads (§B7)
+copilot_threads = Table(
+    "copilot_threads",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column("user_id", Text, nullable=False),
+    Column("title", Text, nullable=False, server_default=""),
+    Column("summary", Text, nullable=False, server_default=""),
+    _now(),
+    _ts("last_message_at"),
+    Index(None, "org_id", "user_id"),
+    schema="ai",
+)
+
+copilot_messages = Table(
+    "copilot_messages",
+    metadata,
+    _uuid_pk(),
+    _org(),
+    Column(
+        "thread_id",
+        UUID(as_uuid=True),
+        ForeignKey("ai.copilot_threads.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("role", Text, nullable=False),
+    Column("content", Text, nullable=False),
+    Column("citations", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column("tool_events", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column("llm", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    _now(),
+    CheckConstraint("role IN ('user','assistant')", name="role_valid"),
+    Index(None, "thread_id", "created_at"),
+    schema="ai",
+)
+
+TENANT_TABLES.extend(["ai.copilot_threads", "ai.copilot_messages"])
