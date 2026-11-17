@@ -131,3 +131,96 @@ Purchasing model extraction path requires a provider. The PDF values also suppor
 ## Still required
 
 Full golden-set and extraction benchmarks, representative held-out data, genuine reviews and live results for the marketing suite, semantic citation-support evaluation, model/prompt experiments, reviewed failures promoted into datasets, and live nightly/weekly evaluation jobs.
+
+---
+
+# Phase 3 evaluation harness
+
+## Datasets
+
+Generated and version-hashed by `python -m evals.generator.trust_datasets`; CI fails if the
+checked-in files are stale (`--check`). Every case is marked `synthetic: true` and the runners
+refuse anything that is not.
+
+| Dataset | Cases | What it measures |
+|---|---|---|
+| `redteam` | 50 attacks + 15 benign controls | attack success rate, block rate, structural defences, and the false-positive rate on clean input |
+| `policy_qa` | 62 | retrieval grounding: required keywords, citation validity, offline RAGAS-style metrics |
+| `copilot_tasks` | 44 | tool trajectories, unnecessary calls, citation validity |
+
+## Checks library
+
+`app/evaluation/checks.py`: `non_empty`, `valid_json`, `json_schema`, `required_keywords`,
+`forbidden_phrases`, `exact_match`, `numeric_tolerance`, `field_f1`, `route_equals`,
+`flags_superset`, `tool_sequence`, `citation_valid`. A case score is the equal-weight fraction
+of checks that passed. An unknown check name **fails** rather than being skipped, and a check
+that raises is a failure, never a silent pass.
+
+## Gates
+
+`app/evaluation/gates.py`. A comparison is valid only when the baseline and the candidate share
+the same **case snapshot** and the same **run mode**; otherwise the verdict is
+`invalid_comparison` and the gate fails. Two gates are hard and are never relaxed by thresholds:
+
+- no false auto-post on a case that should not auto-post;
+- human-in-the-loop triggered wherever the case requires it.
+
+Moving a baseline requires a written justification, stored with it
+(`aura-eval baseline --run-id … --justification …`).
+
+## Running them
+
+```bash
+aura-eval run --dataset golden_invoices --gate        # fixtures, no provider calls
+aura-eval run --dataset policy_qa --live --gate       # retrieval, live models
+aura-eval run --dataset copilot_tasks --live --gate   # trajectories
+aura-eval redteam --gate                              # deterministic layer only
+aura-eval redteam --live --gate                       # classifier + copilot + output validation
+aura-eval report --publish                            # builds /eval-report from stored runs
+```
+
+## Reading the red-team numbers
+
+`block_rate` counts attacks stopped by the **input screen**. `defended_rate` also counts attacks
+stopped **structurally** — the tool gateway will not let the copilot call a tool it is not
+registered for, and nothing becomes a memory from text alone. Tool misuse and memory poisoning
+score 0 on `block_rate` by design: screening text is not how they are prevented.
+
+Measured on the deterministic layer alone (no classifier, no copilot), 2026-11-17:
+
+| Category | Attacks | block_rate | defended_rate |
+|---|---|---|---|
+| direct_injection | 9 | 1.00 | 1.00 |
+| hidden_text | 5 | 1.00 | 1.00 |
+| indirect_injection | 7 | 0.43 | 0.43 |
+| exfiltration | 8 | 0.38 | 0.38 |
+| jailbreak | 8 | 0.12 | 0.12 |
+| tool_misuse | 8 | 0.00 | 1.00 |
+| memory_poisoning | 5 | 0.00 | 1.00 |
+| **overall** | **50** | **0.42** | **0.68** |
+
+False-positive rate on the 15 benign controls: **0.00**. Attack success rate: **0** (no response
+is generated offline, so nothing can exhibit the attacked behaviour).
+
+The low offline numbers for jailbreak, exfiltration and indirect injection are expected and
+honest: those are caught by the injection classifier and by output validation, neither of which
+runs in the offline tier. The live weekly run is what measures them.
+
+## CI tiers
+
+| Tier | Runs | Spends quota |
+|---|---|---|
+| PR | fixtures, cassettes, deterministic red team, dataset freshness | no |
+| Nightly | rotating live slice, drift, memory decay, graph reconcile | yes, throttled |
+| Weekly | full golden set, policy QA, trajectories, live red team, promptfoo, publish | yes, paced across providers |
+
+Cassettes (`ROUTER_CASSETTE_MODE=record|replay`, `evals/cassettes/`) make the PR tier
+deterministic. The key includes the prompt text, so editing a prompt invalidates its cassettes —
+deliberately. In `replay` a missing cassette fails loudly instead of reaching the network.
+
+## Still required (Phase 3)
+
+A live run of each new dataset against configured providers; human labels for judge calibration
+on the new suites; and a published report. Until those exist, `/eval-report` shows "not
+measured" for the figures they would fill, which is the intended behaviour rather than a gap to
+paper over.

@@ -1,0 +1,51 @@
+# Nightly demo reset (§B17, §B18).
+#
+# Restores the seed snapshot for the `demo` org. The ~30 historical runs are NOT re-executed:
+# they were run once and saved, and re-running them every night would consume most of Groq's
+# daily token allowance. Restored runs keep their original timestamps and stay labelled as seed
+# runs, so nothing in the demo claims to be a fresh measurement.
+name: demo-reset
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-reset
+  cancel-in-progress: true
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      APP_ENV: production
+      DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      ERP_SERVICE_TOKEN: ${{ secrets.ERP_SERVICE_TOKEN }}
+      DEMO_RESET_SECRET: ${{ secrets.DEMO_RESET_SECRET }}
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Restore the demo snapshot
+        run: uv run python -m app.scripts.seed_demo --restore
+      - name: Expire old guest uploads (72 h, §B18)
+        run: uv run python -m app.scripts.seed_demo --expire-guest-uploads
+      - name: Smoke the public demo
+        run: |
+          url="${{ vars.PRODUCTION_URL || 'https://aura-henna-one.vercel.app' }}"
+          test "$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url/api/v1/health")" = "200"

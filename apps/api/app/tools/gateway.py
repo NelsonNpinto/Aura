@@ -17,6 +17,7 @@ import hashlib
 import hmac
 import json
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -116,7 +117,25 @@ def _redacted_args(spec: ToolSpec, args: dict[str, Any]) -> dict[str, Any]:
     return red
 
 
+LocalExecutor = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
+_LOCAL: dict[str, LocalExecutor] = {}
+
+
+def register_local(name: str, fn: LocalExecutor) -> None:
+    """Register an in-process executor for a tool declared with `source: local`.
+
+    Local tools still pass every gateway check (schema, roles, agent, rate limit, audit); the
+    gateway stays the single policy enforcement point.
+    """
+    _LOCAL[name] = fn
+
+
 async def _execute(spec: ToolSpec, org_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    if spec.source == "local":
+        fn = _LOCAL.get(spec.name)
+        if fn is None:
+            raise ToolFailed(f"No local executor registered for {spec.name}")
+        return await fn(org_id, args)
     if spec.source != "mcp:erp":
         raise ToolFailed(f"No executor for {spec.source}")
     url = get_settings().erp_mcp_url

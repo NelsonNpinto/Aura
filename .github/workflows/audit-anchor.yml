@@ -1,0 +1,62 @@
+# Daily external anchoring of the audit chain head (§B12).
+#
+# Someone with database-owner access could rewrite the whole hash chain so that it still
+# verifies internally. Committing each org's chain head to this public repository every day
+# makes that detectable: the rewritten chain would no longer match yesterday's anchor.
+#
+# This makes the log tamper-EVIDENT, not tamper-proof. The README and docs say so.
+name: audit-anchor
+
+on:
+  schedule:
+    - cron: "50 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: audit-anchor
+  cancel-in-progress: false
+
+jobs:
+  anchor:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      APP_ENV: production
+      DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - name: Read the chain heads
+        working-directory: apps/api
+        run: |
+          uv sync --frozen
+          uv run python -m app.scripts.nightly --anchor > /tmp/anchor.json
+      - name: Append today's anchor
+        run: |
+          mkdir -p audit-anchors
+          day=$(date -u +%F)
+          python - "$day" <<'PY'
+          import json, pathlib, sys
+          day = sys.argv[1]
+          heads = json.loads(pathlib.Path('/tmp/anchor.json').read_text())['anchor']
+          out = pathlib.Path('audit-anchors') / f'{day}.json'
+          out.write_text(json.dumps({'date': day, 'heads': heads}, indent=2, sort_keys=True) + '\n')
+          print(out)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "aura-anchor[bot]"
+          git config user.email "aura-anchor@users.noreply.github.com"
+          git add audit-anchors
+          if git diff --cached --quiet; then
+            echo "no change"
+          else
+            git commit -m "chore(audit): anchor chain heads for $(date -u +%F)"
+            git push
+          fi

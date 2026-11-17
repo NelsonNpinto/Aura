@@ -111,6 +111,16 @@ jobs:
         with:
           name: finance-copilot-live
           path: /tmp/aura-finance-live.json
+      - name: Trust datasets are current
+        working-directory: .
+        run: apps/api/.venv/bin/python -m evals.generator.trust_datasets --check
+      - name: Red-team gate (deterministic layer, no provider calls)
+        run: uv run aura-eval redteam --gate --limit 65 --delay 0 --output /tmp/aura-redteam.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: redteam-deterministic
+          path: /tmp/aura-redteam.json
       - name: Marketing judge fixture gate
         run: uv run aura-eval run --dataset marketing --gate --output /tmp/aura-marketing-fixture.json
       - uses: actions/upload-artifact@v6

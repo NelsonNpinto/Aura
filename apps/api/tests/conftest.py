@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import os
+import sys
 import tempfile
 import time
 import uuid
@@ -24,6 +26,12 @@ if not os.environ.get("AURA_TEST_UPSTASH"):
     os.environ["UPSTASH_REDIS_REST_URL"] = ""
     os.environ["UPSTASH_REDIS_REST_TOKEN"] = ""
 os.environ.setdefault("LOCAL_BLOB_DIR", os.path.join(tempfile.gettempdir(), "aura-test-blob"))
+
+# Windows needs the selector loop: psycopg refuses to run async on ProactorEventLoop, and
+# every database-backed test would fail with an InterfaceError unrelated to the code under
+# test. On Linux (CI) this is a no-op.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 collect_ignore_glob = ["._*"]
 

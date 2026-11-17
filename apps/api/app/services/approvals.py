@@ -24,9 +24,12 @@ from app.audit.chain import AuditEvent, append
 from app.core.config import get_settings
 from app.core.db import tenant_tx
 from app.core.errors import AppError, Conflict, Forbidden, NotFound
+from app.core.logging import get_logger
 from app.domain.approval import Level
 from app.domain.sod import Approver, InvoiceParties, check_sod
 from app.tools.gateway import ToolContext, call_tool
+
+log = get_logger("approvals")
 
 FX = {"USD": Decimal("1"), "EUR": Decimal("1.08"), "INR": Decimal("0.012"), "GBP": Decimal("1.27")}
 
@@ -291,4 +294,64 @@ async def decide(
         "callback_verified": callback_verified,
         "step": ap["step"],
         "token": token,
+    }
+
+
+async def resume_with_decision(
+    principal: Any,
+    *,
+    run_id: str,
+    decision: str,
+    comment: str,
+    source: str = "api",
+) -> dict[str, Any]:
+    """Decide an approval and run the graph to completion without streaming (MCP, scripts).
+
+    Same server-side path as the web app: SoD is checked in `decide`, the signed single-use
+    approval token is issued there, and the run resumes from its checkpoint.
+    """
+    from app.agents.invoice_to_pay import runner
+
+    actor = Actor(
+        principal.user_id,
+        principal.roles,
+        getattr(principal, "email", None) or principal.user_id,
+        1_000_000
+        if principal.roles & {"approver"} and not principal.roles & {"controller", "admin"}
+        else None,
+    )
+    if not actor.roles & {"approver", "controller", "admin"}:
+        raise Forbidden("Only approvers and controllers can decide", code="role_required")
+    async with tenant_tx(principal.org_id) as s:
+        mode = (
+            await s.execute(text("SELECT mode FROM ap.runs WHERE id=:r"), {"r": run_id})
+        ).scalar()
+    out = await decide(
+        principal.org_id,
+        run_id,
+        actor,
+        decision=decision,
+        comment=comment,
+        callback_verified=False,
+        packet_hash=None,
+    )
+    final: dict[str, Any] = {}
+    async for ev in runner.stream(
+        run_id,
+        principal.org_id,
+        actor.user_id,
+        resume={
+            k: out[k] for k in ("decision", "approver_id", "comment", "callback_verified", "step")
+        },
+        approval_token=out.get("token"),
+        fake=mode in ("replay", "fake"),
+    ):
+        if ev.get("type") in ("run.completed", "run.failed"):
+            final = ev
+    log.info("approval.resumed", run_id=run_id, decision=decision, source=source)
+    return {
+        "approver_id": out["approver_id"],
+        "step": out["step"],
+        "outcome": final.get("type", "unknown"),
+        "result": final.get("data", {}),
     }

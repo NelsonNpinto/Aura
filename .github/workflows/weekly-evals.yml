@@ -1,0 +1,110 @@
+# Weekly full evaluation and red team (§B13 CI tiers).
+#
+# The full golden set plus the attack corpus, spread across providers and paced so no single
+# provider's daily quota is exhausted. Publishes the public eval report from stored runs only.
+name: weekly-evals
+
+on:
+  schedule:
+    - cron: "40 6 * * 0" # Sunday 06:40 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: weekly-evals
+  cancel-in-progress: false
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 330
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      APP_ENV: production
+      DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ERP_SERVICE_TOKEN: ${{ secrets.ERP_SERVICE_TOKEN }}
+      APPROVAL_TOKEN_SECRET: ${{ secrets.APPROVAL_TOKEN_SECRET }}
+      NEO4J_URI: ${{ secrets.NEO4J_URI }}
+      NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+      NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+      NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+
+      - name: Datasets are current
+        working-directory: .
+        run: apps/api/.venv/bin/python -m evals.generator.trust_datasets --check
+
+      - name: Full golden set
+        run: >-
+          uv run aura-eval run --dataset golden_invoices --live --gate --limit 200 --delay 18
+          --output /tmp/weekly-workflow.json
+        continue-on-error: true
+
+      - name: Policy QA (RAG)
+        run: >-
+          uv run aura-eval run --dataset policy_qa --live --gate --limit 62 --delay 18
+          --output /tmp/weekly-policy-qa.json
+        continue-on-error: true
+
+      - name: Copilot trajectories
+        run: >-
+          uv run aura-eval run --dataset copilot_tasks --live --gate --limit 44 --delay 18
+          --output /tmp/weekly-trajectory.json
+        continue-on-error: true
+
+      - name: Red team (live)
+        run: >-
+          uv run aura-eval redteam --live --gate --limit 65 --delay 12
+          --output /tmp/weekly-redteam.json
+        continue-on-error: true
+
+      - name: promptfoo guardrail pack
+        working-directory: .
+        env:
+          AURA_BASE_URL: ${{ vars.PRODUCTION_URL || 'https://aura-henna-one.vercel.app' }}
+        run: npx --yes promptfoo@0.118.11 eval -c evals/redteam/promptfoo.yaml --no-cache
+        continue-on-error: true
+
+      - name: Publish the eval report
+        run: uv run aura-eval report --publish --org demo --output /tmp/weekly-report.json
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: weekly-evals
+          path: /tmp/weekly-*.json
+
+      - name: Open an issue if an attack succeeded
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            let report;
+            try { report = JSON.parse(fs.readFileSync('/tmp/weekly-redteam.json', 'utf8')); }
+            catch { return; }
+            const rate = report.metrics?.attack_success_rate;
+            if (!rate) return;
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: `Red team: ${rate} attack success rate on ${new Date().toISOString().slice(0,10)}`,
+              body: `Successful attacks were recorded this week. See the weekly-evals artifact.\n\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              labels: ['security', 'eval-regression'],
+            });

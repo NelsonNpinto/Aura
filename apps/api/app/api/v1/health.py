@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.core.db import get_engine
 from app.core.store import get_store
+from app.graph.client import availability as graph_availability
 
 router = APIRouter(tags=["health"])
 
@@ -49,14 +50,36 @@ async def ready() -> JSONResponse:
         "gemini": "configured" if s.gemini_api_key else "not_configured",
         "bedrock": "enabled" if s.enable_bedrock else "disabled",
     }
-    neo4j = {"status": "not_configured" if not s.neo4j_uri else "unchecked_phase0"}
+    # The graph is optional: when it is unavailable, relationship checks raise a MEDIUM flag and
+    # the invoice goes to human review (§B18), so this degrades rather than failing readiness.
+    graph_usable, graph_reason = graph_availability()
+    neo4j = {
+        # Not a live probe: readiness must stay cheap, and a paused AuraDB takes ~30 s to answer.
+        # "configured" means the driver and credentials are present, not that a query succeeded.
+        # GET /api/v1/graph/health runs the real probe.
+        "status": "configured" if graph_usable else "unavailable",
+        "reason": graph_reason,
+        "probe": "/api/v1/graph/health",
+    }
+    specialist = {
+        "status": "enabled" if s.enable_specialist else "disabled",
+        "space": s.specialist_space_id or None,
+    }
     degraded = [k for k, v in {"redis": redis}.items() if v["status"] != "ok"]
+    if not graph_usable and s.neo4j_uri:
+        degraded.append("knowledge_graph")
     if not (s.groq_api_key or s.gemini_api_key):
         degraded.append("llm_providers")
     status = "down" if db["status"] != "ok" else ("degraded" if degraded else "ok")
     body = {
         "status": status,
-        "checks": {"postgres": db, "redis": redis, "neo4j": neo4j, "providers": providers},
+        "checks": {
+            "postgres": db,
+            "redis": redis,
+            "neo4j": neo4j,
+            "providers": providers,
+            "specialist": specialist,
+        },
         "degraded": degraded,
         "git_sha": s.git_sha,
     }
