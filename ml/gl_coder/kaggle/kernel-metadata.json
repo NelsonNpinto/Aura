@@ -1,0 +1,13 @@
+{
+  "id": "REPLACED_BY_kaggle_run",
+  "title": "AURA GL coder",
+  "code_file": "train_kernel.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}
