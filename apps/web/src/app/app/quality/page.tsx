@@ -54,7 +54,7 @@ export default function QualityPage() {
   });
   const query = useQuery({
     queryKey: ["eval-report"],
-    queryFn: () => api<{ reports: Report[]; notice: string }>("/eval-report"),
+    queryFn: () => api<{ reports: Report[]; notice: string }>("/quality/public-reports"),
   });
   const finance = useQuery({
     queryKey: ["finance-fixtures"],

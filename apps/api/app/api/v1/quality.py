@@ -183,7 +183,11 @@ async def judgments(p: CurrentPrincipal) -> dict[str, Any]:
     }
 
 
-@router.get("/eval-report")
+# Phase 3 added a public /eval-report router (app/api/v1/eval_report.py) reading
+# ai.eval_reports, which is mounted first and would otherwise shadow this route entirely.
+# These are different things: this one lists stored synthetic workflow runs, so it keeps its
+# own path rather than silently never being reached.
+@router.get("/quality/public-reports")
 async def reports() -> dict[str, Any]:
     async with system_tx() as session:
         rows = (

@@ -75,9 +75,9 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 resource "aws_iam_role" "github_bedrock" {
-  name               = "aura-github-bedrock"
-  description        = "GitHub Actions OIDC role: Bedrock inference and eval artifacts"
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+  name                 = "aura-github-bedrock"
+  description          = "GitHub Actions OIDC role: Bedrock inference and eval artifacts"
+  assume_role_policy   = data.aws_iam_policy_document.assume_role.json
   max_session_duration = 3600
 }
 

@@ -66,7 +66,8 @@ async def test_judge_human_label_privacy_and_unscored_failure(org_id, monkeypatc
         assert report["calibration"]["sample_size"] == 1
         assert report["calibration"]["agreement"] == 1
         assert rid not in [
-            str(r["id"]) for r in (await client.get("/api/v1/eval-report")).json()["reports"]
+            str(r["id"])
+            for r in (await client.get("/api/v1/quality/public-reports")).json()["reports"]
         ]
         principal = Principal("reviewer", "other-" + org_id, frozenset({"admin"}), "api_key")
         assert (

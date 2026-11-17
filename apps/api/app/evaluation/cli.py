@@ -6,6 +6,8 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
+import sys
 import time
 import uuid
 from datetime import UTC, datetime
@@ -279,7 +281,34 @@ async def promote_baseline(
     return {"dataset": dataset, "run_id": run_id, "gate_passed": True}
 
 
+def _prepare_runtime() -> None:
+    """Make the CLI usable outside a deployed environment.
+
+    Two things the server gets for free and a bare `asyncio.run` entrypoint does not:
+
+    1. Settings come from .env.local via pydantic-settings, but the ERP tools read
+       os.environ directly (they are shared with services/erp-mock, which runs as its own
+       Vercel service with real environment variables). Locally that left DATABASE_URL
+       empty and every ERP call failed to build an engine. Export what they need, without
+       overwriting anything the environment already sets.
+    2. psycopg refuses to run async on Windows' default ProactorEventLoop, so every
+       database call raised InterfaceError. tests/conftest.py already does this; the CLI
+       needs it for the same reason. On Linux (CI) the branch is a no-op.
+    """
+    s = get_settings()
+    for name, value in (
+        ("DATABASE_URL", s.database_url),
+        ("DATABASE_URL_UNPOOLED", s.database_url_unpooled or s.database_url),
+        ("ERP_DATABASE_URL", s.database_url),
+    ):
+        if value and not os.environ.get(name):
+            os.environ[name] = value
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
 def main() -> None:
+    _prepare_runtime()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["run", "redteam", "report", "baseline"])
     parser.add_argument(

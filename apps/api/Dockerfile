@@ -1,6 +1,6 @@
 # AURA API container (Phase 5.4). Used by the Helm chart and the kind e2e test, not by Vercel.
 # Multi-stage so the runtime image carries no build tools; no torch anywhere (§B4).
-FROM ghcr.io/astral-sh/uv:0.13.8-python3.12-bookworm-slim AS build
+FROM ghcr.io/astral-sh/uv:0.9.18-python3.12-bookworm-slim AS build
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY apps/api/pyproject.toml apps/api/uv.lock ./
