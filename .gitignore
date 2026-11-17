@@ -40,3 +40,20 @@ apps/api/model_cache/
 apps/api/.local/
 .claude/launch.json
 apps/api/data/
+
+# Local working files — kept on disk, never published
+AURA_BUILD_PROMPT.md
+CLAUDE.md
+AGENTS.md
+apps/web/AGENTS.md
+PROGRESS.md
+docs/PROJECT_CONTEXT.md
+docs/PROJECT_IMPROVEMENT_REVIEW.md
+docs/PROJECT_SUMMARY.md
+docs/adr/000-rebuild-in-place.md
+docs/BEGINNER_GUIDE.md
+docs/PAGE_BY_PAGE_FLOW.md
+legacy/
+output/
+tmp/
+interview-prep/
