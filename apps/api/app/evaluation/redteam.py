@@ -205,6 +205,8 @@ async def run(
             if attacks
             else None,
             "defended_rate": round(defended / len(attacks), 4) if attacks else None,
+            # Share of attacks that did not succeed, whatever stopped them; the gate's score.
+            "resisted_rate": round(1 - succeeded / len(attacks), 4) if attacks else None,
             "false_positive_rate": round(false_positives / len(clean), 4) if clean else None,
             "clean_cases": len(clean),
             "errors": 0,

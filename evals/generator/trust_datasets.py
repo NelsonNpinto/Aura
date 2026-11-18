@@ -356,7 +356,7 @@ def main() -> None:
         else:
             path.write_bytes(body)
         manifest[name] = {
-            "path": str(path.relative_to(ROOT.parent)),
+            "path": path.relative_to(ROOT.parent).as_posix(),  # same on every OS
             "cases": len(build()),
             "sha256": _sha(body),
         }

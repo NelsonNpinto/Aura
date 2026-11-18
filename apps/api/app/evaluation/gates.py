@@ -63,21 +63,27 @@ def evaluate(
     report: dict[str, Any],
     baseline: dict[str, Any] | None,
     thresholds: Thresholds | None = None,
+    *,
+    score_metric: str = "pass_rate",
 ) -> GateResult:
     t = thresholds or Thresholds()
     metrics = report.get("metrics", {})
-    score = metrics.get("pass_rate")
+    score = metrics.get(score_metric)
     reasons = list(hard_gate_failures(report))
 
     if int(metrics.get("errors") or 0) > t.max_errors:
         reasons.append(f"{metrics['errors']} error(s) exceeds max_errors={t.max_errors}")
     if score is None:
-        reasons.append("pass_rate was not measured")
+        reasons.append(f"{score_metric} was not measured")
     elif score < t.min_score:
-        reasons.append(f"pass_rate {score:.3f} below min_score {t.min_score:.3f}")
+        reasons.append(f"{score_metric} {score:.3f} below min_score {t.min_score:.3f}")
 
     comparison = "no_baseline"
-    details: dict[str, Any] = {"thresholds": asdict(t), "score": score}
+    details: dict[str, Any] = {
+        "thresholds": asdict(t),
+        "score_metric": score_metric,
+        "score": score,
+    }
     if baseline:
         same_snapshot = baseline.get("case_snapshot") == report.get("case_snapshot")
         same_mode = baseline.get("mode") == report.get("mode")
@@ -90,14 +96,15 @@ def evaluate(
         else:
             comparison = "baseline"
             base_metrics = baseline.get("metrics", {})
-            base_score = base_metrics.get("pass_rate")
+            base_score = base_metrics.get(score_metric)
             details["baseline_score"] = base_score
             if base_score is not None and score is not None:
                 drop = base_score - score
                 details["score_drop"] = round(drop, 4)
                 if drop > t.max_score_drop:
                     reasons.append(
-                        f"pass_rate dropped {drop:.3f} vs baseline (max {t.max_score_drop:.3f})"
+                        f"{score_metric} dropped {drop:.3f} vs baseline"
+                        f" (max {t.max_score_drop:.3f})"
                     )
             base_latency = base_metrics.get("duration_ms")
             latency = metrics.get("duration_ms")

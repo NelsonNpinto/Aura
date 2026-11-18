@@ -148,3 +148,75 @@ def test_document_arithmetic_rejects_wrong_total():
     value["total_minor"] += 1
     with pytest.raises(ValidationError):
         EvidenceDocument.model_validate(value)
+
+
+@pytest.mark.db
+async def test_public_demo_roles_reach_l1_and_finance(monkeypatch):
+    """The live demo path: assigned purchasing, vendor, L1 and finance logins, one case."""
+    from app.api.v1 import procurement
+
+    org = "proc-demo-" + uuid.uuid4().hex[:10]
+    async with tenant_tx(org) as s:
+        await s.execute(
+            text(
+                "INSERT INTO ap.procurement_members (org_id,user_id,role,vendor_id) VALUES"
+                " (:o,'demo-purchasing','purchasing',NULL),(:o,'demo-vendor','vendor','ACME'),"
+                " (:o,'demo-l1','approver',NULL),(:o,'demo-finance','finance',NULL)"
+            ),
+            {"o": org},
+        )
+    app = create_app()
+    who = {"id": "demo-purchasing"}
+
+    async def current():
+        return Principal(who["id"], org, frozenset(), "jwt")
+
+    async def preview(*args):
+        return {"status": "preview"}
+
+    app.dependency_overrides[get_principal] = current
+    monkeypatch.setattr(procurement, "dispatch", preview)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        created = await client.post(
+            "/api/v1/procurement/cases", json={"vendor_id": "ACME", "po_number": "PO-1"}
+        )
+        assert created.status_code == 201, created.text
+        path = f"/api/v1/procurement/cases/{created.json()['id']}"
+        for actor, kind in (
+            ("demo-purchasing", "po"),
+            ("demo-vendor", "invoice"),
+            ("demo-purchasing", "receipt"),
+        ):
+            who["id"] = actor
+            response = await client.put(f"{path}/documents/{kind}", json=document())
+            assert response.status_code == 200, (actor, kind, response.text)
+        assert response.json()["status"] == "awaiting_l1"
+
+        who["id"] = "demo-l1"
+        listed = (await client.get("/api/v1/procurement/cases")).json()
+        assert listed["roles"] == ["approver"]
+        assert listed["cases"][0]["state"]["status"] == "awaiting_l1"
+        approved = await client.post(
+            path + "/review", json={"revision": 3, "action": "l1", "comment": "L1 ok"}
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["status"] == "awaiting_finance"
+
+        who["id"] = "demo-finance"
+        cleared = await client.post(
+            path + "/review", json={"revision": 3, "action": "finance", "comment": "ok"}
+        )
+        assert cleared.status_code == 200, cleared.text
+        paid = await client.post(
+            path + "/paid",
+            json={
+                "revision": 3,
+                "reference": "PAY-1",
+                "date": "2026-11-01",
+                "amount_minor": 10000000,
+            },
+        )
+        assert paid.status_code == 200, paid.text
+        assert paid.json()["status"] == "paid"

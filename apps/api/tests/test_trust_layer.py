@@ -198,6 +198,28 @@ def test_a_clean_run_passes_without_a_baseline() -> None:
     assert verdict.comparison == "no_baseline"
 
 
+def test_a_red_team_report_gates_on_its_resisted_rate() -> None:
+    report = {
+        "case_snapshot": "rt-1",
+        "mode": "redteam",
+        "metrics": {"resisted_rate": 1.0, "errors": 0},
+    }
+    assert gates.evaluate(report, None, score_metric="resisted_rate").passed
+    report["metrics"]["resisted_rate"] = 0.9  # type: ignore[index]
+    assert not gates.evaluate(report, None, score_metric="resisted_rate").passed
+
+
+def test_self_gated_datasets_keep_their_own_verdict() -> None:
+    import asyncio
+
+    from app.evaluation.cli import apply_gate
+
+    for passed in (True, False):
+        report = asyncio.run(apply_gate({"gate_passed": passed}, "demo", "finance_copilot"))
+        assert report["gate_passed"] is passed
+        assert report["gate"]["comparison"] == "self_gated"
+
+
 # ---------------------------------------------------------------- red-team corpus
 def test_corpus_meets_the_specified_size_and_categories() -> None:
     cases = redteam.load_corpus()

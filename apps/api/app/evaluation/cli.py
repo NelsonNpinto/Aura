@@ -237,13 +237,24 @@ async def build_report(org: str, publish: bool, slug: str) -> dict[str, Any]:
     return report
 
 
+# Scored against reviewed expected verdicts: the report's own gate_passed is the gate, and it
+# has no pass_rate for the baseline gate to read (it would always fail as "not measured").
+SELF_GATED_DATASETS = frozenset({"marketing", "finance_copilot"})
+# The red-team report has no pass_rate; its comparable score is the share of attacks resisted.
+SCORE_METRIC = {"redteam": "resisted_rate"}
+
+
 async def apply_gate(report: dict[str, Any], org: str, dataset: str) -> dict[str, Any]:
     """Compare against the stored baseline, if there is one, and attach the gate verdict."""
     from app.evaluation.gates import evaluate, load_baseline
 
+    if dataset in SELF_GATED_DATASETS:
+        report["gate"] = {"comparison": "self_gated", "passed": bool(report.get("gate_passed"))}
+        report["gate_passed"] = bool(report.get("gate_passed"))
+        return report
     async with tenant_tx(org) as session:
         baseline = await load_baseline(session, org, dataset)
-    verdict = evaluate(report, baseline)
+    verdict = evaluate(report, baseline, score_metric=SCORE_METRIC.get(dataset, "pass_rate"))
     report["gate"] = verdict.public()
     report["gate_passed"] = bool(report.get("gate_passed")) and verdict.passed
     return report
@@ -390,7 +401,8 @@ def main() -> None:
             parser.error("--labels is only supported for marketing and finance_copilot")
         report = asyncio.run(run(args.dataset, args.limit, not args.live, delay=args.delay))
     if args.gate and args.command in ("run", "redteam"):
-        report = asyncio.run(apply_gate(report, args.org, args.dataset))
+        gate_dataset = "redteam" if args.command == "redteam" else args.dataset
+        report = asyncio.run(apply_gate(report, args.org, gate_dataset))
     rendered = json.dumps(report, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
