@@ -80,6 +80,147 @@ The live gate fails if enabled with missing or stale reviews, missing credential
 judgments. Pull requests run the fixture gate without credentials. Requiring the CI check for PR
 merges is a repository branch protection setting.
 
+## Finance Copilot benchmark and demo
+
+Open **AI Quality → Finance Copilot regression examples** to inspect the four synthetic purchasing
+scenarios and eight reference answers. Each scenario includes a supported answer and a plausible
+financial error with a real citation. The fixture gate checks the comparison rules, citation keys
+and scoring policy using supplied verdicts. It runs on pull requests and before deployment.
+
+The live suite calls the claim judge on the eight reference answers and generates one Copilot answer
+per scenario using the same answer and citation logic as Purchasing. The judge receives the cited
+evidence and required facts. A contradicted claim, missing evidence or omitted required fact fails
+the answer. Invalid judge output stays unscored and fails the gate. The output records the dataset
+and prompt hashes, per-case verdicts, model and prompt metadata, latency and estimated cost.
+Synthetic answer expectations are authored references. Independent human calibration remains
+unmeasured until a reviewer grades the reference answers independently. Use the same review
+file shape as the marketing suite, with the finance report's `dataset_sha256` and reference IDs
+such as `quantity-hold/supported`. Pass the file with `--labels` on a live run to report agreement,
+false passes, false fails and the reviewed sample size separately from the authored regression gate.
+
+From `apps/api`:
+
+```sh
+uv run aura-eval run --dataset finance_copilot --gate --output finance-fixture.json
+uv run aura-eval run --dataset finance_copilot --live --gate --delay 16 --output finance-live.json
+```
+
+The live command needs a configured Groq or Gemini API key and uses checked-out prompt defaults,
+in-memory quotas and isolated telemetry. After reviewing a live baseline, enable
+`AURA_FINANCE_LIVE_GATE` in GitHub Actions to require the live suite before a production deployment.
+The suite is intentionally small and is separate from a full invoice extraction or RAG benchmark.
+
+### Purchasing walkthrough
+
+Use the four PDFs in `evals/datasets/finance_copilot/v1/documents/`. They contain synthetic data
+for purchase order `PO-8401` and vendor invoice `INV-8401`, with 40 air handler filters at USD
+45.00 each. In a fresh Purchasing case, use the demo vendor ID `ACME`.
+
+1. Upload the purchase order as Purchasing and the invoice as Vendor. Review and confirm the fields.
+2. As Purchasing, upload and confirm the first goods receipt. Its quantity is 30, so the case should
+   show a quantity shortfall and stay in correction. Ask Copilot why the invoice is on hold.
+3. Replace the receipt with the corrected one for 40 filters. Confirm the update and verify the case
+   moves to L1. Use the L1 and Finance accounts in order, then record a simulated payment as Finance.
+4. Open the AI Quality example for the quantity hold. Compare the supported answer with the answer
+   that invents a Finance rejection even though its citation points to an existing status record.
+
+PDFs are text-based for the Purchasing walkthrough. Use `evals/datasets/demo/files/demo-e.png` in
+the invoice-to-pay demo to exercise its separate scanned-document vision path. The normal
+Purchasing model extraction path requires a provider. The PDF values also support manual entry.
+
 ## Still required
 
 Full golden-set and extraction benchmarks, representative held-out data, genuine reviews and live results for the marketing suite, semantic citation-support evaluation, model/prompt experiments, reviewed failures promoted into datasets, and live nightly/weekly evaluation jobs.
+
+---
+
+# Phase 3 evaluation harness
+
+## Datasets
+
+Generated and version-hashed by `python -m evals.generator.trust_datasets`; CI fails if the
+checked-in files are stale (`--check`). Every case is marked `synthetic: true` and the runners
+refuse anything that is not.
+
+| Dataset | Cases | What it measures |
+|---|---|---|
+| `redteam` | 50 attacks + 15 benign controls | attack success rate, block rate, structural defences, and the false-positive rate on clean input |
+| `policy_qa` | 62 | retrieval grounding: required keywords, citation validity, offline RAGAS-style metrics |
+| `copilot_tasks` | 44 | tool trajectories, unnecessary calls, citation validity |
+
+## Checks library
+
+`app/evaluation/checks.py`: `non_empty`, `valid_json`, `json_schema`, `required_keywords`,
+`forbidden_phrases`, `exact_match`, `numeric_tolerance`, `field_f1`, `route_equals`,
+`flags_superset`, `tool_sequence`, `citation_valid`. A case score is the equal-weight fraction
+of checks that passed. An unknown check name **fails** rather than being skipped, and a check
+that raises is a failure, never a silent pass.
+
+## Gates
+
+`app/evaluation/gates.py`. A comparison is valid only when the baseline and the candidate share
+the same **case snapshot** and the same **run mode**; otherwise the verdict is
+`invalid_comparison` and the gate fails. Two gates are hard and are never relaxed by thresholds:
+
+- no false auto-post on a case that should not auto-post;
+- human-in-the-loop triggered wherever the case requires it.
+
+Moving a baseline requires a written justification, stored with it
+(`aura-eval baseline --run-id … --justification …`).
+
+## Running them
+
+```bash
+aura-eval run --dataset golden_invoices --gate        # fixtures, no provider calls
+aura-eval run --dataset policy_qa --live --gate       # retrieval, live models
+aura-eval run --dataset copilot_tasks --live --gate   # trajectories
+aura-eval redteam --gate                              # deterministic layer only
+aura-eval redteam --live --gate                       # classifier + copilot + output validation
+aura-eval report --publish                            # builds /eval-report from stored runs
+```
+
+## Reading the red-team numbers
+
+`block_rate` counts attacks stopped by the **input screen**. `defended_rate` also counts attacks
+stopped **structurally** — the tool gateway will not let the copilot call a tool it is not
+registered for, and nothing becomes a memory from text alone. Tool misuse and memory poisoning
+score 0 on `block_rate` by design: screening text is not how they are prevented.
+
+Measured on the deterministic layer alone (no classifier, no copilot), 2026-11-17:
+
+| Category | Attacks | block_rate | defended_rate |
+|---|---|---|---|
+| direct_injection | 9 | 1.00 | 1.00 |
+| hidden_text | 5 | 1.00 | 1.00 |
+| indirect_injection | 7 | 0.43 | 0.43 |
+| exfiltration | 8 | 0.38 | 0.38 |
+| jailbreak | 8 | 0.12 | 0.12 |
+| tool_misuse | 8 | 0.00 | 1.00 |
+| memory_poisoning | 5 | 0.00 | 1.00 |
+| **overall** | **50** | **0.42** | **0.68** |
+
+False-positive rate on the 15 benign controls: **0.00**. Attack success rate: **0** (no response
+is generated offline, so nothing can exhibit the attacked behaviour).
+
+The low offline numbers for jailbreak, exfiltration and indirect injection are expected and
+honest: those are caught by the injection classifier and by output validation, neither of which
+runs in the offline tier. The live weekly run is what measures them.
+
+## CI tiers
+
+| Tier | Runs | Spends quota |
+|---|---|---|
+| PR | fixtures, cassettes, deterministic red team, dataset freshness | no |
+| Nightly | rotating live slice, drift, memory decay, graph reconcile | yes, throttled |
+| Weekly | full golden set, policy QA, trajectories, live red team, promptfoo, publish | yes, paced across providers |
+
+Cassettes (`ROUTER_CASSETTE_MODE=record|replay`, `evals/cassettes/`) make the PR tier
+deterministic. The key includes the prompt text, so editing a prompt invalidates its cassettes —
+deliberately. In `replay` a missing cassette fails loudly instead of reaching the network.
+
+## Still required (Phase 3)
+
+A live run of each new dataset against configured providers; human labels for judge calibration
+on the new suites; and a published report. Until those exist, `/eval-report` shows "not
+measured" for the figures they would fill, which is the intended behaviour rather than a gap to
+paper over.

@@ -78,3 +78,38 @@ class JudgeOut(Strict):
     completeness: RubricScore
     clarity: RubricScore
     unsupported_claims: list[str] = Field(default_factory=list, max_length=50)
+
+
+class FinanceClaim(Strict):
+    claim: str = Field(min_length=1, max_length=600)
+    verdict: Literal["supported", "contradicted", "insufficient_evidence"]
+    source_ids: list[str] = Field(max_length=10)
+    reason: str = Field(min_length=1, max_length=600)
+
+
+class FinanceVerdict(Strict):
+    claims: list[FinanceClaim] = Field(max_length=30)
+    missing_required_facts: list[str] = Field(max_length=20)
+
+
+class CopilotStep(Strict):
+    """One step of the copilot's bounded tool loop (§B7).
+
+    `action` is either `tool` (call one tool and continue) or `answer` (final answer with
+    citations into the evidence collected so far).
+    """
+
+    action: Literal["tool", "answer"]
+    reasoning: str = Field(default="", max_length=600)
+    tool: str | None = Field(default=None, max_length=64)
+    arguments: dict[str, object] | None = None
+    answer: str | None = Field(default=None, max_length=4000)
+    citations: list[str] = Field(default_factory=list, max_length=20)
+
+
+class GlCoderOut(Strict):
+    """Fine-tuned GL coder response (§B15)."""
+
+    gl_account: str = Field(min_length=1, max_length=20)
+    cost_center: str = Field(min_length=1, max_length=20)
+    rationale: str = Field(default="", max_length=400)

@@ -5,7 +5,9 @@ import {
   AlertTriangle,
   BookOpen,
   CheckSquare,
+  Brain,
   FlaskConical,
+  Gauge,
   Inbox,
   Layers3,
   LayoutDashboard,
@@ -13,8 +15,11 @@ import {
   Menu,
   MessageSquare,
   Moon,
+  Share2,
+  ShieldAlert,
   ShoppingBag,
   Sun,
+  UserPlus,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -88,9 +93,21 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
       label: "AI tools",
       items: [
         {
-          href: "/app/copilot",
+          href: "/app/copilot/chat",
           label: "Copilot",
           icon: MessageSquare,
+          show: !vendor,
+        },
+        {
+          href: "/app/graph",
+          label: "Graph",
+          icon: Share2,
+          show: !vendor,
+        },
+        {
+          href: "/app/memories",
+          label: "Memory",
+          icon: Brain,
           show: !vendor,
         },
         {
@@ -106,8 +123,31 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
           show: !vendor,
         },
         {
-          href: "/app/admin/playground",
-          label: "Playground",
+          href: "/app/observability",
+          label: "Observability",
+          icon: Gauge,
+          show: !vendor,
+        },
+      ],
+    },
+    {
+      label: "Platform",
+      items: [
+        {
+          href: "/app/onboarding",
+          label: "Vendor onboarding",
+          icon: UserPlus,
+          show: !vendor,
+        },
+        {
+          href: "/challenge",
+          label: "Challenge",
+          icon: ShieldAlert,
+          show: !vendor,
+        },
+        {
+          href: "/app/admin",
+          label: "Admin",
           icon: FlaskConical,
           show: !vendor && roles.includes("admin"),
         },

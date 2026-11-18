@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from app.core.config import datasets_root, get_settings
-from app.evaluation.calibration import calibration
+from app.evaluation.calibration import Reviews, calibration
 from app.evaluation.judge import JudgeRequest, score_judgment
 from app.schemas.llm_outputs import JudgeOut
 
@@ -49,21 +49,6 @@ class MarketingCase(BaseModel):
                 "unsupported_claims": self.fixture_unsupported_claims,
             }
         )
-
-
-class Review(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    passed: bool = Field(strict=True)
-    reason: str = Field(min_length=1)
-
-
-class Reviews(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    dataset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    reviewer: str = Field(min_length=1)
-    cases: dict[str, Review]
 
 
 async def load_cases() -> tuple[list[MarketingCase], str]:

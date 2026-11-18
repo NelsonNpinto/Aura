@@ -103,3 +103,62 @@ tools:
     allowed_agents: [invoice_to_pay, copilot]
     rate_limit: 20
     input: {type: object, additionalProperties: false, required: [vendor_id, field, requested_by, note], properties: {vendor_id: {type: string, maxLength: 20}, field: {type: string, maxLength: 40}, requested_by: {type: string, maxLength: 80}, note: {type: string, maxLength: 1000}}}
+  # ---------------------------------------------------------------- copilot tools (§B7)
+  # source: local -> executed in-process by app.agents.copilot.tools, still through the gateway.
+  search_policies:
+    source: local
+    description: Hybrid search over the AP policy corpus; returns citable passages.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system, finance, purchasing, receiving]
+    allowed_agents: [copilot, mcp]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [query], properties: {query: {type: string, minLength: 2, maxLength: 300}, doc_types: {type: array, maxItems: 5, items: {type: string, maxLength: 40}}, _user_id: {type: string, maxLength: 80}}}
+  graph_query:
+    source: local
+    description: Run a named, parameterised knowledge-graph template.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system, finance, purchasing]
+    allowed_agents: [copilot, mcp]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [template], properties: {template: {type: string, maxLength: 64}, params: {type: object}}}
+  sql_query:
+    source: local
+    description: Run a named read-only SQL template over RLS-protected views.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system, finance, purchasing]
+    allowed_agents: [copilot, mcp]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [template], properties: {template: {type: string, maxLength: 64}, params: {type: object}}}
+  list_invoices:
+    source: local
+    description: Recent invoices for this workspace.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system, finance, purchasing]
+    allowed_agents: [copilot, mcp]
+    rate_limit: 120
+    input: {type: object, additionalProperties: false, properties: {status: {type: [string, "null"], maxLength: 30}, vendor_id: {type: [string, "null"], maxLength: 20}, limit: {type: integer, minimum: 1, maximum: 50}}}
+  get_invoice:
+    source: local
+    description: One invoice with flags, lines and match outcomes.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system, finance, purchasing]
+    allowed_agents: [copilot, mcp]
+    rate_limit: 120
+    input: {type: object, additionalProperties: false, required: [invoice], properties: {invoice: {type: string, maxLength: 80}}}
+  explain_decision:
+    source: local
+    description: Audit lineage for a run, with hash-chain verification.
+    risk: read
+    allowed_roles: [guest, clerk, approver, controller, auditor, admin, system, finance, purchasing]
+    allowed_agents: [copilot, mcp]
+    rate_limit: 60
+    input: {type: object, additionalProperties: false, required: [run_id], properties: {run_id: {type: string, maxLength: 64}}}
+  start_invoice_run:
+    source: local
+    description: "Start an invoice run. Write tool: requires the user explicit confirmation."
+    risk: write
+    requires_approval: false
+    allowed_roles: [clerk, approver, controller, admin, purchasing, finance]
+    allowed_agents: [copilot]
+    rate_limit: 10
+    input: {type: object, additionalProperties: false, required: [document_id], properties: {document_id: {type: string, maxLength: 64}, confirm: {type: boolean}, _user_id: {type: string, maxLength: 80}}}

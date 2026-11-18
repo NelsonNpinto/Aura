@@ -1,0 +1,95 @@
+# Browser agent against the mock legacy vendor portal (Phase 5.2).
+#
+# Playwright and a browser do not fit the Vercel bundle budget, so the agent runs here and is
+# triggered from the app with workflow_dispatch. Downloaded invoices are fed into intake, and
+# the trajectory is scored like any other agent run.
+name: browser-agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Invoices to fetch
+        default: "3"
+      ingest:
+        description: Feed the downloads into AURA intake
+        default: "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-agent
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PORTAL_USER: acme
+      PORTAL_PASSWORD: portal-demo-only
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install the portal and the agent
+        run: |
+          pip install --quiet "fastapi>=0.162,<0.163" "uvicorn[standard]>=0.38" \
+            python-multipart "fpdf2>=2.8" "playwright==1.57.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Start the mock portal
+        working-directory: services/vendor-portal
+        run: |
+          python -m uvicorn vendor_portal.app:app --port 8020 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8020/portal/health && break
+            sleep 1
+          done
+
+      - name: Run the browser agent
+        working-directory: services/vendor-portal
+        run: >-
+          python -m agent.browser_agent --base-url http://localhost:8020
+          --out /tmp/portal-downloads --limit ${{ github.event.inputs.limit || 3 }}
+          --report /tmp/portal-trajectory.json
+
+      - name: Trajectory summary
+        run: |
+          python - <<'PY'
+          import json
+          t = json.load(open('/tmp/portal-trajectory.json'))
+          print(f"steps={len(t['steps'])} downloads={len(t['downloads'])} "
+                f"vision_fallbacks={t['vision_fallbacks']} succeeded={t['succeeded']}")
+          failed = [s for s in t['steps'] if not s['ok']]
+          if failed:
+              raise SystemExit('failed steps: ' + json.dumps(failed, indent=2))
+          PY
+
+      - name: Feed the invoices into AURA intake
+        if: github.event.inputs.ingest == 'true'
+        env:
+          AURA_API_KEY: ${{ secrets.AURA_INGEST_API_KEY }}
+          AURA_BASE_URL: ${{ vars.PRODUCTION_URL || 'https://aura-henna-one.vercel.app' }}
+        run: |
+          if [ -z "$AURA_API_KEY" ]; then
+            echo "::warning::AURA_INGEST_API_KEY is not set; skipping ingestion."
+            exit 0
+          fi
+          for f in /tmp/portal-downloads/*.pdf; do
+            curl -sS -X POST "$AURA_BASE_URL/api/v1/documents" \
+              -H "x-api-key: $AURA_API_KEY" \
+              -F "file=@$f" | head -c 400
+            echo
+          done
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: browser-agent
+          path: |
+            /tmp/portal-trajectory.json
+            /tmp/portal-downloads

@@ -25,6 +25,10 @@ models:
     {rpm: 15, tpm: 250000, rpd: 1000, price_in: 100000, price_out: 400000, vision: true, free_tier_geo_restricted: true}
   ollama/qwen2.5:0.5b:
     {rpm: 1000, tpm: 1000000, rpd: 100000, price_in: 0, price_out: 0, open_weight: true, local_only: true}
+  # Fine-tuned GL coder on a free Hugging Face ZeroGPU Space (§B15). Free ZeroGPU gives ~5
+  # GPU-minutes/day, so the budget here is deliberately small and the router falls back fast.
+  specialist/gl-coder:
+    {rpm: 6, tpm: 4000, rpd: 120, price_in: 0, price_out: 0, open_weight: true}
   fake/echo: {rpm: 100000, tpm: 100000000, rpd: 10000000, price_in: 0, price_out: 0, open_weight: true}
   fake/json: {rpm: 100000, tpm: 100000000, rpd: 10000000, price_in: 0, price_out: 0, open_weight: true}
 
@@ -97,6 +101,14 @@ tasks:
     budget_class: eval
     output_schema: app.schemas.llm_outputs:JudgeOut
     prompt: {name: judge, label: production}
+  finance_judge:
+    chain: [groq/openai/gpt-oss-120b, groq/openai/gpt-oss-20b, gemini/gemini-3.6-flash]
+    max_tokens: 1400
+    timeout_s: 35
+    cache: none
+    budget_class: eval
+    output_schema: app.schemas.llm_outputs:FinanceVerdict
+    prompt: {name: finance_judge, label: production}
   text2cypher:
     chain: [groq/openai/gpt-oss-120b, groq/qwen/qwen3.8-27b]
     max_tokens: 400
@@ -109,7 +121,7 @@ tasks:
     open_weight_only: true
     prompt: {name: paraphrase_data, label: production}
   extract_procurement:
-    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, groq/openai/gpt-oss-20b]
     max_tokens: 3000
     timeout_s: 45
     output_schema: app.domain.procurement:EvidenceDocument
@@ -132,3 +144,27 @@ tasks:
     timeout_s: 20
     cache: none
     prompt: {name: marketing_draft, label: production}
+  copilot_step:
+    chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, groq/openai/gpt-oss-20b]
+    temperature: 0
+    max_tokens: 1200
+    timeout_s: 30
+    cache: none
+    output_schema: app.schemas.llm_outputs:CopilotStep
+    prompt: {name: copilot_step, label: production}
+  copilot_summary:
+    chain: [groq/openai/gpt-oss-20b, gemini/gemini-3.5-flash-lite]
+    max_tokens: 300
+    prompt: {name: copilot_summary, label: production}
+  gl_coder_specialist:
+    # The fine-tuned specialist first (§B15); the general chain is the timeout/quota fallback.
+    chain: [specialist/gl-coder, groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
+    max_tokens: 300
+    timeout_s: 25
+    output_schema: app.schemas.llm_outputs:GlCoderOut
+    prompt: {name: gl_coder_specialist, label: production}
+  redteam_probe:
+    chain: [groq/openai/gpt-oss-safeguard-20b, groq/openai/gpt-oss-120b]
+    max_tokens: 300
+    budget_class: eval
+    prompt: {name: redteam_probe, label: production}

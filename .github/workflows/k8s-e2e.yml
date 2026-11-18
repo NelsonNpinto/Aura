@@ -1,0 +1,102 @@
+# Kubernetes end-to-end test on a kind cluster (Phase 5.4).
+#
+# Proves the Helm chart deploys and the services talk to each other. It runs with the `fake`
+# provider, so it needs no secrets and spends no quota. Terraform is validated and planned
+# only — applying it would leave billable AWS resources behind (§A3).
+name: k8s-e2e
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "apps/api/Dockerfile"
+      - "apps/web/Dockerfile"
+      - "services/erp-mock/Dockerfile"
+      - ".github/workflows/k8s-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k8s-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the API and ERP images
+        run: |
+          docker build -f apps/api/Dockerfile -t aura/api:dev .
+          docker build -f services/erp-mock/Dockerfile -t aura/erp:dev .
+
+      - name: Create a kind cluster
+        uses: helm/kind-action@v1.14.0
+        with:
+          cluster_name: aura
+          wait: 120s
+
+      - name: Load the images into kind
+        run: |
+          kind load docker-image aura/api:dev --name aura
+          kind load docker-image aura/erp:dev --name aura
+
+      - name: Lint and template the chart
+        run: |
+          helm lint infra/helm/aura
+          helm template aura infra/helm/aura > /tmp/rendered.yaml
+          test -s /tmp/rendered.yaml
+
+      - name: Install (API, ERP and in-cluster Postgres only)
+        run: |
+          helm install aura infra/helm/aura \
+            --set image.web.repository=aura/api --set image.web.tag=dev \
+            --set replicaCount=1 --wait --timeout 10m
+          kubectl get pods -o wide
+
+      - name: Migrate and smoke the API
+        run: |
+          kubectl wait --for=condition=ready pod -l app=api --timeout=300s
+          pod=$(kubectl get pod -l app=api -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec "$pod" -- alembic upgrade head
+          kubectl exec "$pod" -- python -c "
+          import urllib.request, json, sys
+          body = urllib.request.urlopen('http://localhost:8000/api/v1/health').read()
+          print(body.decode())
+          sys.exit(0 if json.loads(body).get('status') == 'ok' else 1)
+          "
+
+      - name: ERP MCP server reachable from the API pod
+        run: |
+          pod=$(kubectl get pod -l app=api -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec "$pod" -- python -c "
+          import urllib.request, sys
+          code = urllib.request.urlopen('http://aura-erp:8001/erp/health').status
+          sys.exit(0 if code == 200 else 1)
+          "
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -o wide || true
+          kubectl describe pods || true
+          kubectl logs -l app=api --tail=200 || true
+          kubectl logs -l app=erp --tail=100 || true
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.1
+      - name: Validate (no credentials, no apply)
+        working-directory: infra/terraform/aws
+        run: |
+          terraform init -backend=false
+          terraform fmt -check
+          terraform validate

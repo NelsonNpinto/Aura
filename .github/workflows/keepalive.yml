@@ -1,0 +1,40 @@
+# Daily keep-alive (§B17).
+#
+# Neo4j AuraDB Free auto-pauses when idle, so it gets one ping a day. Vercel gets one light
+# warm-up request. **Neon is never pinged**: keeping it warm burns the 100 CU-hours/month free
+# allowance, and a ~1 s cold start is the design choice (§B4).
+name: keepalive
+
+on:
+  schedule:
+    - cron: "5 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - name: Warm the web app (no database work)
+        run: |
+          url="${{ vars.PRODUCTION_URL || 'https://aura-henna-one.vercel.app' }}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url/api/v1/health")
+          echo "health: $code"
+          test "$code" = "200"
+      - name: Ping Neo4j AuraDB
+        working-directory: apps/api
+        env:
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+          NEO4J_DATABASE: ${{ secrets.NEO4J_DATABASE }}
+        run: |
+          uv sync --frozen
+          uv run python -m app.scripts.graph_admin --ping

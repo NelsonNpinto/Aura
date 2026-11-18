@@ -33,17 +33,24 @@ from app.audit.chain import AuditEvent, append, sha256_json
 from app.core.auth import Principal
 from app.core.config import get_settings
 from app.core.db import tenant_tx
+from app.core.logging import get_logger
 from app.domain.approval import ApprovalMatrix, Level
 from app.domain.duplicates import PriorInvoice, find_duplicates, normalize_invoice_number
 from app.domain.flags import SEVERITY, Flag, Severity
 from app.domain.matching import InvoiceLine, LineOutcome, POLine, Tolerances, three_way_match
 from app.domain.risk import Route, decide
+from app.graph import service as graph_service
+from app.graph import sync as graph_sync
+from app.guardrails import screen
 from app.guardrails.pii import find_pii
 from app.llm.router import CallContext, get_router
+from app.memory import store as memory_store
 from app.services.blob import get_blob_store
 from app.services.pdf import extract_text as pdf_text
 from app.services.pdf import find_zero_width, render_pages_png
 from app.tools.gateway import ToolContext, ToolDenied, ToolFailed, call_tool
+
+log = get_logger("invoice_to_pay")
 
 FX_TO_BASE = {
     "USD": Decimal("1"),
@@ -55,12 +62,8 @@ EXPECTED_TAX = {"USD": (0.0, 0.10), "EUR": (0.19, 0.19), "INR": (0.18, 0.18), "G
 NO_PO_CATEGORIES = {"electricity", "water", "telecom", "software", "cloud", "security"}
 NO_PO_LIMIT_BASE_MINOR = 500_000
 EXCEPTION_FLAGS = {"ARITHMETIC_ERROR", "CURRENCY_MISMATCH", "CREDIT_NOTE", "VENDOR_UNRESOLVED"}
-INJECTION_PATTERNS = re.compile(
-    r"(ignore (all )?(previous|prior) (instructions|rules)|disregard (all )?(prior|previous)|"
-    r"you are now|system\s*:|note to (the )?ai|skip (vendor )?verification|approve and pay|"
-    r"set route\s*=|mark (this|the) invoice as verified|maintenance mode)",
-    re.I,
-)
+# Shared with the copilot, the challenge page and the red-team runner (§B11).
+INJECTION_PATTERNS = screen.INJECTION_PATTERNS
 PERSONAL_PII = {"EMAIL", "SSN", "CARD", "PHONE", "IBAN", "PAN"}
 NODES = [
     "intake_guard",
@@ -105,6 +108,7 @@ class RunState(TypedDict, total=False):
     posting: dict[str, Any]
     exception: dict[str, Any]
     memories_used: list[str]
+    graph: dict[str, Any]
     costs: dict[str, Any]
     timings: dict[str, int]
     errors: list[str]
@@ -383,7 +387,28 @@ async def intake_guard(state: RunState) -> dict[str, Any]:
     for v in verdicts:
         await d.emitter.emit("guardrail.verdict", "intake_guard", **v)
     blocked = any(f["code"] in ("INJECTION_DETECTED", "HIDDEN_TEXT") for f in flags)
+    findings = [
+        screen.Finding(
+            check=str(v.get("check", "unknown")),
+            verdict="block" if v.get("blocked") else ("flag" if v.get("count") else "pass"),
+            severity="HIGH" if v.get("blocked") else "LOW",
+            detail=str(v.get("label") or v.get("error") or v.get("check", "")),
+            evidence={k: x for k, x in v.items() if k not in ("check", "blocked")},
+        )
+        for v in verdicts
+    ]
+    if pii:
+        findings.append(
+            screen.Finding(
+                "pii",
+                "flag",
+                "LOW",
+                "Personal data redacted before model calls",
+                {"kinds": sorted({p.kind for p in pii})},
+            )
+        )
     async with tenant_tx(d.org_id) as s:
+        await screen.record(s, d.org_id, findings, surface="document", run_id=d.run_id)
         await s.execute(
             text(
                 "UPDATE ap.documents SET text = :t, has_text_layer = :h, pages = :p,"
@@ -734,10 +759,29 @@ async def vendor_verify(state: RunState) -> dict[str, Any]:
                     reasons=list(h.reasons),
                 )
             )
+    # Knowledge-graph relationship checks (§B8.2). A paused or unconfigured AuraDB produces an
+    # explicit MEDIUM flag and human review — never a silent pass (§B18).
+    graph_result = await graph_service.vendor_checks(
+        d.org_id,
+        vendor["id"],
+        approval_limit_minor=ApprovalMatrix().auto_limit_minor,
+    )
+    if graph_result.available:
+        for gf in graph_result.findings:
+            flags.append(_flag(gf.code, gf.message, source="graph", **gf.evidence))
+    else:
+        flags.append(
+            _flag(
+                "GRAPH_UNAVAILABLE",
+                "Relationship checks could not run: the knowledge graph is unavailable",
+                reason=graph_result.reason,
+            )
+        )
     return {
         "vendor": vendor,
+        "graph": graph_result.public(),
         **_add_flags(state, flags),
-        "_summary": f"{vendor['name']} ({vendor['id']}) by {vendor['resolved_by']}; bank match: {bank.get('matches_current') if bank else 'n/a'}",
+        "_summary": f"{vendor['name']} ({vendor['id']}) by {vendor['resolved_by']}; bank match: {bank.get('matches_current') if bank else 'n/a'}; graph: {graph_result.status}",
         "_evidence": [{"type": "vendor", "id": vendor["id"]}],
     }
 
@@ -872,10 +916,30 @@ async def match(state: RunState) -> dict[str, Any]:
     }
 
 
+async def _vendor_notes(state: RunState, vendor_id: str | None, query: str) -> list[Any]:
+    """Confirmed long-term memories for this vendor, injected as notes (§B8.3).
+
+    Memories come only from human corrections or repeated observations — never from document
+    text — and every one used is recorded in the run's lineage.
+    """
+    if not vendor_id:
+        return []
+    d = _deps(state)
+    try:
+        async with tenant_tx(d.org_id, d.actor_id) as s:
+            return await memory_store.recall(
+                s, d.org_id, kind="vendor", subject_id=vendor_id, query=query, limit=3
+            )
+    except Exception as exc:  # memory is an enhancement, never a run blocker
+        log.warning("memory.recall_failed", error=type(exc).__name__)
+        return []
+
+
 @node("code_gl")
 async def code_gl(state: RunState) -> dict[str, Any]:
     inv, vendor, md = state["invoice"], state.get("vendor", {}), state.get("match", {})
     coded: list[dict[str, Any]] = []
+    notes_used: list[str] = []
     need: list[int] = []
     po_gl: dict[tuple[str, int], tuple[str, str]] = {}
     if md.get("po", {}).get("po_number"):
@@ -932,13 +996,27 @@ async def code_gl(state: RunState) -> dict[str, Any]:
             )
             valid = {g["code"] for g in chart.get("gl_accounts", [])}
             valid_cc = {c["code"] for c in chart.get("cost_centers", [])}
+            notes = await _vendor_notes(
+                state,
+                vendor.get("id"),
+                f"GL coding for {inv.get('vendor_name')}: {lines_txt[:200]}",
+            )
+            notes_used = [n.id for n in notes]
+            vendor_txt = (
+                f"{vendor.get('name', inv.get('vendor_name'))} "
+                f"(default cost center {vendor.get('cost_center')})"
+            )
+            if notes:
+                vendor_txt += "\nConfirmed notes about this vendor:\n" + "\n".join(
+                    f"- {n.fact} (confidence {n.confidence}%)" for n in notes
+                )
             try:
                 res = await _llm(
                     state,
                     "gl_coding",
                     {
                         "chart": chart_txt,
-                        "vendor": f"{vendor.get('name', inv.get('vendor_name'))} (default cost center {vendor.get('cost_center')})",
+                        "vendor": vendor_txt,
                         "lines": lines_txt,
                     },
                 )
@@ -976,8 +1054,10 @@ async def code_gl(state: RunState) -> dict[str, Any]:
     low = [c["line_index"] for c in coded if c["confidence"] < 0.6]
     return {
         "gl_coding": coded,
+        "memories_used": sorted({*state.get("memories_used", []), *notes_used}),
         "_summary": f"{len(coded) - len(need)} from PO, {len(need)} proposed"
-        + (f"; {len(low)} low confidence" if low else ""),
+        + (f"; {len(low)} low confidence" if low else "")
+        + (f"; {len(notes_used)} memory note(s)" if notes_used else ""),
     }
 
 
@@ -1156,6 +1236,32 @@ async def _upsert_invoice(state: RunState, route: str, risk: dict[str, Any]) -> 
                     "cc": g.get("cost_center"),
                     "gc": str(g.get("confidence")) if g else None,
                     "mo": outcomes.get(i),
+                },
+            )
+        # Project to the knowledge graph through the outbox, inside this transaction (§B8.2).
+        if vendor.get("id"):
+            await graph_sync.enqueue(
+                s,
+                d.org_id,
+                "invoice",
+                {
+                    "id": str(iid),
+                    "vendor_id": vendor["id"],
+                    "normalized_number": normalize_invoice_number(inv["invoice_number"])
+                    if inv.get("invoice_number")
+                    else None,
+                    "amount_minor": inv.get("total_minor"),
+                    "currency": inv.get("currency"),
+                    "invoice_date": inv.get("invoice_date"),
+                    "po_number": inv.get("po_number"),
+                    "route": route,
+                    "status": route,
+                    "run_id": d.run_id,
+                    "approved_by": [
+                        a.get("decided_by")
+                        for a in state.get("approvals", [])
+                        if a.get("decided_by")
+                    ],
                 },
             )
 

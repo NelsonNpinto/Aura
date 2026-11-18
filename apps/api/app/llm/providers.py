@@ -118,7 +118,82 @@ def provider_configured(model: str) -> bool:
         return s.enable_bedrock
     if p == "ollama":
         return bool(s.ollama_base_url) and not s.is_deployed
+    if p == "specialist":
+        return bool(s.enable_specialist and s.specialist_space_id and s.hf_token)
     return False
+
+
+# ---------------------------------------------------------------- specialist (HF ZeroGPU Space)
+SPECIALIST_TIMEOUT_S = 18.0  # §B15: 15-20 s, then fall back to the general chain
+
+
+async def specialist_transport(req: ProviderRequest) -> ProviderResponse:
+    """Call the fine-tuned specialist served by a free ZeroGPU Gradio Space.
+
+    Free ZeroGPU gives roughly 5 GPU-minutes a day, and a cold Space can take longer than the
+    whole request budget, so the timeout is short and every failure is a normal fallback.
+    The Space's HTTP API is called directly; no extra client dependency.
+    """
+    s = get_settings()
+    if not provider_configured(req.model):
+        raise ProviderError("not_configured", req.model)
+    import httpx
+
+    space = str(s.specialist_space_id).strip("/")
+    base = space if space.startswith("http") else f"https://{space.replace('/', '-')}.hf.space"
+    token = s.hf_token.get_secret_value() if s.hf_token else ""
+    prompt = "\n\n".join(str(m.get("content", "")) for m in req.messages)
+    timeout = min(req.timeout_s, SPECIALIST_TIMEOUT_S)
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            start = await client.post(
+                f"{base}/gradio_api/call/predict",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"data": [prompt, req.max_tokens]},
+            )
+            if start.status_code == 429:
+                raise ProviderError("rate_limited", "zerogpu_quota")
+            if start.status_code >= 500:
+                raise ProviderError("server_error", str(start.status_code))
+            if start.status_code >= 400:
+                raise ProviderError("bad_request", str(start.status_code))
+            event_id = start.json().get("event_id")
+            if not event_id:
+                raise ProviderError("server_error", "no event id")
+            result = await client.get(
+                f"{base}/gradio_api/call/predict/{event_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            text = _parse_gradio_sse(result.text)
+    except ProviderError:
+        raise
+    except (TimeoutError, httpx.TimeoutException) as exc:
+        raise ProviderError("timeout", "specialist") from exc
+    except httpx.HTTPError as exc:
+        raise ProviderError("connection", type(exc).__name__) from exc
+    if not text:
+        raise ProviderError("server_error", "empty specialist response")
+    return ProviderResponse(text, len(prompt) // 4 + 1, len(text) // 4 + 1, req.model)
+
+
+def _parse_gradio_sse(body: str) -> str:
+    """Gradio's /call endpoint streams `event:`/`data:` lines; take the last complete payload."""
+    out = ""
+    for line in body.splitlines():
+        if not line.startswith("data:"):
+            continue
+        payload = line[5:].strip()
+        if not payload or payload == "null":
+            continue
+        try:
+            parsed = json.loads(payload)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, list) and parsed:
+            out = str(parsed[0])
+        elif isinstance(parsed, str):
+            out = parsed
+    return out
 
 
 async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
@@ -173,14 +248,31 @@ async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
     )
 
 
+def _default_transport() -> Callable[[ProviderRequest], Awaitable[ProviderResponse]]:
+    """LiteLLM, optionally wrapped in cassette record/replay for deterministic CI (§B10)."""
+    s = get_settings()
+    if s.router_cassette_mode in ("record", "replay"):
+        from app.llm.cassettes import wrap
+
+        return wrap(litellm_transport, s.router_cassette_mode, s.router_cassette_dir or None)
+    return litellm_transport
+
+
 @dataclass
 class Transports:
     """Dispatch by provider prefix. Tests replace `fake` or `default`."""
 
     fake: Transport = field(default_factory=FakeProvider)
-    default: Callable[[ProviderRequest], Awaitable[ProviderResponse]] = litellm_transport
+    default: Callable[[ProviderRequest], Awaitable[ProviderResponse]] = field(
+        default_factory=_default_transport
+    )
+
+    specialist: Callable[[ProviderRequest], Awaitable[ProviderResponse]] = specialist_transport
 
     async def __call__(self, req: ProviderRequest) -> ProviderResponse:
-        if provider_of(req.model) == "fake":
+        provider = provider_of(req.model)
+        if provider == "fake":
             return await self.fake(req)
+        if provider == "specialist":
+            return await self.specialist(req)
         return await self.default(req)

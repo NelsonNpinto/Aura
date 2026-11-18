@@ -2,6 +2,23 @@
 
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class Review(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    passed: bool = Field(strict=True)
+    reason: str = Field(min_length=1)
+
+
+class Reviews(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    dataset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    reviewer: str = Field(min_length=1)
+    cases: dict[str, Review]
+
 
 def calibration(pairs: list[dict[str, Any]]) -> dict[str, Any]:
     n = len(pairs)

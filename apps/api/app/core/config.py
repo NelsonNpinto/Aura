@@ -55,6 +55,14 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     ollama_base_url: str | None = None
     router_fault_injection: str = ""
+    # Deterministic CI: record provider responses once, then replay them (§B10).
+    router_cassette_mode: Literal["off", "record", "replay"] = "off"
+    router_cassette_dir: str = ""
+
+    # Phase 4: fine-tuned specialist served on a free Hugging Face ZeroGPU Space (§B15).
+    hf_token: SecretStr | None = None
+    specialist_space_id: str = ""  # "owner/space" or a full https URL
+    enable_specialist: bool = False
 
     blob_read_write_token: SecretStr | None = None
     mail_mode: Literal["preview", "gmail"] = "preview"
@@ -86,6 +94,13 @@ class Settings(BaseSettings):
     approval_sla_hours: int = 48
     provider_mode: str = "live"  # live | fake (fake = deterministic fixtures, no provider calls)
     datasets_dir: str = ""  # empty = bundled ./data (deployed) or the repo's evals/datasets
+
+    # Phase 3: trust layer
+    challenge_enabled: bool = True
+    challenge_daily_attempts: int = Field(default=20, ge=0)
+    drift_psi_threshold: float = Field(default=0.2, ge=0.0)
+    eval_daily_budget: int = Field(default=60, ge=0)  # runs reserved for evals (§B18)
+    anchor_repo: str = ""  # owner/repo that receives the daily audit chain-head anchor
 
     daily_run_budget: int = Field(default=200, ge=0)
     guest_daily_runs: int = Field(default=10, ge=0)

@@ -1,0 +1,185 @@
+{{- $db := include "aura.databaseUrl" . -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-secrets
+  labels: {{- include "aura.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  DATABASE_URL: {{ $db | quote }}
+  DATABASE_URL_UNPOOLED: {{ $db | quote }}
+  ERP_SERVICE_TOKEN: {{ .Values.secrets.erpServiceToken | quote }}
+  APPROVAL_TOKEN_SECRET: {{ .Values.secrets.approvalTokenSecret | quote }}
+---
+{{- if .Values.postgres.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-postgres
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: postgres, release: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app: postgres, release: {{ .Release.Name }}}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          env:
+            - {name: POSTGRES_USER, value: {{ .Values.postgres.user | quote }}}
+            - {name: POSTGRES_PASSWORD, value: {{ .Values.postgres.password | quote }}}
+            - {name: POSTGRES_DB, value: {{ .Values.postgres.database | quote }}}
+          ports: [{containerPort: 5432}]
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-postgres
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  selector: {app: postgres, release: {{ .Release.Name }}}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {app: api, release: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app: api, release: {{ .Release.Name }}}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 10001}
+      containers:
+        - name: api
+          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom: [{secretRef: {name: {{ .Release.Name }}-secrets}}]
+          env:
+            - {name: APP_ENV, value: {{ .Values.env.appEnv | quote }}}
+            - {name: PROVIDER_MODE, value: {{ .Values.env.providerMode | quote }}}
+            - {name: WEB_ORIGIN, value: {{ .Values.env.webOrigin | quote }}}
+            - {name: LOG_LEVEL, value: {{ .Values.env.logLevel | quote }}}
+            - {name: ERP_MCP_URL, value: "http://{{ .Release.Name }}-erp:8001/erp/mcp/"}
+          ports: [{containerPort: 8000}]
+          livenessProbe:
+            httpGet: {path: /api/v1/health, port: 8000}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet: {path: /api/v1/health, port: 8000}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {{- toYaml .Values.resources.api | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities: {drop: ["ALL"]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  selector: {app: api, release: {{ .Release.Name }}}
+  ports: [{port: 8000, targetPort: 8000}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-erp
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: erp, release: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app: erp, release: {{ .Release.Name }}}
+    spec:
+      containers:
+        - name: erp
+          image: "{{ .Values.image.erp.repository }}:{{ .Values.image.erp.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom: [{secretRef: {name: {{ .Release.Name }}-secrets}}]
+          ports: [{containerPort: 8001}]
+          readinessProbe:
+            httpGet: {path: /erp/health, port: 8001}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {{- toYaml .Values.resources.erp | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-erp
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  selector: {app: erp, release: {{ .Release.Name }}}
+  ports: [{port: 8001, targetPort: 8001}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-web
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {app: web, release: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app: web, release: {{ .Release.Name }}}
+    spec:
+      containers:
+        - name: web
+          image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - {name: AURA_API_URL, value: "http://{{ .Release.Name }}-api:8000"}
+          ports: [{containerPort: 3000}]
+          resources: {{- toYaml .Values.resources.web | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-web
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  selector: {app: web, release: {{ .Release.Name }}}
+  ports: [{port: 80, targetPort: 3000}]
+{{- if .Values.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  labels: {{- include "aura.labels" . | nindent 4 }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: {service: {name: {{ .Release.Name }}-api, port: {number: 8000}}}
+          - path: /erp
+            pathType: Prefix
+            backend: {service: {name: {{ .Release.Name }}-erp, port: {number: 8001}}}
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: {{ .Release.Name }}-web, port: {number: 80}}}
+{{- end }}

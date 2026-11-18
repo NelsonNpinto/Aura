@@ -1,0 +1,17 @@
+[project]
+name = "vendor-portal"
+version = "0.1.0"
+description = "Mock legacy vendor portal (no API) for the AURA browser agent (Phase 5.2)"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi>=0.162,<0.163",       # HTML-only mock service
+  "python-multipart>=0.0.20",    # form login
+  "fpdf2>=2.8",                  # synthetic invoice PDFs
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vendor_portal"]

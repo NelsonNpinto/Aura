@@ -17,12 +17,18 @@ from app.core.db import system_tx, tenant_tx
 from app.core.errors import Forbidden, NotFound
 from app.core.limits import charge_run
 from app.evaluation.calibration import calibration
+from app.evaluation.finance import run as run_finance
 from app.evaluation.judge import JudgeRequest, score_judgment
 from app.guardrails.pii import redact
 from app.llm.router import get_router
 from app.schemas.llm_outputs import JudgeOut
 
 router = APIRouter(tags=["quality"])
+
+
+@router.get("/quality/finance-fixtures")
+async def finance_fixtures() -> dict[str, Any]:
+    return await run_finance(live=False, delay=0)
 
 
 class DraftRequest(BaseModel):
@@ -177,7 +183,11 @@ async def judgments(p: CurrentPrincipal) -> dict[str, Any]:
     }
 
 
-@router.get("/eval-report")
+# Phase 3 added a public /eval-report router (app/api/v1/eval_report.py) reading
+# ai.eval_reports, which is mounted first and would otherwise shadow this route entirely.
+# These are different things: this one lists stored synthetic workflow runs, so it keeps its
+# own path rather than silently never being reached.
+@router.get("/quality/public-reports")
 async def reports() -> dict[str, Any]:
     async with system_tx() as session:
         rows = (

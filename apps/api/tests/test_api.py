@@ -53,6 +53,7 @@ async def test_bad_signature_and_wrong_audience_rejected(client, mint, org_id):
     assert (await client.get("/api/v1/me", headers=auth(tok[:-4] + "AAAA"))).status_code == 401
 
 
+@pytest.mark.db
 async def test_jwt_principal(client, mint, org_id):
     r = await client.get(
         "/api/v1/me", headers=auth(mint(org_id, ["approver", "bogus"], user_id="u-1"))

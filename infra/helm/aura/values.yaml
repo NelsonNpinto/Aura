@@ -1,0 +1,50 @@
+# Defaults target a kind cluster running the CI end-to-end test with the `fake` provider,
+# so no secrets and no provider quota are needed to prove the deployment works.
+image:
+  pullPolicy: IfNotPresent
+  api:
+    repository: aura/api
+    tag: dev
+  web:
+    repository: aura/web
+    tag: dev
+  erp:
+    repository: aura/erp
+    tag: dev
+
+replicaCount: 1
+
+env:
+  appEnv: test
+  providerMode: fake        # no provider calls in the cluster test
+  webOrigin: http://aura-web
+  logLevel: INFO
+
+postgres:
+  enabled: true             # in-cluster Postgres for the e2e test only
+  image: pgvector/pgvector:0.8.7-pg17-trixie
+  user: aura
+  password: aura-kind-only  # test-only credentials; never used outside kind
+  database: aura
+
+secrets:
+  # Populated from a Kubernetes Secret in a real cluster. Empty values keep the pods running
+  # with the features that need them reporting "not configured" rather than crashing.
+  databaseUrl: ""
+  erpServiceToken: kind-erp-token
+  approvalTokenSecret: kind-approval-secret
+
+resources:
+  api:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {cpu: 1000m, memory: 1Gi}
+  web:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+  erp:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+
+ingress:
+  enabled: false
+  host: aura.local

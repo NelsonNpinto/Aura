@@ -1,6 +1,6 @@
 # Purchasing workflow walkthrough
 
-This guide describes the new implementation. Check PROGRESS.md for whether its commit is deployed. The original Invoices page remains a separate agent demonstration with risk-based auto-routing; Purchasing implements mandatory L1 and finance review.
+The Invoices page is a separate agent demonstration with risk-based auto-routing; Purchasing implements mandatory L1 and finance review by different people.
 
 ## Accounts
 
@@ -38,4 +38,4 @@ The live login page has **Purchasing**, **Vendor**, **L1** and **Finance** short
 
 ## Important verification still required
 
-Live extraction on representative scans, a complete signed-in browser walkthrough across accounts, and real email delivery remain distinct acceptance checks. API integration tests and a successful build do not substitute for these checks. Status is recorded in VALIDATION.md and PROGRESS.md.
+Live extraction on representative scans, a complete signed-in browser walkthrough across accounts, and real email delivery remain distinct acceptance checks. API integration tests and a successful build do not substitute for these checks. Status is recorded in [VALIDATION.md](../VALIDATION.md).

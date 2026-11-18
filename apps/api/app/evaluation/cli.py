@@ -6,6 +6,8 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
+import sys
 import time
 import uuid
 from datetime import UTC, datetime
@@ -179,12 +181,165 @@ async def run(
     return report
 
 
+async def store_run(report: dict[str, Any], org: str) -> str:
+    """Persist any report shaped like a dataset run, so the public report can cite it."""
+    async with tenant_tx(org) as session:
+        row = (
+            await session.execute(
+                text(
+                    "INSERT INTO ai.dataset_runs (dataset,dataset_version,mode,provider_mode,"
+                    "git_sha,case_count,metrics,results,config)"
+                    " VALUES (:d,:v,:mode,:p,:g,:n,CAST(:m AS jsonb),CAST(:r AS jsonb),"
+                    "CAST(:c AS jsonb)) RETURNING id"
+                ),
+                {
+                    "d": report["dataset"],
+                    "v": report["dataset_version"],
+                    "mode": report["mode"],
+                    "p": report["provider_mode"],
+                    "g": get_settings().git_sha,
+                    "n": report["case_count"],
+                    "m": json.dumps(report["metrics"]),
+                    "r": json.dumps(report.get("results", [])),
+                    "c": json.dumps(
+                        {
+                            "org_id": org,
+                            "synthetic": True,
+                            "case_snapshot": report.get("case_snapshot"),
+                            "gate_passed": report.get("gate_passed"),
+                            "limits": report.get("limits"),
+                            "by_category": report.get("by_category"),
+                        }
+                    ),
+                },
+            )
+        ).scalar_one()
+    return str(row)
+
+
+async def run_redteam(live: bool, limit: int, org: str, delay: float) -> dict[str, Any]:
+    from app.evaluation.redteam import run as run_attacks
+
+    report = await run_attacks(live=live, limit=limit, org_id=org, delay=delay)
+    report["run_id"] = await store_run(report, org)
+    return report
+
+
+async def build_report(org: str, publish: bool, slug: str) -> dict[str, Any]:
+    from app.evaluation.report import build
+    from app.evaluation.report import publish as publish_report
+
+    async with tenant_tx(org) as session:
+        report = await build(session, slug=slug)
+        if publish:
+            report["published_id"] = await publish_report(session, org, report, slug=slug)
+    report["gate_passed"] = True  # building a report never gates
+    return report
+
+
+# Scored against reviewed expected verdicts: the report's own gate_passed is the gate, and it
+# has no pass_rate for the baseline gate to read (it would always fail as "not measured").
+SELF_GATED_DATASETS = frozenset({"marketing", "finance_copilot"})
+# The red-team report has no pass_rate; its comparable score is the share of attacks resisted.
+SCORE_METRIC = {"redteam": "resisted_rate"}
+
+
+async def apply_gate(report: dict[str, Any], org: str, dataset: str) -> dict[str, Any]:
+    """Compare against the stored baseline, if there is one, and attach the gate verdict."""
+    from app.evaluation.gates import evaluate, load_baseline
+
+    if dataset in SELF_GATED_DATASETS:
+        report["gate"] = {"comparison": "self_gated", "passed": bool(report.get("gate_passed"))}
+        report["gate_passed"] = bool(report.get("gate_passed"))
+        return report
+    async with tenant_tx(org) as session:
+        baseline = await load_baseline(session, org, dataset)
+    verdict = evaluate(report, baseline, score_metric=SCORE_METRIC.get(dataset, "pass_rate"))
+    report["gate"] = verdict.public()
+    report["gate_passed"] = bool(report.get("gate_passed")) and verdict.passed
+    return report
+
+
+async def promote_baseline(
+    org: str, dataset: str, run_id: str, justification: str
+) -> dict[str, Any]:
+    from app.evaluation.gates import set_baseline
+
+    async with tenant_tx(org) as session:
+        row = (
+            (
+                await session.execute(
+                    text("SELECT id, mode, metrics, config FROM ai.dataset_runs WHERE id = :i"),
+                    {"i": run_id},
+                )
+            )
+            .mappings()
+            .first()
+        )
+        if row is None:
+            raise ValueError(f"dataset run {run_id} not found")
+        await set_baseline(
+            session,
+            org,
+            dataset=dataset,
+            run_id=run_id,
+            case_snapshot=str((row["config"] or {}).get("case_snapshot") or ""),
+            mode=row["mode"],
+            metrics=row["metrics"],
+            created_by="cli",
+            justification=justification,
+        )
+    return {"dataset": dataset, "run_id": run_id, "gate_passed": True}
+
+
+def _prepare_runtime() -> None:
+    """Make the CLI usable outside a deployed environment.
+
+    Two things the server gets for free and a bare `asyncio.run` entrypoint does not:
+
+    1. Settings come from .env.local via pydantic-settings, but the ERP tools read
+       os.environ directly (they are shared with services/erp-mock, which runs as its own
+       Vercel service with real environment variables). Locally that left DATABASE_URL
+       empty and every ERP call failed to build an engine. Export what they need, without
+       overwriting anything the environment already sets.
+    2. psycopg refuses to run async on Windows' default ProactorEventLoop, so every
+       database call raised InterfaceError. tests/conftest.py already does this; the CLI
+       needs it for the same reason. On Linux (CI) the branch is a no-op.
+    """
+    s = get_settings()
+    for name, value in (
+        ("DATABASE_URL", s.database_url),
+        ("DATABASE_URL_UNPOOLED", s.database_url_unpooled or s.database_url),
+        ("ERP_DATABASE_URL", s.database_url),
+    ):
+        if value and not os.environ.get(name):
+            os.environ[name] = value
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
 def main() -> None:
+    _prepare_runtime()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["run"])
+    parser.add_argument("command", choices=["run", "redteam", "report", "baseline"])
     parser.add_argument(
-        "--dataset", choices=["demo", "golden_invoices", "marketing"], default="demo"
+        "--dataset",
+        choices=[
+            "demo",
+            "golden_invoices",
+            "marketing",
+            "finance_copilot",
+            "redteam",
+            "policy_qa",
+            "copilot_tasks",
+        ],
+        default="demo",
     )
+    parser.add_argument("--org", default="demo", help="Workspace for report/baseline commands")
+    parser.add_argument("--publish", action="store_true", help="report: publish for /eval-report")
+    parser.add_argument("--slug", default="public")
+    parser.add_argument("--run-id", help="baseline: the dataset run to promote")
+    parser.add_argument("--justification", default="", help="baseline: why it moved (required)")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument(
         "--live", action="store_true", help="Calls real providers; consumes configured quotas"
@@ -192,7 +347,7 @@ def main() -> None:
     parser.add_argument("--gate", action="store_true")
     parser.add_argument("--output", type=Path)
     parser.add_argument(
-        "--labels", type=Path, help="Human review file for live marketing evaluation"
+        "--labels", type=Path, help="Human review file for live marketing or finance evaluation"
     )
     parser.add_argument(
         "--delay",
@@ -205,7 +360,25 @@ def main() -> None:
         parser.error("limit must be between 1 and 250")
     if not 0 <= args.delay <= 60:
         parser.error("delay must be between 0 and 60 seconds")
-    if args.dataset == "marketing":
+    if args.command == "redteam":
+        report = asyncio.run(run_redteam(args.live, args.limit, args.org, args.delay))
+    elif args.dataset in ("policy_qa", "copilot_tasks") and args.command == "run":
+        from app.evaluation.suites import run_copilot_tasks, run_policy_qa
+
+        runner = run_policy_qa if args.dataset == "policy_qa" else run_copilot_tasks
+        report = asyncio.run(
+            runner(org_id=args.org, limit=args.limit, delay=args.delay, live=args.live)
+        )
+        report["run_id"] = asyncio.run(store_run(report, args.org))
+    elif args.command == "report":
+        report = asyncio.run(build_report(args.org, args.publish, args.slug))
+    elif args.command == "baseline":
+        if not args.run_id or not args.justification.strip():
+            parser.error("baseline needs --run-id and --justification")
+        report = asyncio.run(
+            promote_baseline(args.org, args.dataset, args.run_id, args.justification)
+        )
+    elif args.dataset == "marketing":
         from app.evaluation.marketing import run as run_marketing
 
         if args.live != (args.labels is not None):
@@ -214,10 +387,22 @@ def main() -> None:
             report = asyncio.run(run_marketing(args.labels, delay=args.delay))
         except (OSError, ValueError) as exc:
             parser.error(str(exc))
+    elif args.dataset == "finance_copilot":
+        from app.evaluation.finance import run as run_finance
+
+        try:
+            report = asyncio.run(
+                run_finance(live=args.live, delay=args.delay, labels_path=args.labels)
+            )
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
     else:
         if args.labels is not None:
-            parser.error("--labels is only supported for marketing")
+            parser.error("--labels is only supported for marketing and finance_copilot")
         report = asyncio.run(run(args.dataset, args.limit, not args.live, delay=args.delay))
+    if args.gate and args.command in ("run", "redteam"):
+        gate_dataset = "redteam" if args.command == "redteam" else args.dataset
+        report = asyncio.run(apply_gate(report, args.org, gate_dataset))
     rendered = json.dumps(report, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

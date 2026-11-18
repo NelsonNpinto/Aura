@@ -1,0 +1,99 @@
+# GL-coder retraining (§B15).
+#
+# Builds dataset N+1 from human corrections, pushes it to the Hugging Face Hub, then triggers
+# the Unsloth QLoRA notebook on Kaggle's free GPU (~30 GPU-hours/week). Colab is the manual
+# fallback. Nothing is promoted here: a new adapter is registered as a *candidate* and a human
+# promotes it from /app/admin after the gate and a canary.
+name: retrain
+
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Monday 07:00 UTC
+  workflow_dispatch:
+    inputs:
+      push_dataset:
+        description: Push the dataset to the HF Hub
+        default: "true"
+      run_training:
+        description: Trigger the Kaggle training kernel
+        default: "false"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: retrain
+  cancel-in-progress: false
+
+jobs:
+  curate:
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      dataset_version: ${{ steps.build.outputs.version }}
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      APP_ENV: production
+      DATABASE_URL: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+
+      - name: Build dataset N+1 from corrections
+        id: build
+        working-directory: .
+        run: |
+          apps/api/.venv/bin/python -m ml.gl_coder.build_dataset \
+            --out /tmp/gl-coder --include-feedback --augment
+          echo "version=$(cat /tmp/gl-coder/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Leakage and duplication checks
+        working-directory: .
+        run: apps/api/.venv/bin/python -m ml.gl_coder.check_dataset --path /tmp/gl-coder
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: gl-coder-dataset
+          path: /tmp/gl-coder
+
+      - name: Push the dataset to the HF Hub
+        if: github.event.inputs.push_dataset != 'false' && env.HF_TOKEN != ''
+        working-directory: .
+        run: |
+          pip install --quiet "huggingface_hub>=0.36,<1"
+          python -m ml.gl_coder.publish_dataset --path /tmp/gl-coder \
+            --repo "${{ vars.HF_DATASET_REPO || 'aura/gl-coder-synthetic' }}"
+
+  train:
+    needs: curate
+    if: github.event.inputs.run_training == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Trigger the Kaggle GPU kernel
+        run: |
+          if [ -z "$KAGGLE_KEY" ]; then
+            echo "::warning::KAGGLE_KEY is not configured (HC-3); run the Colab notebook manually."
+            exit 0
+          fi
+          pip install --quiet kaggle
+          python ml/gl_coder/kaggle_run.py --dataset-version "${{ needs.curate.outputs.dataset_version }}"
+
+      - name: Remind that promotion is manual
+        run: |
+          echo "A new adapter is registered as a candidate only."
+          echo "Promote it from /app/admin after the eval gate and a canary (§B15.7)."

@@ -1,0 +1,6 @@
+# Hugging Face ZeroGPU Space (§B15.6). Pinned; ZeroGPU provides the CUDA build of torch.
+gradio==5.52.0
+spaces==0.44.1
+transformers==4.59.3
+accelerate==1.12.0
+peft==0.19.1

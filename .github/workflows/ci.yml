@@ -8,6 +8,9 @@ on:
       live-marketing-gate:
         type: boolean
         default: false
+      live-finance-gate:
+        type: boolean
+        default: false
     secrets:
       GROQ_API_KEY:
         required: false
@@ -39,9 +42,25 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U aura" --health-interval 3s --health-retries 20
+      # The graph must be reachable here. An unavailable graph is a MEDIUM flag by design
+      # (§B18) — without this service every invoice, including the clean demo one, routes to
+      # human review and the demo outcomes stop being deterministic (§B1).
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/aura-ci-only
+          NEO4J_server_memory_heap_max__size: 512m
+        ports: ["7687:7687", "7474:7474"]
+        options: >-
+          --health-cmd "wget -q -O /dev/null http://localhost:7474 || exit 1"
+          --health-interval 5s --health-retries 30 --health-start-period 20s
     env:
       APP_ENV: test
       DATABASE_URL: postgresql://aura:aura-ci-only@localhost:5432/aura
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: aura-ci-only
+      NEO4J_DATABASE: neo4j
       GIT_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v7
@@ -88,6 +107,36 @@ jobs:
         with:
           name: invoice-workflow-evaluation
           path: /tmp/aura-workflow-report.json
+      - name: Finance Copilot fixture gate
+        run: uv run aura-eval run --dataset finance_copilot --gate --output /tmp/aura-finance-fixture.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: finance-copilot-fixture
+          path: /tmp/aura-finance-fixture.json
+      - name: Live Finance Copilot gate
+        if: inputs.live-finance-gate
+        env:
+          GROQ_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GROQ_API_KEY || '' }}
+          GEMINI_API_KEY: ${{ github.ref == 'refs/heads/main' && secrets.GEMINI_API_KEY || '' }}
+        run: >-
+          uv run aura-eval run --dataset finance_copilot --live --gate --delay 16
+          --output /tmp/aura-finance-live.json
+      - uses: actions/upload-artifact@v6
+        if: always() && inputs.live-finance-gate
+        with:
+          name: finance-copilot-live
+          path: /tmp/aura-finance-live.json
+      - name: Trust datasets are current
+        working-directory: .
+        run: apps/api/.venv/bin/python -m evals.generator.trust_datasets --check
+      - name: Red-team gate (deterministic layer, no provider calls)
+        run: uv run aura-eval redteam --gate --limit 65 --delay 0 --output /tmp/aura-redteam.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: redteam-deterministic
+          path: /tmp/aura-redteam.json
       - name: Marketing judge fixture gate
         run: uv run aura-eval run --dataset marketing --gate --output /tmp/aura-marketing-fixture.json
       - uses: actions/upload-artifact@v6
@@ -150,6 +199,8 @@ jobs:
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Default ruleset plus a narrow allowlist for documented false positives.
+          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml
       - uses: astral-sh/setup-uv@v10.3.3
       - name: Python dependency audit
         working-directory: apps/api
