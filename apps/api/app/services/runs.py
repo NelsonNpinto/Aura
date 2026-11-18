@@ -28,6 +28,20 @@ def sniff(data: bytes) -> str:
     )
 
 
+async def _ensure_blob(key: str, data: bytes, mime: str) -> None:
+    """Re-store a deduplicated document whose blob has gone missing.
+
+    The row is matched on sha256, so `data` is byte-identical to what the row describes. A row can
+    outlive its blob (a guest upload past its expiry, or a row written by a process whose blob
+    landed in another store); handing it back unhealed fails every later run at intake.
+    """
+    store = get_blob_store()
+    try:
+        await store.get(key)
+    except FileNotFoundError:
+        await store.put(key, data, mime)
+
+
 async def create_document(
     org_id: str,
     user_id: str,
@@ -46,7 +60,8 @@ async def create_document(
             (
                 await s.execute(
                     text(
-                        "SELECT id, filename, mime FROM ap.documents WHERE org_id=:o AND sha256=:h"
+                        "SELECT id, filename, mime, blob_key FROM ap.documents"
+                        " WHERE org_id=:o AND sha256=:h"
                     ),
                     {"o": org_id, "h": sha},
                 )
@@ -55,6 +70,7 @@ async def create_document(
             .first()
         )
     if row:
+        await _ensure_blob(row["blob_key"], data, row["mime"])
         return {
             "document_id": str(row["id"]),
             "sha256": sha,

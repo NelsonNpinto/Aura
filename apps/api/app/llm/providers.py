@@ -13,6 +13,9 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
+
+log = get_logger(__name__)
 
 ErrorKind = Literal[
     "rate_limited",
@@ -237,6 +240,9 @@ async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
     except lx.AuthenticationError as exc:
         raise ProviderError("auth", type(exc).__name__) from exc
     except lx.BadRequestError as exc:
+        # Groq answers 400 json_validate_failed when the model emits invalid JSON; keep the
+        # provider's reason (truncated) so a fallback chain that fails is diagnosable.
+        log.warning("provider.bad_request", model=req.model, detail=str(exc)[:300])
         raise ProviderError("bad_request", type(exc).__name__) from exc
     choice = resp.choices[0]
     usage = getattr(resp, "usage", None)

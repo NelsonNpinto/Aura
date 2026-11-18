@@ -14,7 +14,6 @@ from sqlalchemy import text
 from app.core.auth import Principal
 from app.core.db import tenant_tx
 from app.graph import service as graph_service
-from app.graph.client import GraphUnavailable
 from app.rag.service import search_for_copilot
 from app.tools.gateway import register_local
 
@@ -28,7 +27,7 @@ SQL_TEMPLATES: dict[str, dict[str, Any]] = {
         "sql": (
             "SELECT vendor_id, vendor_name, currency, count(*) AS invoices,"
             " sum(total_minor) AS total_minor FROM ap.invoices"
-            " WHERE status IN ('posted','auto') AND (:since IS NULL OR invoice_date >= :since)"
+            " WHERE status IN ('posted','auto') AND (CAST(:since AS date) IS NULL OR invoice_date >= :since)"
             " GROUP BY vendor_id, vendor_name, currency"
             " ORDER BY sum(total_minor) DESC LIMIT 50"
         ),
@@ -125,15 +124,7 @@ async def _search_policies(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _graph_query(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
-    try:
-        rows = await graph_service.run_template(org_id, args["template"], args.get("params") or {})
-    except GraphUnavailable as exc:
-        return {
-            "status": "unavailable",
-            "reason": exc.details.get("reason") if exc.details else "error",
-            "rows": [],
-        }
-    return {"status": "ok", "rows": rows}
+    return await graph_service.explore_template(org_id, args["template"], args.get("params") or {})
 
 
 async def _sql_query(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -160,7 +151,8 @@ async def _list_invoices(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
                     text(
                         "SELECT id, run_id, invoice_number, vendor_id, vendor_name, total_minor,"
                         " currency, invoice_date, status, route, risk_level FROM ap.invoices"
-                        " WHERE (:st IS NULL OR status = :st) AND (:v IS NULL OR vendor_id = :v)"
+                        " WHERE (CAST(:st AS text) IS NULL OR status = :st)"
+                        " AND (CAST(:v AS text) IS NULL OR vendor_id = :v)"
                         " ORDER BY created_at DESC LIMIT :lim"
                     ),
                     {

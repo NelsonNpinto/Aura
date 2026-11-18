@@ -12,7 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from app.core.logging import get_logger
-from app.graph import guard, queries
+from app.graph import guard, queries, snapshot
 from app.graph.client import GraphUnavailable, availability, read
 
 log = get_logger("graph.service")
@@ -76,16 +76,11 @@ async def neighborhood(org_id: str, vendor_id: str) -> dict[str, Any]:
     """Vendor-centric view for the explorer UI, with fraud patterns highlighted."""
     usable, reason = availability()
     if not usable:
-        return {"status": "unavailable", "reason": reason, "vendor": None, "findings": []}
+        return _static_neighborhood(org_id, vendor_id, reason)
     try:
         rows = await run_template(org_id, "vendor_neighborhood", {"vendor_id": vendor_id})
     except GraphUnavailable as exc:
-        return {
-            "status": "unavailable",
-            "reason": str(exc.details.get("reason", "error")),
-            "vendor": None,
-            "findings": [],
-        }
+        return _static_neighborhood(org_id, vendor_id, str(exc.details.get("reason", "error")))
     checks = await vendor_checks(org_id, vendor_id)
     return {
         "status": "ok",
@@ -193,7 +188,7 @@ async def org_fraud_overview(org_id: str) -> dict[str, Any]:
     """Portfolio-level patterns for the graph explorer landing view."""
     usable, reason = availability()
     if not usable:
-        return {"status": "unavailable", "reason": reason, "patterns": {}}
+        return _static_overview(org_id, reason)
     try:
         patterns = {
             "shared_bank_accounts": await run_template(org_id, "shared_bank_accounts"),
@@ -202,9 +197,47 @@ async def org_fraud_overview(org_id: str) -> dict[str, Any]:
             "duplicate_across_aliases": await run_template(org_id, "duplicate_across_aliases"),
         }
     except GraphUnavailable as exc:
-        return {
-            "status": "unavailable",
-            "reason": str(exc.details.get("reason", "error")),
-            "patterns": {},
-        }
+        return _static_overview(org_id, str(exc.details.get("reason", "error")))
     return {"status": "ok", "reason": "ok", "patterns": patterns}
+
+
+async def explore_template(
+    org_id: str, name: str, params: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Explorer and copilot reads: live rows, or the static demo snapshot while Neo4j is down.
+
+    Not for workflow checks — those must fail closed (see `vendor_checks`).
+    """
+    try:
+        return {"status": "ok", "rows": await run_template(org_id, name, params)}
+    except GraphUnavailable as exc:
+        reason = str((exc.details or {}).get("reason", "error"))
+        if snapshot.supports(org_id, name):
+            rows = guard.drop_foreign_rows(snapshot.run(org_id, name, params), org_id)
+            return {"status": "static", "reason": reason, "note": snapshot.NOTE, "rows": rows}
+        return {"status": "unavailable", "reason": reason, "rows": []}
+
+
+def _static_neighborhood(org_id: str, vendor_id: str, reason: str) -> dict[str, Any]:
+    if not snapshot.supports(org_id, "vendor_neighborhood"):
+        return {"status": "unavailable", "reason": reason, "vendor": None, "findings": []}
+    rows = snapshot.run(org_id, "vendor_neighborhood", {"vendor_id": vendor_id})
+    return {
+        "status": "static",
+        "reason": reason,
+        "note": snapshot.NOTE,
+        "vendor": rows[0] if rows else None,
+        "findings": snapshot.findings(org_id, vendor_id) if rows else [],
+    }
+
+
+def _static_overview(org_id: str, reason: str) -> dict[str, Any]:
+    names = ("shared_bank_accounts", "employee_vendor_conflicts")
+    if not all(snapshot.supports(org_id, n) for n in names):
+        return {"status": "unavailable", "reason": reason, "patterns": {}}
+    return {
+        "status": "static",
+        "reason": reason,
+        "note": snapshot.NOTE,
+        "patterns": {n: snapshot.run(org_id, n) for n in names},
+    }

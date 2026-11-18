@@ -7,14 +7,16 @@ import { api } from "@/lib/api";
 
 type Finding = { code: string; severity: string; message: string; evidence: Record<string, unknown> };
 type Neighborhood = {
-  status: "ok" | "unavailable";
+  status: "ok" | "unavailable" | "static";
   reason: string;
+  note?: string;
   vendor: Record<string, unknown> | null;
   findings: Finding[];
 };
 type Patterns = {
-  status: "ok" | "unavailable";
+  status: "ok" | "unavailable" | "static";
   reason: string;
+  note?: string;
   patterns: Record<string, Record<string, unknown>[]>;
 };
 type Status = { configured: boolean; reason: string; templates: { name: string; description: string; params: string[] }[] };
@@ -34,6 +36,18 @@ function Unavailable({ reason }: { reason: string }) {
         Reason: <code>{reason}</code>. AuraDB Free pauses when idle. Relationship checks that
         cannot run raise a MEDIUM flag and send the invoice to human review — they never report a
         silent pass.
+      </p>
+    </div>
+  );
+}
+
+function StaticSnapshot({ note }: { note?: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
+      <Badge tone="warn">Static snapshot</Badge>
+      <p className="mt-1 text-muted">
+        {note ?? "Showing the synthetic demo data while the live knowledge graph is offline."}{" "}
+        Invoice relationship checks still route to human review until the graph is back.
       </p>
     </div>
   );
@@ -66,7 +80,8 @@ export default function GraphPage() {
 
       {status.isPending && <Skeleton className="h-16" />}
       <ErrorNote error={status.error} />
-      {unavailable && <Unavailable reason={status.data!.reason} />}
+      {unavailable && patterns.data?.status !== "static" && <Unavailable reason={status.data!.reason} />}
+      {unavailable && patterns.data?.status === "static" && <StaticSnapshot note={patterns.data.note} />}
 
       <Card>
         <h2 className="font-semibold">Vendor neighbourhood</h2>
@@ -93,7 +108,12 @@ export default function GraphPage() {
           </div>
         )}
 
-        {vendor.data?.status === "ok" && (
+        {vendor.data?.status === "static" && (
+          <div className="mt-4">
+            <StaticSnapshot note={vendor.data.note} />
+          </div>
+        )}
+        {(vendor.data?.status === "ok" || vendor.data?.status === "static") && (
           <div className="mt-4 space-y-4">
             {!vendor.data.vendor && (
               <p className="text-sm text-muted">
@@ -140,14 +160,14 @@ export default function GraphPage() {
             <Unavailable reason={patterns.data.reason} />
           </div>
         )}
-        {patterns.data?.status === "ok" && (
+        {(patterns.data?.status === "ok" || patterns.data?.status === "static") && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {Object.entries(patterns.data.patterns).map(([key, rows]) => (
               <div key={key} className="rounded-lg border border-border p-3">
                 <Metric
                   label={PATTERN_LABELS[key] ?? key}
                   value={rows.length}
-                  source="Neo4j query template"
+                  source={patterns.data?.status === "static" ? "static snapshot (synthetic world data)" : "Neo4j query template"}
                 />
                 {rows.length > 0 && (
                   <pre className="mt-2 max-h-40 overflow-auto text-xs text-muted">

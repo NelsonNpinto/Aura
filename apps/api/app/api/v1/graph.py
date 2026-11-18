@@ -48,11 +48,7 @@ async def patterns(p: CurrentPrincipal) -> dict[str, Any]:
 
 @router.post("/query")
 async def run_template(body: TemplateQuery, p: CurrentPrincipal) -> dict[str, Any]:
-    try:
-        rows = await service.run_template(p.org_id, body.name, dict(body.params))
-    except GraphUnavailable as exc:
-        return {"status": "unavailable", "reason": exc.details.get("reason"), "rows": []}
-    return {"status": "ok", "rows": rows}
+    return await service.explore_template(p.org_id, body.name, dict(body.params))
 
 
 @router.post("/ask")

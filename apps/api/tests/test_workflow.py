@@ -246,3 +246,40 @@ async def test_audit_chain_verifies_for_demo_runs(org):
     async with tenant_tx(org) as s:
         v = await verify(s, org, rid)
     assert v.verified and v.run_event_count and v.run_event_count >= 10
+
+
+async def test_duplicate_upload_restores_a_missing_blob(org):
+    """A row that outlived its blob must not hand back a document intake cannot read."""
+    from app.services.blob import get_blob_store
+    from app.services.runs import create_document
+
+    data = (ROOT / "demo" / "files" / CASES["a"]["file"]["name"]).read_bytes()
+    first = await create_document(org, "persona:rahul", "a.pdf", data, synthetic=True)
+    key = f"ap/{org}/{first['sha256']}"
+    store = get_blob_store()
+    await store.delete(key)
+    with pytest.raises(FileNotFoundError):
+        await store.get(key)
+
+    again = await create_document(org, "persona:rahul", "a.pdf", data, synthetic=True)
+    assert again["duplicate_upload"] is True
+    assert again["document_id"] == first["document_id"]
+    assert await store.get(key) == data
+
+
+async def test_optional_filters_bind_as_typed_nulls(org):
+    """`(:x IS NULL OR col = :x)` with a None parameter is ambiguous to Postgres under psycopg;
+    every optional filter must cast its parameter so an unfiltered call works."""
+    from app.agents.copilot import tools
+    from app.api.v1.guardrails import events
+    from app.api.v1.models import list_versions
+    from app.core.auth import Principal
+
+    await _run(org, "a")
+    listed = await tools._list_invoices(org, {})
+    assert listed["invoices"]
+    spend = await tools._sql_query(org, {"template": "spend_by_vendor", "params": {}})
+    assert spend["template"] == "spend_by_vendor"
+    p = Principal(user_id="persona:meera", org_id=org, roles=frozenset({"admin"}))
+    assert "versions" in await list_versions(p, task=None)
+    assert "events" in await events(p, surface=None, verdict=None, limit=10)

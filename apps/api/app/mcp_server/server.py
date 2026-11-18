@@ -76,8 +76,8 @@ async def list_invoices(
                             "SELECT i.id, i.invoice_number, i.vendor_id, i.vendor_name,"
                             " i.total_minor, i.currency, i.invoice_date, i.status, i.route,"
                             " i.risk_level, i.run_id FROM ap.invoices i"
-                            " WHERE (:st IS NULL OR i.status = :st)"
-                            "   AND (:v IS NULL OR i.vendor_id = :v)"
+                            " WHERE (CAST(:st AS text) IS NULL OR i.status = :st)"
+                            "   AND (CAST(:v AS text) IS NULL OR i.vendor_id = :v)"
                             " ORDER BY i.created_at DESC LIMIT :lim"
                         ),
                         {"st": status, "v": vendor_id, "lim": max(1, min(limit, 100))},

@@ -28,7 +28,8 @@ async def events(
                     text(
                         'SELECT id, run_id, surface, "check", verdict, severity, details, created_at'
                         " FROM ai.guardrail_events"
-                        " WHERE (:sf IS NULL OR surface = :sf) AND (:vd IS NULL OR verdict = :vd)"
+                        " WHERE (CAST(:sf AS text) IS NULL OR surface = :sf)"
+                        " AND (CAST(:vd AS text) IS NULL OR verdict = :vd)"
                         " ORDER BY created_at DESC LIMIT :lim"
                     ),
                     {"sf": surface, "vd": verdict, "lim": limit},

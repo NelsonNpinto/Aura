@@ -153,3 +153,52 @@ def test_availability_reports_a_reason_when_unconfigured(monkeypatch: pytest.Mon
     assert not usable
     assert reason in ("not_configured", "driver_not_installed")
     get_settings.cache_clear()
+
+
+@pytest.fixture
+def graph_offline(monkeypatch: pytest.MonkeyPatch):
+    from app.core.config import get_settings
+
+    for k in ("NEO4J_URI", "NEO4J_USERNAME", "NEO4J_PASSWORD"):
+        monkeypatch.setenv(k, "")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+async def test_explorer_serves_static_snapshot_for_demo_when_graph_is_offline(
+    graph_offline,
+) -> None:
+    from app.core.auth import DEMO_ORG_ID
+    from app.graph import service
+
+    overview = await service.org_fraud_overview(DEMO_ORG_ID)
+    assert overview["status"] == "static"
+    shared = overview["patterns"]["shared_bank_accounts"]
+    assert any({v["id"] for v in row["vendors"]} == {"V017", "V018"} for row in shared)
+
+    hood = await service.neighborhood(DEMO_ORG_ID, "V017")
+    assert hood["status"] == "static" and hood["vendor"]["vendor"]["id"] == "V017"
+    assert any(f["code"] == "SHARED_BANK_ACCOUNT" for f in hood["findings"])
+
+    rows = await service.explore_template(DEMO_ORG_ID, "shared_bank_accounts")
+    assert rows["status"] == "static" and rows["rows"]
+
+
+async def test_static_snapshot_never_covers_invoice_patterns_or_other_tenants(
+    graph_offline,
+) -> None:
+    from app.core.auth import DEMO_ORG_ID
+    from app.graph import service
+
+    split = await service.explore_template(
+        DEMO_ORG_ID,
+        "split_invoices",
+        {"vendor_id": "V001", "since": "2026-01-01", "limit_minor": 1},
+    )
+    assert split["status"] == "unavailable" and split["rows"] == []
+    other = await service.org_fraud_overview("acme-real-tenant")
+    assert other["status"] == "unavailable"
+    # The invoice workflow still fails closed.
+    checks = await service.vendor_checks(DEMO_ORG_ID, "V017")
+    assert checks.status == "unavailable"

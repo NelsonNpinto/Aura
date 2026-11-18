@@ -48,7 +48,7 @@ async def list_versions(
             (
                 await s.execute(
                     text(
-                        "SELECT * FROM ai.model_versions WHERE (:t IS NULL OR task = :t)"
+                        "SELECT * FROM ai.model_versions WHERE (CAST(:t AS text) IS NULL OR task = :t)"
                         " ORDER BY created_at DESC LIMIT 100"
                     ),
                     {"t": task},
