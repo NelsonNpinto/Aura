@@ -168,6 +168,12 @@ async def _list_invoices(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
     return {"invoices": _jsonable(list(rows))}
 
 
+def _major(minor: Any) -> str | None:
+    if not isinstance(minor, int) or minor < 0:
+        return None
+    return f"{minor // 100}.{minor % 100:02d}"
+
+
 async def _list_purchasing_cases(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
     """Purchasing (PO) cases with their stage, match outcome and payment, newest first."""
     async with tenant_tx(org_id) as s:
@@ -206,7 +212,11 @@ async def _list_purchasing_cases(org_id: str, args: dict[str, Any]) -> dict[str,
                 "approvals": [a.get("stage") for a in state.get("approvals") or []],
                 "paid": bool(payment),
                 "payment": {
-                    k: payment.get(k) for k in ("reference", "date", "amount_minor", "currency")
+                    **{
+                        k: payment.get(k) for k in ("reference", "date", "amount_minor", "currency")
+                    },
+                    # Major units, so the model never has to convert paise or cents itself.
+                    "amount": _major(payment.get("amount_minor")),
                 }
                 if payment
                 else None,

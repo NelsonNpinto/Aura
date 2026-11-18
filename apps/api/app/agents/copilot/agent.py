@@ -227,6 +227,17 @@ async def run_copilot(
         if parsed.action == "answer" or not parsed.tool:
             answer = (parsed.answer or "").strip() or NOT_IN_DATA
             invalid = check_citations(answer, evidence, parsed.citations)
+            if (
+                not invalid
+                and parsed.citations
+                and answer != NOT_IN_DATA
+                and not re.search(r"\[[A-Za-z0-9_.:-]{1,40}\]", answer)
+            ):
+                # Models often list sources in `citations` without marking the text. Every id
+                # resolved to gathered evidence above, so show them rather than withhold.
+                answer = f"{answer}\n\nSources: " + " ".join(
+                    f"[{c}]" for c in dict.fromkeys(parsed.citations)
+                )
             run.answer = answer
             run.evidence = evidence
             run.invalid_citations = invalid

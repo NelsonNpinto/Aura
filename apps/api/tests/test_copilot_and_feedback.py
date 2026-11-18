@@ -207,3 +207,45 @@ async def test_replay_without_a_cassette_fails_loudly(tmp_path: Path) -> None:
 
 def test_the_cassette_key_covers_the_prompt() -> None:
     assert key(_request("a")) != key(_request("b"))
+
+
+async def test_sources_listed_only_in_citations_are_shown_inline() -> None:
+    from app.schemas.llm_outputs import CopilotStep
+
+    router = _Router(
+        [
+            CopilotStep(action="tool", tool="list_purchasing_cases", arguments={}),
+            CopilotStep(action="answer", answer="PO-1 is paid.", citations=["PLACEHOLDER"]),
+        ]
+    )
+
+    async def fake_call(name, args, ctx):
+        return {"cases": [{"po_number": "PO-1", "status": "paid"}]}
+
+    import app.agents.copilot.agent as mod
+
+    original = mod.call_tool
+    mod.call_tool = fake_call
+    try:
+        # The evidence id is generated at runtime; patch the answer step to cite it.
+        async def run(task, variables, ctx):
+            step = router.steps[0]
+            if step.action == "answer":
+                ev_id = variables["evidence"].split("]", 1)[0].lstrip("[")
+                router.steps[0] = CopilotStep(
+                    action="answer", answer="PO-1 is paid.", citations=[ev_id]
+                )
+            return _Step(router.steps.pop(0))
+
+        router.run = run  # type: ignore[method-assign]
+        out = await agent.run_copilot(
+            Principal("tester", "demo", frozenset({"finance"})),
+            "Which cases are paid?",
+            _ctx(),
+            model_router=router,  # type: ignore[arg-type]
+        )
+    finally:
+        mod.call_tool = original
+    assert out["citation_valid"] is True
+    assert out["answer"].startswith("PO-1 is paid.")
+    assert "Sources: [list_purchasing_cases:" in out["answer"]

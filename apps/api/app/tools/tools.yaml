@@ -145,7 +145,7 @@ tools:
     allowed_roles: [clerk, approver, controller, auditor, admin, system, finance, purchasing]
     allowed_agents: [copilot]
     rate_limit: 120
-    input: {type: object, additionalProperties: false, properties: {status: {type: [string, "null"], maxLength: 40}, limit: {type: integer, minimum: 1, maximum: 50}}}
+    input: {type: object, additionalProperties: false, properties: {status: {type: [string, "null"], maxLength: 40}, limit: {type: integer, minimum: 1, maximum: 500}}}
   get_invoice:
     source: local
     description: One invoice with flags, lines and match outcomes.
