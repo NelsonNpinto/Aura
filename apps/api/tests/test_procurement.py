@@ -359,3 +359,79 @@ async def test_delete_case_requires_creator_or_admin_and_current_revision(org_id
             {"id": case_id},
         )
         assert action.scalar_one() == "procurement.deleted"
+
+
+async def test_case_po_and_vendor_can_be_corrected_until_a_document_is_confirmed(org_id):
+    principal = Principal("buyer", org_id, frozenset({"purchasing"}), "api_key")
+    app = create_app()
+
+    async def current():
+        return principal
+
+    app.dependency_overrides[get_principal] = current
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        created = await client.post(
+            "/api/v1/procurement/cases", json={"vendor_id": "ACME", "po_number": "PO-1"}
+        )
+        case_id = created.json()["id"]
+        path = f"/api/v1/procurement/cases/{case_id}"
+        other = await client.post(
+            "/api/v1/procurement/cases", json={"vendor_id": "ACME", "po_number": "PO-2"}
+        )
+        assert other.status_code == 201
+
+        renamed = await client.put(path, json={"po_number": "PO-8401", "vendor_id": "Hippa"})
+        assert renamed.status_code == 200
+        case = (await client.get(path)).json()
+        assert (case["po_number"], case["vendor_id"]) == ("PO-8401", "Hippa")
+        assert (await client.put(path, json={"po_number": "PO-2"})).status_code == 409
+        assert (await client.put(path, json={})).status_code == 422
+
+        po = document() | {"po_number": "PO-8401"}
+        assert (await client.put(path + "/documents/po", json=po)).status_code == 200
+        locked = await client.put(path, json={"vendor_id": "Someone else"})
+        assert locked.status_code == 409 and locked.json()["error"]["code"] == "case_locked"
+
+        principal = Principal("vendor-user", org_id, frozenset({"vendor"}), "api_key")
+        assert (await client.put(path, json={"vendor_id": "x"})).status_code == 403
+
+
+async def test_copilot_lists_purchasing_cases_for_staff_but_not_vendors(org_id):
+    from app.agents.copilot import tools
+    from app.agents.copilot.agent import _ensure_tools
+    from app.tools.gateway import ToolContext, ToolDenied, call_tool
+
+    principal = Principal("buyer", org_id, frozenset({"purchasing"}), "api_key")
+    app = create_app()
+
+    async def current():
+        return principal
+
+    app.dependency_overrides[get_principal] = current
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        created = await client.post(
+            "/api/v1/procurement/cases", json={"vendor_id": "Hippa", "po_number": "PO-77"}
+        )
+        assert created.status_code == 201
+
+    listed = await tools._list_purchasing_cases(org_id, {})
+    case = next(c for c in listed["cases"] if c["po_number"] == "PO-77")
+    assert (case["vendor_id"], case["status"], case["paid"]) == (
+        "Hippa",
+        "collecting_documents",
+        False,
+    )
+    assert (await tools._list_purchasing_cases(org_id, {"status": "paid"}))["cases"] == []
+
+    _ensure_tools()
+    staff = ToolContext(
+        org_id=org_id, actor_id="l1", roles=frozenset({"approver"}), agent="copilot"
+    )
+    assert (await call_tool("list_purchasing_cases", {}, staff))["cases"]
+    vendor = ToolContext(org_id=org_id, actor_id="v", roles=frozenset({"vendor"}), agent="copilot")
+    with pytest.raises(ToolDenied):
+        await call_tool("list_purchasing_cases", {}, vendor)

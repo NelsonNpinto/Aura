@@ -466,6 +466,71 @@ async def create(body: CreateRequest, p: CurrentPrincipal) -> dict[str, str]:
     return {"id": str(cid)}
 
 
+class UpdateCaseRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    po_number: str | None = Field(default=None, min_length=1, max_length=80)
+    vendor_id: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+@router.put("/cases/{case_id}")
+async def update_case(
+    case_id: uuid.UUID, body: UpdateCaseRequest, p: CurrentPrincipal
+) -> dict[str, str]:
+    """Correct a case's PO number or vendor before any document is confirmed against it.
+
+    Confirmed documents carry the PO number they were checked against, so the identity of the
+    case is fixed from the first confirmation onwards.
+    """
+    roles, _ = await actor(p)
+    if not roles & {"purchasing", "clerk", "admin"}:
+        raise Forbidden("Purchasing access required")
+    if body.po_number is None and body.vendor_id is None:
+        raise AppError("Nothing to change", code="invalid_request", status_code=422)
+    async with tenant_tx(p.org_id, p.user_id) as s:
+        row = await case_row(s, p, case_id, None, True)
+        if row["state"].get("documents"):
+            raise Conflict(
+                "The PO number and vendor are fixed once a document is confirmed",
+                code="case_locked",
+            )
+        po_number = body.po_number or row["po_number"]
+        vendor_id = body.vendor_id or row["vendor_id"]
+        columns = procurement_cases.c
+        if po_number != row["po_number"]:
+            taken = (
+                await s.execute(
+                    select(columns.id).where(
+                        columns.org_id == p.org_id,
+                        columns.po_number == po_number,
+                        columns.id != case_id,
+                    )
+                )
+            ).first()
+            if taken:
+                raise Conflict("This PO already has a case")
+        await s.execute(
+            text("UPDATE ap.procurement_cases SET po_number=:n, vendor_id=:v WHERE id=:id"),
+            {"id": case_id, "n": po_number, "v": vendor_id},
+        )
+        await append(
+            s,
+            p.org_id,
+            AuditEvent(
+                action="procurement.case_updated",
+                actor_type="human",
+                actor_id=p.user_id,
+                target_type="procurement_case",
+                target_id=str(case_id),
+                details={
+                    "po_number": po_number,
+                    "vendor_id": vendor_id,
+                    "previous": {"po_number": row["po_number"], "vendor_id": row["vendor_id"]},
+                },
+            ),
+        )
+    return {"id": str(case_id), "po_number": po_number, "vendor_id": vendor_id}
+
+
 @router.get("/cases")
 async def cases(
     p: CurrentPrincipal,

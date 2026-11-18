@@ -229,7 +229,28 @@ function DocumentForm({
       setBusy(false);
     }
   }
-  async function confirm() {
+  const caseIsEmpty = Object.keys(item.state.documents).length === 0;
+  const poMismatch =
+    poNumber.trim() !== "" && poNumber.trim() !== item.po_number;
+  const canAdoptPo = kind === "po" && caseIsEmpty && !item.state.payment;
+  async function adoptPoAndConfirm() {
+    setError(null);
+    setBusy(true);
+    try {
+      await api(`/procurement/cases/${item.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ po_number: poNumber.trim() }),
+      });
+    } catch (e) {
+      setError(e);
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    await confirm(poNumber.trim());
+    refresh();
+  }
+  async function confirm(casePo: string = item.po_number) {
     setError(null);
     if (!number.trim()) {
       setError(new Error("Enter the document number."));
@@ -246,10 +267,10 @@ function DocumentForm({
       );
       return;
     }
-    if (poNumber.trim() !== item.po_number) {
+    if (poNumber.trim() !== casePo) {
       setError(
         new Error(
-          `The source must reference PO ${item.po_number}. Check the document before confirming.`,
+          `This document references PO ${poNumber.trim()}, but this case is ${casePo}. Correct the PO number if it was misread, or add the document to the case for PO ${poNumber.trim()}.`,
         ),
       );
       return;
@@ -515,6 +536,30 @@ function DocumentForm({
             </span>
           )}
         </p>
+        {poMismatch && (
+          <div className="rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm">
+            <p>
+              This document references PO <strong>{poNumber.trim()}</strong>,
+              but this case is <strong>{item.po_number}</strong>.
+            </p>
+            {canAdoptPo ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-2"
+                disabled={busy || Boolean(selectedFile)}
+                onClick={() => void adoptPoAndConfirm()}
+              >
+                Use {poNumber.trim()} for this case and confirm
+              </Button>
+            ) : (
+              <p className="mt-1 text-muted">
+                Correct the PO number above if it was misread, or add this
+                document to the case for PO {poNumber.trim()}.
+              </p>
+            )}
+          </div>
+        )}
         <ErrorNote error={error} />
         <Button
           disabled={busy || Boolean(selectedFile)}
@@ -523,6 +568,65 @@ function DocumentForm({
           {busy ? "Working…" : "Confirm document details"}
         </Button>
       </div>
+    </details>
+  );
+}
+
+function CaseDetailsEditor({
+  item,
+  refresh,
+}: {
+  item: Case;
+  refresh: () => void;
+}) {
+  const save = useMutation({
+    mutationFn: (fd: FormData) =>
+      api(`/procurement/cases/${item.id}`, {
+        method: "PUT",
+        body: JSON.stringify(Object.fromEntries(fd)),
+      }),
+    onSuccess: () => refresh(),
+  });
+  return (
+    <details className="rounded border border-border p-3 text-sm">
+      <summary className="cursor-pointer font-medium">
+        Edit PO number or vendor
+      </summary>
+      <p className="mt-2 text-muted">
+        These can change until the first document is confirmed.
+      </p>
+      <form
+        className="mt-3 grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save.mutate(new FormData(event.currentTarget));
+        }}
+      >
+        <Label className="mb-0">
+          PO number
+          <Input
+            name="po_number"
+            className="mt-1"
+            defaultValue={item.po_number}
+            maxLength={80}
+            required
+          />
+        </Label>
+        <Label className="mb-0">
+          Vendor identifier
+          <Input
+            name="vendor_id"
+            className="mt-1"
+            defaultValue={item.vendor_id}
+            maxLength={80}
+            required
+          />
+        </Label>
+        <Button disabled={save.isPending}>
+          {save.isPending ? "Saving…" : "Save"}
+        </Button>
+      </form>
+      <ErrorNote error={save.error} />
     </details>
   );
 }
@@ -665,6 +769,15 @@ function CaseCard({
           )}
         </div>
       </div>
+      {can("purchasing", "clerk", "admin") &&
+        Object.keys(item.state.documents).length === 0 &&
+        !item.state.payment && (
+          <CaseDetailsEditor
+            key={`${item.po_number}|${item.vendor_id}`}
+            item={item}
+            refresh={refresh}
+          />
+        )}
       <dialog
         ref={deleteDialog}
         aria-labelledby="delete-case-title"
@@ -1229,10 +1342,7 @@ function PurchasingWorkspace() {
               <Input
                 name="vendor_id"
                 className="mt-1"
-                placeholder={list.data?.vendor_id ?? "ACME"}
-                defaultValue={
-                  workspace.id === PURCHASING_DEMO_ORG ? "ACME" : undefined
-                }
+                placeholder="Supplier name or ID"
                 maxLength={80}
                 required
               />
@@ -1243,7 +1353,8 @@ function PurchasingWorkspace() {
           </form>
           {workspace.id === PURCHASING_DEMO_ORG && (
             <p className="mt-2 text-xs text-muted">
-              The demo Vendor login can open this case.
+              The demo Vendor login can open every case in this workspace,
+              whatever vendor you enter.
             </p>
           )}
           <ErrorNote error={create.error} />

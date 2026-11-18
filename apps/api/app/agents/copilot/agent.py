@@ -40,6 +40,7 @@ COPILOT_TOOLS = (
     "graph_query",
     "sql_query",
     "list_invoices",
+    "list_purchasing_cases",
     "get_invoice",
     "explain_decision",
     "start_invoice_run",
@@ -103,6 +104,8 @@ def tool_catalog() -> str:
             f"graph_query(template, params) - knowledge graph. Templates: {graph_templates}.",
             f"sql_query(template, params) - read-only SQL templates: {sql_templates}.",
             "list_invoices(status?, vendor_id?, limit?) - recent invoices.",
+            "list_purchasing_cases(status?, limit?) - purchasing (PO) cases: stage, documents,"
+            " three-way match findings, approvals and recorded payment.",
             "get_invoice(invoice) - one invoice by id or number, with flags and lines.",
             "explain_decision(run_id) - audit lineage for a run, with chain verification.",
             "start_invoice_run(document_id, confirm) - WRITE. Needs the user's explicit"
@@ -121,6 +124,8 @@ def _evidence_summary(tool: str, args: dict[str, Any], result: dict[str, Any]) -
         return f"sql template {args.get('template')}: {len(result.get('rows', []))} row(s)"
     if tool == "list_invoices":
         return f"{len(result.get('invoices', []))} invoice(s)"
+    if tool == "list_purchasing_cases":
+        return f"{len(result.get('cases', []))} purchasing case(s)"
     if tool == "get_invoice":
         inv = result.get("invoice") or {}
         return f"invoice {inv.get('invoice_number')} ({inv.get('status')})"

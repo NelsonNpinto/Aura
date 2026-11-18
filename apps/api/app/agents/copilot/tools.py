@@ -168,6 +168,54 @@ async def _list_invoices(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
     return {"invoices": _jsonable(list(rows))}
 
 
+async def _list_purchasing_cases(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Purchasing (PO) cases with their stage, match outcome and payment, newest first."""
+    async with tenant_tx(org_id) as s:
+        rows = (
+            (
+                await s.execute(
+                    text(
+                        "SELECT po_number, vendor_id, state, created_at FROM ap.procurement_cases"
+                        " WHERE (CAST(:st AS text) IS NULL OR state->>'status' = :st)"
+                        " ORDER BY created_at DESC LIMIT :lim"
+                    ),
+                    {
+                        "st": args.get("status"),
+                        "lim": min(int(args.get("limit") or 20), 50),
+                    },
+                )
+            )
+            .mappings()
+            .all()
+        )
+    cases = []
+    for r in rows:
+        state = r["state"] or {}
+        comparison = state.get("comparison") or {}
+        payment = state.get("payment") or None
+        cases.append(
+            {
+                "po_number": r["po_number"],
+                "vendor_id": r["vendor_id"],
+                "status": state.get("status"),
+                "revision": state.get("revision"),
+                "documents": sorted((state.get("documents") or {}).keys()),
+                "missing": comparison.get("missing"),
+                "matched": comparison.get("matched"),
+                "findings": [f.get("code") for f in comparison.get("findings") or []],
+                "approvals": [a.get("stage") for a in state.get("approvals") or []],
+                "paid": bool(payment),
+                "payment": {
+                    k: payment.get(k) for k in ("reference", "date", "amount_minor", "currency")
+                }
+                if payment
+                else None,
+                "created_at": r["created_at"].isoformat(),
+            }
+        )
+    return {"cases": cases}
+
+
 async def _get_invoice(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
     async with tenant_tx(org_id) as s:
         inv = (
@@ -266,6 +314,7 @@ def register_copilot_tools() -> None:
     register_local("graph_query", _graph_query)
     register_local("sql_query", _sql_query)
     register_local("list_invoices", _list_invoices)
+    register_local("list_purchasing_cases", _list_purchasing_cases)
     register_local("get_invoice", _get_invoice)
     register_local("explain_decision", _explain_decision)
     register_local("start_invoice_run", _start_invoice_run)
