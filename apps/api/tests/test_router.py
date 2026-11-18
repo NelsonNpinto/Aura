@@ -343,3 +343,28 @@ def test_shipped_tasks_yaml_is_valid():
 
     cfg = load_config()
     assert "playground" in cfg.tasks and cfg.tasks["paraphrase_data"].open_weight_only
+
+
+def test_groq_native_tool_call_is_salvaged_as_a_copilot_step() -> None:
+    from app.llm.providers import salvage_tool_call
+    from app.schemas.llm_outputs import CopilotStep
+
+    err = (
+        'litellm.BadRequestError: GroqException - {"error":{"message":"Tool choice is none, but '
+        'model called a tool","type":"invalid_request_error","code":"tool_use_failed",'
+        '"failed_generation":"{\\"name\\": \\"tool_list_invoices\\", \\"arguments\\": '
+        '{\\"status\\":\\"pending\\"}}"}}\n'
+    )
+    step = CopilotStep.model_validate_json(salvage_tool_call(err) or "")
+    assert (step.action, step.tool, step.arguments) == (
+        "tool",
+        "list_invoices",
+        {"status": "pending"},
+    )
+
+
+def test_other_bad_requests_are_not_salvaged() -> None:
+    from app.llm.providers import salvage_tool_call
+
+    assert salvage_tool_call('GroqException - {"error":{"code":"json_validate_failed"}}') is None
+    assert salvage_tool_call("tool_use_failed but no body") is None

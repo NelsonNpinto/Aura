@@ -199,6 +199,51 @@ def _parse_gradio_sse(body: str) -> str:
     return out
 
 
+_TOOL_PREFIXES = ("functions.", "tools.", "tool_")
+
+
+def salvage_tool_call(error_text: str) -> str | None:
+    """Recover a tool step Groq rejected as `tool_use_failed`.
+
+    gpt-oss sometimes answers a prompt that lists tools with a native tool call instead of the
+    JSON text the prompt asks for. No tools are declared on the request, so Groq refuses the
+    reply with 400 and puts the generation in `failed_generation`. Re-express that call as the
+    copilot's JSON step (`{"action": "tool", ...}`); any task whose schema is not a tool step
+    rejects it at validation and falls back exactly as before. Tool names are still checked
+    against the allow-list by the caller.
+    """
+    if "tool_use_failed" not in error_text:
+        return None
+    start = error_text.find("{")
+    if start < 0:
+        return None
+    try:
+        body, _ = json.JSONDecoder().raw_decode(error_text[start:])
+        generation = json.loads(body["error"]["failed_generation"])
+    except (ValueError, KeyError, TypeError):
+        return None
+    if not isinstance(generation, dict) or not isinstance(generation.get("name"), str):
+        return None
+    name: str = generation["name"]
+    for prefix in _TOOL_PREFIXES:
+        if name.startswith(prefix):
+            name = name[len(prefix) :]
+    args = generation.get("arguments", generation.get("parameters")) or {}
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except ValueError:
+            args = {}
+    return json.dumps(
+        {
+            "action": "tool",
+            "reasoning": "",
+            "tool": name,
+            "arguments": args if isinstance(args, dict) else {},
+        }
+    )
+
+
 async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
     if not provider_configured(req.model):
         raise ProviderError("not_configured", req.model)
@@ -240,8 +285,11 @@ async def litellm_transport(req: ProviderRequest) -> ProviderResponse:
     except lx.AuthenticationError as exc:
         raise ProviderError("auth", type(exc).__name__) from exc
     except lx.BadRequestError as exc:
-        # Groq answers 400 json_validate_failed when the model emits invalid JSON; keep the
-        # provider's reason (truncated) so a fallback chain that fails is diagnosable.
+        salvaged = salvage_tool_call(str(exc))
+        if salvaged is not None:
+            log.info("provider.tool_call_salvaged", model=req.model)
+            return ProviderResponse(text=salvaged, tokens_in=0, tokens_out=0, raw_model=req.model)
+        # Keep the provider's reason (truncated) so a fallback chain that fails is diagnosable.
         log.warning("provider.bad_request", model=req.model, detail=str(exc)[:300])
         raise ProviderError("bad_request", type(exc).__name__) from exc
     choice = resp.choices[0]

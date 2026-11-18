@@ -149,7 +149,8 @@ tasks:
     chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, groq/openai/gpt-oss-20b]
     temperature: 0
     max_tokens: 1200
-    timeout_s: 10
+    # Gemini 3 thinks before it answers; 10 s cut the fallback off before it could reply.
+    timeout_s: 20
     cache: none
     output_schema: app.schemas.llm_outputs:CopilotStep
     prompt: {name: copilot_step, label: production}
