@@ -1,26 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
-import { Turnstile } from "@/components/turnstile";
+import { useSearchParams } from "next/navigation";
+import { useRef, useState } from "react";
 import { Button, Card, ErrorNote, Input, Label } from "@/components/ui";
-import { clearApiToken } from "@/lib/api";
+import { navigateAfterAuthChange } from "@/lib/auth-navigation";
 import { authClient } from "@/lib/auth-client";
+import { PURCHASING_DEMO_ORG } from "@/lib/purchasing-demo";
 
 export type DemoLogin = { label: string; email: string; password: string; workspaceId: string };
 
 export function AuthForm({ mode, demoLogins = [], publicDemo = false }: { mode: "login" | "signup"; demoLogins?: DemoLogin[]; publicDemo?: boolean }) {
-  const router = useRouter();
   const params = useSearchParams();
-  const [captcha, setCaptcha] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const onToken = useCallback((t: string | null) => setCaptcha(t), []);
-  // Turnstile tokens are single-use: after any attempt, render a fresh widget for the next one.
-  const [widget, setWidget] = useState(0);
-  const needsCaptcha = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
   function fillDemo(login: DemoLogin) {
     const email = formRef.current?.elements.namedItem("email");
@@ -35,38 +29,27 @@ export function AuthForm({ mode, demoLogins = [], publicDemo = false }: { mode: 
   async function submit(form: FormData) {
     setBusy(true);
     setError(null);
-    const fetchOptions = { headers: captcha ? { "x-captcha-response": captcha } : {} };
-    const email = String(form.get("email"));
+    const email = String(form.get("email")).trim();
     const password = String(form.get("password"));
-    const res =
-      mode === "signup"
-        ? await authClient.signUp.email({ email, password, name: String(form.get("name") || email.split("@")[0]), fetchOptions })
-        : await authClient.signIn.email({ email, password, fetchOptions });
-    if (res.error) {
-      setBusy(false);
-      setCaptcha(null);
-      setWidget((w) => w + 1);
-      setError(res.error.message ?? "Authentication failed");
-      return;
-    }
-    const demoLogin = demoLogins.find((login) => login.email === email && login.password === password);
-    if (demoLogin) {
-      try {
-        // The session's active workspace controls the role used on the Purchasing page.
-        await authClient.organization.setActive({ organizationId: demoLogin.workspaceId });
-      } catch {
-        // Purchasing also has a workspace selector if the switch could not be completed.
+    try {
+      const res =
+        mode === "signup"
+          ? await authClient.signUp.email({ email, password, name: String(form.get("name") || email.split("@")[0]) })
+          : await authClient.signIn.email({ email, password });
+      if (res.error) throw new Error(res.error.message ?? "Authentication failed");
+      const demoLogin = demoLogins.find((login) => login.email.toLowerCase() === email.toLowerCase());
+      const next = params.get("next");
+      if (demoLogin && demoLogin.workspaceId !== PURCHASING_DEMO_ORG) {
+        const active = await authClient.organization.setActive({ organizationId: demoLogin.workspaceId });
+        if (active.error) throw new Error(active.error.message ?? "Could not open the Purchasing workspace");
       }
-      clearApiToken();
-      router.push("/app/procurement");
-      router.refresh();
+      const requested = next && /^\/app(?:\/|\?|$)/.test(next) ? next : null;
+      const keepsDemoScope = requested && /^\/app\/(?:procurement|copilot)(?:\?|$)/.test(requested);
+      navigateAfterAuthChange(demoLogin && !keepsDemoScope ? "/app/procurement" : requested ?? "/app");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign in. Try again.");
       setBusy(false);
-      return;
     }
-    setBusy(false);
-    const next = params.get("next");
-    router.push(next?.startsWith("/app") ? next : "/app");
-    router.refresh();
   }
 
   return (
@@ -104,9 +87,8 @@ export function AuthForm({ mode, demoLogins = [], publicDemo = false }: { mode: 
             <Input id="password" name="password" type="password" required minLength={10} maxLength={128}
               autoComplete={mode === "signup" ? "new-password" : "current-password"} />
           </div>
-          <Turnstile key={widget} onToken={onToken} />
           <ErrorNote error={error} />
-          <Button type="submit" className="w-full" disabled={busy || (needsCaptcha && !captcha)}>
+          <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Please wait…" : mode === "signup" ? "Sign up" : "Log in"}
           </Button>
         </form>

@@ -187,7 +187,6 @@ jobs:
       - run: npm run build
         env:
           BETTER_AUTH_SECRET: ci-build-only-placeholder-secret-0000
-          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
 
   security:
     runs-on: ubuntu-latest

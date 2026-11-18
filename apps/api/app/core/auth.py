@@ -55,6 +55,7 @@ class Principal:
     roles: frozenset[str] = field(default_factory=frozenset)
     kind: Literal["jwt", "api_key"] = "jwt"
     email: str | None = None
+    procurement_scope: tuple[frozenset[str], str | None] | None = None
 
     @property
     def is_guest(self) -> bool:
@@ -180,6 +181,32 @@ async def get_principal(request: Request) -> Principal:
             principal = await asyncio.to_thread(verify_jwt, token)
     else:
         raise Unauthorized("Authentication required")
+    if principal.kind == "jwt" and request.url.path.startswith("/api/v1/procurement/"):
+        # Purchasing always uses live membership. Read both role records in one round trip.
+        async with system_tx() as owner:
+            member = (
+                await owner.execute(
+                    text(
+                        "SELECT a.role, p.role AS assigned_role, p.vendor_id FROM auth.member a"
+                        " LEFT JOIN ap.procurement_members p"
+                        ' ON p.org_id=a."organizationId" AND p.user_id=a."userId"'
+                        ' WHERE a."organizationId"=:o AND a."userId"=:u'
+                    ),
+                    {"o": principal.org_id, "u": principal.user_id},
+                )
+            ).first()
+        if not member:
+            raise Forbidden("Workspace membership required")
+        roles = frozenset(role.strip() for role in member.role.split(",")) & ROLES
+        if not roles:
+            raise Forbidden("No recognised role in this organization", code="no_role")
+        if member.assigned_role:
+            if member.assigned_role not in roles:
+                raise Forbidden("Workspace access was revoked or changed")
+            roles = frozenset({member.assigned_role})
+        principal = replace(principal, roles=roles, procurement_scope=(roles, member.vendor_id))
+        request.state.principal = principal
+        return principal
     async with tenant_tx(principal.org_id, principal.user_id) as session:
         membership = (
             await session.execute(

@@ -23,13 +23,13 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useState, useSyncExternalStore } from "react";
 import { PersonaSwitcher } from "@/components/persona-switcher";
-import { Badge } from "@/components/ui";
-import { clearApiToken } from "@/lib/api";
+import { Badge, ErrorNote } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
+import { navigateAfterAuthChange } from "@/lib/auth-navigation";
 import type { Role } from "@/lib/roles";
 
 type Props = {
@@ -41,7 +41,6 @@ type Props = {
 
 export function AppNav({ name, orgName, roles, isGuest }: Props) {
   const path = usePathname();
-  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   // false during SSR/hydration, true on the client: avoids a theme-icon hydration mismatch
   const mounted = useSyncExternalStore(
@@ -49,8 +48,9 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
     () => true,
     () => false,
   );
-  const demo = isGuest || orgName?.toLowerCase().includes("demo");
   const [openPath, setOpenPath] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<unknown>(null);
   const menuOpen = openPath === path;
   const vendor = roles.includes("vendor");
   const groups = [
@@ -93,10 +93,10 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
       label: "AI tools",
       items: [
         {
-          href: "/app/copilot/chat",
+          href: "/app/copilot",
           label: "Copilot",
           icon: MessageSquare,
-          show: !vendor,
+          show: true,
         },
         {
           href: "/app/graph",
@@ -234,7 +234,7 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
               </div>
             ))}
         </nav>
-        {demo && <PersonaSwitcher />}
+        {isGuest && <PersonaSwitcher />}
         <div className="mt-auto space-y-2 border-t border-border p-4 text-sm">
           <div className="truncate font-medium">{name || "Guest"}</div>
           <div
@@ -264,16 +264,32 @@ export function AppNav({ name, orgName, roles, isGuest }: Props) {
             </button>
             <button
               className="flex min-h-9 items-center gap-2 rounded-lg px-2 text-muted hover:bg-surface-2 hover:text-text"
+              disabled={signingOut}
               onClick={async () => {
-                clearApiToken();
-                await authClient.signOut();
-                router.push("/");
-                router.refresh();
+                setSigningOut(true);
+                setSignOutError(null);
+                try {
+                  const result = await authClient.signOut();
+                  if (result.error)
+                    throw new Error(
+                      result.error.message ?? "Could not sign out",
+                    );
+                  const current =
+                    window.location.pathname + window.location.search;
+                  navigateAfterAuthChange(
+                    `/login?next=${encodeURIComponent(current)}`,
+                  );
+                } catch (error) {
+                  setSignOutError(error);
+                  setSigningOut(false);
+                }
               }}
             >
-              <LogOut size={16} aria-hidden /> Sign out
+              <LogOut size={16} aria-hidden />{" "}
+              {signingOut ? "Signing out…" : "Sign out"}
             </button>
           </div>
+          <ErrorNote error={signOutError} />
         </div>
       </div>
     </aside>

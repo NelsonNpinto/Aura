@@ -3,7 +3,7 @@ import pytest
 from pydantic import SecretStr
 
 from app.core.config import get_settings
-from app.services.payment_email import send
+from app.services.payment_email import delivery_blocker, send
 
 PAYLOAD = {
     "case_id": "case-1",
@@ -26,6 +26,26 @@ async def test_public_demo_can_preview_with_gmail_enabled(monkeypatch):
     monkeypatch.setattr(get_settings(), "mail_mode", "gmail")
     result = await send(PAYLOAD, ["vendor@example.com"], preview_only=True)
     assert result["status"] == "preview"
+
+
+def test_only_a_configured_local_demo_can_send_to_its_allowlisted_recipient(monkeypatch):
+    settings = get_settings()
+    for name, value in {
+        "app_env": "production",
+        "mail_mode": "gmail",
+        "mail_from": "sender@example.com",
+        "mail_allowed_recipients": "vendor@example.com",
+        "mail_demo_recipient": "vendor@example.com",
+        "gmail_client_id": "test-client",
+        "gmail_client_secret": SecretStr("test-secret"),
+        "gmail_refresh_token": SecretStr("test-refresh"),
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    assert delivery_blocker("purchasing-demo")
+    monkeypatch.setattr(settings, "app_env", "local")
+    assert delivery_blocker("purchasing-demo") is None
+    monkeypatch.setattr(settings, "mail_demo_recipient", "another@example.com")
+    assert delivery_blocker("purchasing-demo")
 
 
 @pytest.mark.parametrize("mode", ["accepted", "ambiguous", "unauthorized"])

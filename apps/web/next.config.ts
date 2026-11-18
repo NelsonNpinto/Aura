@@ -20,12 +20,12 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   {
-    // img-src blocks external images (Markdown exfiltration, §B18). Turnstile needs its script + frame.
+    // img-src blocks external images (Markdown exfiltration, §B18).
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com`,
-      "frame-src https://challenges.cloudflare.com",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+      "frame-src 'none'",
       "img-src 'self' data:",
       "style-src 'self' 'unsafe-inline'",
       `connect-src 'self'${isDev ? " ws://localhost:* http://localhost:*" : ""}`,

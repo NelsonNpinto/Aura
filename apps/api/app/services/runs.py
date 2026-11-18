@@ -65,10 +65,11 @@ async def create_document(
     await get_blob_store().put(key, data, mime)
     did = uuid.uuid4()
     async with tenant_tx(org_id, user_id) as s:
-        await s.execute(
+        result = await s.execute(
             text(
                 "INSERT INTO ap.documents (id, org_id, filename, blob_key, sha256, mime, size_bytes, source, synthetic, demo_key, uploaded_by, expires_at)"
-                " VALUES (:id,:o,:f,:k,:h,:m,:sz,:src,:syn,:dk,:u,:exp) ON CONFLICT (org_id, sha256) DO NOTHING"
+                " VALUES (:id,:o,:f,:k,:h,:m,:sz,:src,:syn,:dk,:u,:exp)"
+                " ON CONFLICT (org_id, sha256) DO NOTHING RETURNING id"
             ),
             {
                 "id": did,
@@ -85,7 +86,20 @@ async def create_document(
                 "exp": datetime.now(UTC) + timedelta(hours=72) if guest else None,
             },
         )
-    return {"document_id": str(did), "sha256": sha, "mime": mime, "duplicate_upload": False}
+        inserted = result.scalar_one_or_none()
+        if inserted is None:
+            did = (
+                await s.execute(
+                    text("SELECT id FROM ap.documents WHERE org_id=:o AND sha256=:h"),
+                    {"o": org_id, "h": sha},
+                )
+            ).scalar_one()
+    return {
+        "document_id": str(did),
+        "sha256": sha,
+        "mime": mime,
+        "duplicate_upload": inserted is None,
+    }
 
 
 async def create_run(

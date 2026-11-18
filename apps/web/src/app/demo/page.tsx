@@ -2,25 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { Turnstile } from "@/components/turnstile";
+import { useEffect, useState } from "react";
 import { Badge, Button, Card, ErrorNote } from "@/components/ui";
+import { clearApiToken } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 
 export default function DemoPage() {
   const router = useRouter();
-  const [captcha, setCaptcha] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const onToken = useCallback((t: string | null) => setCaptcha(t), []);
-  const [widget, setWidget] = useState(0); // fresh single-use Turnstile token after each attempt
-  const needsCaptcha = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   // A browser that already has a session (guest or account) goes straight back in:
   // Better Auth refuses a second anonymous sign-in for an existing anonymous session.
   useEffect(() => {
-    authClient.getSession().then((r) => setSignedIn(Boolean(r.data?.session)));
+    authClient.getSession()
+      .then((r) => setSignedIn(Boolean(r.data?.session)))
+      .catch(() => setSignedIn(false));
   }, []);
 
   function go() {
@@ -31,22 +29,33 @@ export default function DemoPage() {
   async function enter() {
     setBusy(true);
     setError(null);
-    const res = await authClient.signIn.anonymous({
-      fetchOptions: { headers: captcha ? { "x-captcha-response": captcha } : {} },
-    });
-    setBusy(false);
-    if (res.error) {
-      if (res.error.code === "ANONYMOUS_USERS_CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY") return go();
-      setCaptcha(null);
-      setWidget((w) => w + 1);
-      return setError(res.error.message ?? "Could not start the demo");
+    try {
+      const res = await authClient.signIn.anonymous();
+      if (res.error && res.error.code !== "ANONYMOUS_USERS_CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY") {
+        throw new Error(res.error.message ?? "Could not start the demo");
+      }
+      clearApiToken();
+      go();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start the demo");
+    } finally {
+      setBusy(false);
     }
-    go();
   }
 
   async function startFresh() {
-    await authClient.signOut();
-    setSignedIn(false);
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await authClient.signOut();
+      if (res.error) throw new Error(res.error.message ?? "Could not sign out");
+      clearApiToken();
+      setSignedIn(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign out");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -60,18 +69,17 @@ export default function DemoPage() {
           <li>Do not upload real documents. Guest uploads are deleted after 72 hours.</li>
           <li>Prompts may be processed by free-tier model providers.</li>
         </ul>
+        <ErrorNote error={error} />
         {signedIn ? (
           <div className="mt-4 space-y-3">
             <Button className="w-full" onClick={go}>Continue to the demo</Button>
-            <button className="w-full text-sm text-muted underline" onClick={startFresh}>
+            <button className="w-full text-sm text-muted underline" disabled={busy} onClick={startFresh}>
               Sign out and start a new guest session
             </button>
           </div>
         ) : (
           <div className="mt-4 space-y-3">
-            <Turnstile key={widget} onToken={onToken} />
-            <ErrorNote error={error} />
-            <Button className="w-full" onClick={enter} disabled={busy || signedIn === null || (needsCaptcha && !captcha)}>
+            <Button className="w-full" onClick={enter} disabled={busy || signedIn === null}>
               {busy ? "Starting…" : "Enter the demo"}
             </Button>
           </div>

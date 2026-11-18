@@ -8,7 +8,7 @@ from fastapi import Request
 
 from app.core.auth import Principal
 from app.core.config import get_settings
-from app.core.errors import AppError, RateLimited
+from app.core.errors import RateLimited
 from app.core.middleware import client_ip
 from app.core.store import Window, day_bucket, get_store, minute_bucket, seconds_to_utc_midnight
 
@@ -77,37 +77,3 @@ async def usage_snapshot(p: Principal) -> dict[str, object]:
         "org": {"used": used[1], "limit": o, "remaining": max(o - used[1], 0)},
         "user": {"used": used[2], "limit": u, "remaining": max(u - used[2], 0)},
     }
-
-
-async def verify_turnstile(token: str | None, request: Request) -> None:
-    """Cloudflare Turnstile check for public endpoints (guest demo, challenge page).
-
-    No secret configured means the check is skipped; that is only ever the case locally, and the
-    deployment smoke test asserts the secret is present in production.
-    """
-    s = get_settings()
-    secret = s.turnstile_secret_key
-    if not secret:
-        return
-    if not token:
-        raise AppError("Bot check required", code="turnstile_required", status_code=403)
-    import httpx
-
-    ip = client_ip(request.headers, request.client.host if request.client else None)
-    try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            resp = await client.post(
-                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-                data={
-                    "secret": secret.get_secret_value(),
-                    "response": token,
-                    "remoteip": ip,
-                },
-            )
-            ok = bool(resp.json().get("success"))
-    except Exception as exc:
-        raise AppError(
-            "Bot check unavailable", code="turnstile_unavailable", status_code=503
-        ) from exc
-    if not ok:
-        raise AppError("Bot check failed", code="turnstile_failed", status_code=403)

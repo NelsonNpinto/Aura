@@ -11,7 +11,7 @@ export function SafeMarkdown({ children }: { children: string }) {
     <div className="prose-sm max-w-none space-y-2 text-sm leading-6 [&_li]:ml-5 [&_ol]:list-decimal [&_table]:w-full [&_td]:border [&_td]:border-border [&_td]:px-2 [&_th]:border [&_th]:border-border [&_th]:px-2 [&_ul]:list-disc">
       <ReactMarkdown
         skipHtml
-        urlTransform={(url) => (url.startsWith("/") || url.startsWith("#") ? url : "")}
+        urlTransform={(url) => (/^(\/(?![\/\\])|#)/.test(url) ? url : "")}
         components={{
           img: ({ alt }) => <span className="text-muted">[image removed{alt ? `: ${alt}` : ""}]</span>,
           a: ({ href, children }) =>

@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     mail_mode: Literal["preview", "gmail"] = "preview"
     mail_from: str = ""
     mail_allowed_recipients: str = ""
+    mail_demo_recipient: str = ""
     gmail_client_id: str = ""
     gmail_client_secret: SecretStr | None = None
     gmail_refresh_token: SecretStr | None = None
@@ -82,8 +83,6 @@ class Settings(BaseSettings):
     aura_jwks_url: str = "http://localhost:3000/api/auth/jwks"
     aura_jwt_issuer: str = "http://localhost:3000"
     aura_jwt_audience: str = "aura-api"
-
-    turnstile_secret_key: SecretStr | None = None
 
     # Phase 1: ERP mock, approvals, workflow
     erp_mcp_url: str | None = None  # empty = in-process ERP tools (tests, local dev)

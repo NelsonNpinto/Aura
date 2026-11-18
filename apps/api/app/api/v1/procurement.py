@@ -6,14 +6,15 @@ import asyncio
 import base64
 import hashlib
 import json
+import re
 import uuid
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, File, Form, Query, Request, UploadFile
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
-from sqlalchemy import text
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import Column, ColumnElement, func, or_, select, text
 
 from app.api.deps import call_context
 from app.audit.chain import AuditEvent, append
@@ -22,16 +23,18 @@ from app.core.config import get_settings
 from app.core.db import system_tx, tenant_tx
 from app.core.errors import AppError, Conflict, Forbidden, NotFound
 from app.core.limits import charge_run
-from app.domain.procurement import EvidenceDocument, Line, compare, transition
+from app.domain.procurement import PURCHASING_DEMO_ORG, EvidenceDocument, Line, compare, transition
 from app.guardrails.pii import redact
 from app.llm.providers import provider_configured
-from app.llm.router import get_router
+from app.llm.router import RouterError, get_router
+from app.models.tables import procurement_cases, procurement_members
 from app.services.blob import get_blob_store
-from app.services.payment_email import dispatch, payment_message
-from app.services.pdf import extract_text, render_pages_png
-from app.services.runs import create_document
+from app.services.payment_email import delivery_blocker, dispatch, payment_message
+from app.services.pdf import PdfText, extract_text, render_pages_png
+from app.services.runs import create_document, sniff
 
 router = APIRouter(prefix="/procurement", tags=["procurement"])
+EXTRACTION_TIMEOUT_SECONDS = 35
 
 # Fingerprints of the four synthetic PDFs supplied with the local purchasing demo.
 _DEMO_DOCUMENTS = {
@@ -70,6 +73,7 @@ async def extract_document(
     p: CurrentPrincipal,
     file: UploadFile = File(),
     synthetic_confirmed: bool = Form(False),
+    use_ai: bool = Form(True),
 ) -> dict[str, Any]:
     roles, vendor = await actor(p)
     required = {
@@ -83,12 +87,19 @@ async def extract_document(
         row = await case_row(s, p, case_id, vendor)
         if row["state"]["payment"]:
             raise Conflict("Paid cases cannot accept more documents")
-    data = await file.read(10 * 1024 * 1024 + 1)
-    if len(data) > 10 * 1024 * 1024:
-        raise Conflict("Document exceeds 10 MB")
+    # Leave room for multipart headers within Vercel's 4.5 MB request limit.
+    max_bytes = 4_000_000 if get_settings().is_deployed else 10_000_000
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise AppError(
+            f"Document exceeds {max_bytes // 1_000_000} MB",
+            code="document_too_large",
+            status_code=413,
+        )
     if not synthetic_confirmed:
         raise Conflict("Confirm that this upload contains only synthetic demo data")
-    pdf = await asyncio.to_thread(extract_text, data, 20) if data.startswith(b"%PDF-") else None
+    mime = sniff(data)
+    pdf = await asyncio.to_thread(extract_text, data, 20) if mime == "application/pdf" else None
     if pdf and pdf.hidden:
         raise Conflict("Document needs manual review: hidden text detected")
     fixture = (
@@ -99,17 +110,51 @@ async def extract_document(
     if fixture and (fixture[0] != kind or row["po_number"] != "PO-DEMO-1001"):
         raise Conflict("Use this demo PDF in its matching document section on PO-DEMO-1001.")
     task = "extract_procurement" if pdf and pdf.has_text_layer else "extract_procurement_vision"
-    if not fixture and not any(
-        provider_configured(model) for model in get_router().config.tasks[task].chain
+    if (
+        use_ai
+        and not fixture
+        and not any(provider_configured(model) for model in get_router().config.tasks[task].chain)
     ):
         raise AppError(
             "Document extraction needs a configured AI provider. Enter the details manually.",
             code="extraction_provider_unavailable",
             status_code=503,
         )
+    draft: dict[str, Any] | None = None
+    llm = None
+    if use_ai and not fixture:
+        await charge_run(p)
+        try:
+            async with asyncio.timeout(EXTRACTION_TIMEOUT_SECONDS):
+                draft, llm = await _extract_draft(kind, request, p, data, pdf, row["po_number"])
+        except (RouterError, TimeoutError) as exc:
+            raise AppError(
+                "AI extraction could not finish. Try again or enter the document details manually.",
+                code="extraction_unavailable",
+                status_code=503,
+            ) from exc
     source = await create_document(
-        p.org_id, p.user_id, file.filename or "document.pdf", data, guest=p.is_guest
+        p.org_id, p.user_id, file.filename or "document.pdf", data, synthetic=True, guest=p.is_guest
     )
+    async with tenant_tx(p.org_id, p.user_id) as s:
+        current = await case_row(s, p, case_id, vendor, lock=True)
+        if current["state"].get("payment"):
+            raise Conflict("Paid cases cannot accept more documents")
+        await s.execute(
+            text(
+                "INSERT INTO ap.procurement_uploads (org_id,case_id,kind,user_id,document_id)"
+                " VALUES (:o,:c,:k,:u,:d) ON CONFLICT DO NOTHING"
+            ),
+            {"o": p.org_id, "c": case_id, "k": kind, "u": p.user_id, "d": source["document_id"]},
+        )
+    if not use_ai:
+        return {
+            "draft": None,
+            "source_document_id": source["document_id"],
+            "requires_human_confirmation": True,
+            "extraction_mode": "manual",
+            "llm": None,
+        }
     if fixture:
         _, number, quantity, price = fixture
         fixture_draft = EvidenceDocument(
@@ -134,11 +179,33 @@ async def extract_document(
             "extraction_mode": "demo_fixture",
             "llm": None,
         }
-    await charge_run(p)
+    assert draft is not None
+    draft["source_document_id"] = source["document_id"]
+    return {
+        "draft": draft,
+        "source_document_id": source["document_id"],
+        "requires_human_confirmation": True,
+        "llm": llm,
+    }
+
+
+async def _extract_draft(
+    kind: str, request: Request, p: Principal, data: bytes, pdf: PdfText | None, po_number: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    marker = "AURA_CASE_PO_REFERENCE"
+    masked_po = False
     if pdf and pdf.has_text_layer:
+        document = pdf.visible_text[:18000]
+        # Keep a long numeric PO reference from looking like a phone number to the PII scrubber.
+        # Send a placeholder only when the known reference actually occurs in this source.
+        if marker not in document and redact(po_number) != po_number:
+            document, count = re.subn(
+                rf"(?<![\w-]){re.escape(po_number)}(?![\w-])", marker, document
+            )
+            masked_po = count > 0
         result = await get_router().run(
             "extract_procurement",
-            {"kind": kind, "document": redact(pdf.visible_text[:18000])},
+            {"kind": kind, "document": redact(document)},
             call_context(request, p),
         )
     else:
@@ -164,13 +231,11 @@ async def extract_document(
             extra_messages=[{"role": "user", "content": parts}],
         )
     draft = result.parsed.model_dump(mode="json") if result.parsed else json.loads(result.text)
-    draft["source_document_id"] = source["document_id"]
-    return {
-        "draft": draft,
-        "source_document_id": source["document_id"],
-        "requires_human_confirmation": True,
-        "llm": result.public(),
-    }
+    if masked_po:
+        for field in ("number", "po_number"):
+            if draft.get(field) == marker:
+                draft[field] = po_number
+    return draft, result.public()
 
 
 @router.get("/cases/{case_id}/documents/{kind}/file")
@@ -198,6 +263,8 @@ async def file_for_case(
 
 
 async def actor(p: Principal) -> tuple[frozenset[str], str | None]:
+    if p.procurement_scope is not None:
+        return p.procurement_scope
     # Re-read membership on every operation: revocation does not wait for JWT expiry.
     async with tenant_tx(p.org_id, p.user_id) as s:
         member = (
@@ -224,24 +291,32 @@ async def actor(p: Principal) -> tuple[frozenset[str], str | None]:
     return p.roles, None
 
 
+def vendor_matches(column: Column[str], vendor: str, org_id: str) -> ColumnElement[bool]:
+    # Demo vendor IDs were typed manually. Existing workspace assignments can distinguish case.
+    if org_id == PURCHASING_DEMO_ORG:
+        return func.lower(func.btrim(column)) == func.lower(func.btrim(vendor))
+    return column == vendor
+
+
+def visible_to_vendor(p: Principal, vendor: str) -> ColumnElement[bool]:
+    columns = procurement_cases.c
+    matches = vendor_matches(columns.vendor_id, vendor, p.org_id)
+    if p.org_id == PURCHASING_DEMO_ORG:
+        return or_(matches, columns.state["demo_vendor_user_id"].astext == p.user_id)
+    return matches
+
+
 async def case_row(
     s: Any, p: Principal, case_id: uuid.UUID, vendor: str | None, lock: bool = False
 ) -> Any:
-    row = (
-        (
-            await s.execute(
-                text(
-                    "SELECT * FROM ap.procurement_cases WHERE id=:id FOR UPDATE"
-                    if lock
-                    else "SELECT * FROM ap.procurement_cases WHERE id=:id"
-                ),
-                {"id": case_id},
-            )
-        )
-        .mappings()
-        .first()
-    )
-    if not row or (vendor is not None and row["vendor_id"] != vendor):
+    columns = procurement_cases.c
+    query = select(procurement_cases).where(columns.id == case_id, columns.org_id == p.org_id)
+    if vendor is not None:
+        query = query.where(visible_to_vendor(p, vendor))
+    if lock:
+        query = query.with_for_update()
+    row = (await s.execute(query)).mappings().first()
+    if not row:
         raise NotFound("Procurement case not found")
     return row
 
@@ -268,6 +343,7 @@ async def save(
 
 
 class MemberRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     email: str = Field(min_length=3, max_length=254, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
     role: Literal["vendor", "purchasing", "receiving", "approver", "finance", "auditor"]
     vendor_id: str | None = Field(default=None, min_length=1, max_length=80)
@@ -336,6 +412,7 @@ async def member(body: MemberRequest, p: CurrentPrincipal) -> dict[str, str]:
 
 
 class CreateRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     vendor_id: str = Field(min_length=1, max_length=80)
     po_number: str = Field(min_length=1, max_length=80)
 
@@ -346,7 +423,7 @@ async def create(body: CreateRequest, p: CurrentPrincipal) -> dict[str, str]:
     if not roles & {"purchasing", "clerk", "admin"}:
         raise Forbidden("Purchasing access required")
     cid = uuid.uuid4()
-    state = {
+    state: dict[str, Any] = {
         "status": "collecting_documents",
         "revision": 0,
         "documents": {},
@@ -355,27 +432,27 @@ async def create(body: CreateRequest, p: CurrentPrincipal) -> dict[str, str]:
         "payment": None,
         "created_by": p.user_id,
     }
+    if p.org_id == PURCHASING_DEMO_ORG:
+        state["demo_vendor_user_id"] = f"{p.org_id}-vendor"
     async with tenant_tx(p.org_id, p.user_id) as s:
-        exists = (
+        inserted = (
             await s.execute(
-                text("SELECT id FROM ap.procurement_cases WHERE po_number=:n"),
-                {"n": body.po_number},
+                text(
+                    "INSERT INTO ap.procurement_cases (id,org_id,vendor_id,po_number,state)"
+                    " VALUES (:id,:o,:v,:n,CAST(:st AS jsonb))"
+                    " ON CONFLICT (org_id,po_number) DO NOTHING RETURNING id"
+                ),
+                {
+                    "id": cid,
+                    "o": p.org_id,
+                    "v": body.vendor_id,
+                    "n": body.po_number,
+                    "st": json.dumps(state),
+                },
             )
-        ).first()
-        if exists:
+        ).scalar_one_or_none()
+        if inserted is None:
             raise Conflict("This PO already has a case")
-        await s.execute(
-            text(
-                "INSERT INTO ap.procurement_cases (id,org_id,vendor_id,po_number,state) VALUES (:id,:o,:v,:n,CAST(:st AS jsonb))"
-            ),
-            {
-                "id": cid,
-                "o": p.org_id,
-                "v": body.vendor_id,
-                "n": body.po_number,
-                "st": json.dumps(state),
-            },
-        )
         await append(
             s,
             p.org_id,
@@ -390,28 +467,124 @@ async def create(body: CreateRequest, p: CurrentPrincipal) -> dict[str, str]:
 
 
 @router.get("/cases")
-async def cases(p: CurrentPrincipal) -> dict[str, Any]:
+async def cases(
+    p: CurrentPrincipal,
+    view: Literal["full", "summary"] = "full",
+    include_default: bool = False,
+) -> dict[str, Any]:
+    roles, vendor = await actor(p)
+    if "vendor" in roles and not vendor:
+        raise Forbidden("No vendor identity assigned")
+    columns = procurement_cases.c
+    query = (
+        select(
+            columns.id,
+            columns.po_number,
+            columns.vendor_id,
+            columns.state["status"].astext.label("status"),
+        )
+        if view == "summary"
+        else select(procurement_cases)
+    )
+    query = query.where(columns.org_id == p.org_id)
+    if vendor is not None:
+        query = query.where(visible_to_vendor(p, vendor))
+    query = query.order_by(columns.created_at.desc(), columns.id.desc()).limit(100)
+    default_case = None
+    async with tenant_tx(p.org_id, p.user_id) as s:
+        rows = (await s.execute(query)).mappings().all()
+        if include_default and view == "summary" and rows:
+            try:
+                default_case = dict(await case_row(s, p, rows[0]["id"], vendor))
+            except NotFound:
+                # The case could have been deleted since the list SELECT.
+                rows = rows[1:]
+    visible_cases = [dict(row) for row in rows]
+    if view == "full":
+        await decorate_cases(visible_cases)
+    if default_case is not None:
+        await decorate_cases([default_case])
+        default_case["can_delete"] = can_delete_case(p, roles, default_case["state"])
+    result: dict[str, Any] = {"roles": sorted(roles), "vendor_id": vendor, "cases": visible_cases}
+    if include_default:
+        result["default_case"] = default_case
+    return result
+
+
+@router.get("/cases/{case_id}")
+async def get_case(case_id: uuid.UUID, p: CurrentPrincipal) -> dict[str, Any]:
     roles, vendor = await actor(p)
     if "vendor" in roles and not vendor:
         raise Forbidden("No vendor identity assigned")
     async with tenant_tx(p.org_id, p.user_id) as s:
-        rows = (
-            (
-                await s.execute(
-                    text(
-                        "SELECT * FROM ap.procurement_cases WHERE (CAST(:v AS text) IS NULL OR vendor_id=:v) ORDER BY created_at DESC LIMIT 100"
-                    ),
-                    {"v": vendor},
-                )
-            )
-            .mappings()
-            .all()
+        case = dict(await case_row(s, p, case_id, vendor))
+    await decorate_cases([case])
+    case["can_delete"] = can_delete_case(p, roles, case["state"])
+    return case
+
+
+def can_delete_case(p: Principal, roles: frozenset[str], state: dict[str, Any]) -> bool:
+    return (
+        not state.get("payment")
+        and state.get("status") != "paid"
+        and (
+            "admin" in roles
+            or (bool(roles & {"purchasing", "clerk"}) and state.get("created_by") == p.user_id)
         )
-    visible_cases = [dict(row) for row in rows]
+    )
+
+
+@router.delete("/cases/{case_id}", status_code=204)
+async def delete_case(
+    case_id: uuid.UUID, p: CurrentPrincipal, revision: int = Query(ge=0)
+) -> Response:
+    roles, _ = await actor(p)
+    if not roles & {"purchasing", "clerk", "admin"}:
+        raise Forbidden("Only the case creator or a workspace administrator can delete cases")
+    async with tenant_tx(p.org_id, p.user_id) as s:
+        case = await case_row(s, p, case_id, None, lock=True)
+        state = case["state"]
+        if state.get("payment") or state.get("status") == "paid":
+            raise Conflict("Paid cases are part of payment history and cannot be deleted")
+        if not can_delete_case(p, roles, state):
+            raise Forbidden(
+                "Only the case creator or a workspace administrator can delete this case"
+            )
+        if state["revision"] != revision:
+            raise Conflict(
+                "The evidence changed. Review the case before deleting.", code="revision_changed"
+            )
+        await append(
+            s,
+            p.org_id,
+            AuditEvent(
+                action="procurement.deleted",
+                actor_type="human",
+                actor_id=p.user_id,
+                target_type="procurement_case",
+                target_id=str(case_id),
+                details={"po_number": case["po_number"], "vendor_id": case["vendor_id"]},
+                output=state,
+            ),
+        )
+        await s.execute(
+            procurement_cases.delete().where(
+                procurement_cases.c.id == case_id, procurement_cases.c.org_id == p.org_id
+            )
+        )
+    return Response(status_code=204)
+
+
+async def decorate_cases(visible_cases: list[dict[str, Any]]) -> None:
     for case in visible_cases:
+        case["email_send_blocker"] = delivery_blocker(case["org_id"])
         state = case["state"]
         notification = state.get("notification")
-        if notification and notification["status"] == "preview" and state.get("payment"):
+        if (
+            notification
+            and notification["status"] in {"preview", "pending", "failed"}
+            and state.get("payment")
+        ):
             subject, body = payment_message(
                 {
                     "invoice_number": state["documents"]["invoice"]["number"],
@@ -423,7 +596,7 @@ async def cases(p: CurrentPrincipal) -> dict[str, Any]:
     history = [
         entry
         for case in visible_cases
-        for entry in [*case["state"]["approvals"], case["state"].get("payment")]
+        for entry in [*case["state"].get("approvals", []), case["state"].get("payment")]
         if entry and entry.get("actor")
     ]
     if history:
@@ -436,7 +609,6 @@ async def cases(p: CurrentPrincipal) -> dict[str, Any]:
             names = {user.id: user.name.strip() for user in users if user.name}
         for entry in history:
             entry["actor_name"] = names.get(entry["actor"]) or None
-    return {"roles": sorted(roles), "vendor_id": vendor, "cases": visible_cases}
 
 
 @router.put("/cases/{case_id}/documents/{kind}")
@@ -445,6 +617,7 @@ async def document(
     kind: Literal["po", "invoice", "receipt"],
     body: EvidenceDocument,
     p: CurrentPrincipal,
+    revision: int | None = Query(default=None, ge=0),
 ) -> dict[str, Any]:
     roles, vendor = await actor(p)
     allowed = {
@@ -459,20 +632,37 @@ async def document(
         state: dict[str, Any] = row["state"]
         if state["payment"]:
             raise Conflict("Paid cases cannot be edited")
+        if revision is not None and state["revision"] != revision:
+            raise Conflict(
+                "Documents changed. Review the latest evidence before saving.",
+                code="revision_changed",
+            )
         if body.po_number != row["po_number"]:
             raise Conflict("Document PO number differs from this case")
         if kind == "invoice":
+            if body.total_minor <= 0:
+                raise Conflict("The invoice total must be greater than zero")
             # Serialize duplicate invoice checks across different POs for the same vendor.
-            key = f"{p.org_id}:{row['vendor_id']}:{body.number.strip().upper()}"
+            vendor_id = row["vendor_id"]
+            vendor_key = vendor_id.strip().lower() if p.org_id == PURCHASING_DEMO_ORG else vendor_id
+            key = f"{p.org_id}:{vendor_key}:{body.number.upper()}"
             await s.execute(
                 text("SELECT pg_advisory_xact_lock(hashtextextended(:k,0))"), {"k": key}
             )
+            columns = procurement_cases.c
             duplicate = (
                 await s.execute(
-                    text(
-                        "SELECT id FROM ap.procurement_cases WHERE vendor_id=:v AND id<>:id AND upper(trim(state->'documents'->'invoice'->>'number'))=:n LIMIT 1"
-                    ),
-                    {"v": row["vendor_id"], "id": case_id, "n": body.number.strip().upper()},
+                    select(columns.id)
+                    .where(
+                        columns.org_id == p.org_id,
+                        vendor_matches(columns.vendor_id, vendor_id, p.org_id),
+                        columns.id != case_id,
+                        func.upper(
+                            func.btrim(columns.state["documents"]["invoice"]["number"].astext)
+                        )
+                        == body.number.upper(),
+                    )
+                    .limit(1),
                 )
             ).first()
             if duplicate:
@@ -481,18 +671,32 @@ async def document(
                     code="duplicate_invoice",
                 )
         if body.source_document_id:
-            source = (
+            old_source = state["documents"].get(kind, {}).get("source_document_id")
+            source_allowed = (
                 await s.execute(
-                    text("SELECT uploaded_by FROM ap.documents WHERE id::text=:d"),
-                    {"d": body.source_document_id},
+                    text(
+                        "SELECT EXISTS (SELECT 1 FROM ap.documents d"
+                        " WHERE d.id::text=:d AND ("
+                        " d.id::text=:old"
+                        " OR EXISTS (SELECT 1 FROM ap.procurement_uploads s"
+                        " WHERE s.case_id=:c AND s.kind=:k AND s.user_id=:u AND s.document_id=d.id)))"
+                    ),
+                    {
+                        "d": body.source_document_id,
+                        "u": p.user_id,
+                        "old": old_source,
+                        "c": case_id,
+                        "k": kind,
+                    },
                 )
-            ).first()
-            if not source or source.uploaded_by != p.user_id:
-                raise Forbidden("Source must be a document uploaded by you")
+            ).scalar_one()
+            if not source_allowed:
+                raise Forbidden("Upload the source file in this document section before confirming")
         state["documents"][kind] = body.model_dump(mode="json")
         state["evidence"][kind] = {"actor": p.user_id, "at": datetime.now(UTC).isoformat()}
         state["revision"] += 1
         state["approvals"] = []
+        state.pop("correction", None)
         result = compare(state["documents"])
         state["comparison"] = result
         state["status"] = (
@@ -507,6 +711,7 @@ async def document(
 
 
 class ReviewRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     revision: int = Field(strict=True, ge=1)
     action: Literal["l1", "finance", "reject"]
     comment: str = Field(min_length=1, max_length=2000)
@@ -528,6 +733,7 @@ async def review(case_id: uuid.UUID, body: ReviewRequest, p: CurrentPrincipal) -
 
 
 class PaidRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     revision: int = Field(strict=True, ge=1)
     reference: str = Field(min_length=1, max_length=100)
     date: date
@@ -559,12 +765,17 @@ async def paid(case_id: uuid.UUID, body: PaidRequest, p: CurrentPrincipal) -> di
             or body.amount_minor != state["documents"]["invoice"]["total_minor"]
         ):
             raise Conflict("Payment date or amount is invalid")
+        members = procurement_members.c
+        recipient_scope = vendor_matches(members.vendor_id, row["vendor_id"], p.org_id)
+        if p.org_id == PURCHASING_DEMO_ORG and (demo_vendor := state.get("demo_vendor_user_id")):
+            recipient_scope = or_(recipient_scope, members.user_id == demo_vendor)
         recipients = (
             await s.execute(
-                text(
-                    "SELECT user_id FROM ap.procurement_members WHERE role='vendor' AND vendor_id=:v"
-                ),
-                {"v": row["vendor_id"]},
+                select(members.user_id).where(
+                    members.org_id == p.org_id,
+                    members.role == "vendor",
+                    recipient_scope,
+                )
             )
         ).all()
         if not recipients:
@@ -579,7 +790,13 @@ async def paid(case_id: uuid.UUID, body: PaidRequest, p: CurrentPrincipal) -> di
         )
         state["payment"] = payment
         state["status"] = "paid"
-        state["notification"] = {"status": "pending", "event_id": f"procurement-paid:{case_id}"}
+        blocker = delivery_blocker(p.org_id)
+        state["notification"] = {
+            "status": "preview" if blocker else "pending",
+            "event_id": f"procurement-paid:{case_id}",
+        }
+        if blocker:
+            state["notification"]["notice"] = blocker
         await s.execute(
             text(
                 "INSERT INTO ops.outbox (org_id,topic,payload) VALUES (:o,'procurement.payment_email',CAST(:p AS jsonb))"
@@ -599,19 +816,19 @@ async def paid(case_id: uuid.UUID, body: PaidRequest, p: CurrentPrincipal) -> di
             },
         )
         await save(s, p, case_id, state, "procurement.paid")
-    try:
-        state["notification"].update(await dispatch(p.org_id, case_id))
-    except Exception:
-        # Payment already committed. The durable outbox can be dispatched after recovery.
-        state["notification"]["status"] = "pending"
     return state
 
 
-@router.post("/cases/{case_id}/notification/retry")
-async def retry_notification(case_id: uuid.UUID, p: CurrentPrincipal) -> dict[str, Any]:
+@router.post("/cases/{case_id}/notification/retry", include_in_schema=False)
+@router.post("/cases/{case_id}/notification/send")
+async def send_notification(case_id: uuid.UUID, p: CurrentPrincipal) -> dict[str, Any]:
     roles, vendor = await actor(p)
     if vendor or not roles & {"finance", "controller", "admin"}:
         raise Forbidden("Finance access required")
     async with tenant_tx(p.org_id, p.user_id) as s:
-        await case_row(s, p, case_id, None)
+        case = await case_row(s, p, case_id, None)
+        if not case["state"].get("payment"):
+            raise Conflict("Record the simulated payment before sending email")
+    if blocker := delivery_blocker(p.org_id):
+        raise Conflict(blocker, code="gmail_unavailable")
     return await dispatch(p.org_id, case_id)

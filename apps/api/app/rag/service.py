@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import uuid
@@ -10,11 +11,13 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.auth import Principal
 from app.core.db import tenant_tx
-from app.core.errors import AppError
+from app.core.errors import AppError, RateLimited
 from app.core.limits import charge_run
+from app.core.logging import get_logger
 from app.llm.providers import provider_configured
 from app.llm.router import CallContext, ModelRouter, RouterError
 from app.rag.chunking import chunk_pages
@@ -30,6 +33,7 @@ _SELECT = (
 )
 CANDIDATES = 20
 TOP_K = 5
+log = get_logger("rag")
 
 
 @dataclass
@@ -246,6 +250,25 @@ def format_sources(hits: list[Hit]) -> str:
     return "\n\n".join(parts)
 
 
+async def search_for_copilot(
+    p: Principal, question: str, *, semantic: bool = True, doc_types: list[str] | None = None
+) -> list[Hit]:
+    if semantic:
+        try:
+            async with asyncio.timeout(7):
+                embedder, reranker = await asyncio.gather(
+                    asyncio.to_thread(get_embedder), asyncio.to_thread(get_reranker)
+                )
+                return await search(
+                    p, question, embedder=embedder, reranker=reranker, doc_types=doc_types
+                )
+        except SQLAlchemyError:
+            raise
+        except Exception as exc:
+            log.warning("rag.semantic_search_unavailable", error=type(exc).__name__)
+    return await search(p, question, embedder=None, reranker=None, doc_types=doc_types)
+
+
 async def answer(
     p: Principal,
     question: str,
@@ -257,13 +280,7 @@ async def answer(
     task = router.config.tasks["rag_answer"]
     models = task.chain + [model for variant in task.variants for model in (variant.chain or [])]
     can_generate = any(provider_configured(model) for model in models)
-    hits = await search(
-        p,
-        question,
-        embedder=get_embedder() if can_generate else None,
-        reranker=get_reranker() if can_generate else None,
-        doc_types=doc_types,
-    )
+    hits = await search_for_copilot(p, question, semantic=can_generate, doc_types=doc_types)
     if not hits:
         return Answer(NOT_IN_DATA, [], {"used": [], "invalid": [], "uncited": False, "valid": True})
     source_only = Answer(
@@ -274,18 +291,21 @@ async def answer(
     )
     if not can_generate:
         return source_only
-    await charge_run(p)
     try:
-        res = await router.run(
-            "rag_answer", {"question": question, "sources": format_sources(hits)}, ctx
-        )
+        await charge_run(p)
+        async with asyncio.timeout(18):
+            res = await router.run(
+                "rag_answer", {"question": question, "sources": format_sources(hits)}, ctx
+            )
+    except (RateLimited, TimeoutError):
+        return source_only
     except RouterError as exc:
         if exc.code != "router_exhausted":
             raise
         return source_only
     report = check_citations(res.text, len(hits))
     return Answer(
-        res.text,
+        res.text if report.valid else source_only.text,
         hits,
         {
             "used": report.used,
@@ -294,4 +314,5 @@ async def answer(
             "valid": report.valid,
         },
         res.public(),
+        source_only=not report.valid,
     )

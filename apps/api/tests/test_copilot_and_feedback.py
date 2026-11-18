@@ -67,7 +67,8 @@ async def test_an_uncited_answer_is_also_withheld() -> None:
 
     router = _Router([CopilotStep(action="answer", answer="Acme owes 100.", citations=[])])
     out = await agent.run_copilot(_principal(), "What do we owe Acme?", _ctx(), model_router=router)  # type: ignore[arg-type]
-    # Nothing was gathered and nothing was cited: the answer stands, but it carries no sources.
+    assert out["answer"] == agent.NOT_IN_DATA
+    assert out["citation_valid"] is False
     assert out["sources"] == []
 
 
@@ -81,7 +82,7 @@ async def test_an_unavailable_tool_name_does_not_crash_the_loop() -> None:
         ]
     )
     out = await agent.run_copilot(_principal(), "Delete everything", _ctx(), model_router=router)  # type: ignore[arg-type]
-    assert out["answer"] == "I could not find that."
+    assert out["answer"] == agent.NOT_IN_DATA
     assert out["tool_events"] == []
 
 

@@ -1,220 +1,323 @@
 "use client";
 
+import { ArrowLeft, LoaderCircle, Plus, Send, Square } from "lucide-react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SafeMarkdown } from "@/components/safe-markdown";
-import { Badge, Button, Card, ErrorNote, Skeleton, Textarea } from "@/components/ui";
+import {
+  Button,
+  Card,
+  ErrorNote,
+  Label,
+  Skeleton,
+  Textarea,
+} from "@/components/ui";
 import { api, streamEvents } from "@/lib/api";
 
-type Thread = { id: string; title: string; created_at: string; last_message_at: string | null };
-type Source = { id: string; kind: string; tool: string; summary: string };
-type Turn = {
-  question: string;
-  answer: string;
-  sources: Source[];
-  citationValid: boolean;
-  invalid: string[];
-  steps: { label: string; tone: "neutral" | "accent" | "ok" }[];
-  failed?: string;
+type Thread = { id: string; title: string };
+type Source = { id: string; summary: string };
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: Source[];
+  llm?: { citation_valid?: boolean };
 };
+type Transcript = { id: string; messages: Message[] };
+
+const toolStatus: Record<string, string> = {
+  search_policies: "Looking up policy passages",
+  sql_query: "Checking finance records",
+  graph_query: "Checking vendor relationships",
+  list_invoices: "Finding invoices",
+  get_invoice: "Reading invoice details",
+  explain_decision: "Reading decision history",
+};
+
+function ChatMessage({ message }: { message: Message }) {
+  if (message.role === "user") {
+    return (
+      <div className="ml-auto max-w-[90%] rounded-xl bg-accent/10 px-4 py-3 text-sm whitespace-pre-wrap">
+        {message.content}
+      </div>
+    );
+  }
+  return (
+    <article className="workspace-enter mr-auto w-full rounded-xl border border-border bg-surface-2 p-4">
+      <SafeMarkdown>{message.content}</SafeMarkdown>
+      {message.citations &&
+        message.citations.length > 0 &&
+        message.llm?.citation_valid !== false && (
+          <details className="mt-3 border-t border-border pt-2 text-sm">
+            <summary className="cursor-pointer font-medium">
+              Evidence ({message.citations.length})
+            </summary>
+            <ul className="mt-2 space-y-1 text-muted">
+              {message.citations.map((source) => (
+                <li key={source.id}>
+                  [{source.id}] {source.summary}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+    </article>
+  );
+}
 
 export default function CopilotChatPage() {
   const qc = useQueryClient();
   const [threadId, setThreadId] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [turn, setTurn] = useState<Message | null>(null);
+  const [status, setStatus] = useState("");
   const [error, setError] = useState<unknown>(null);
   const abort = useRef<AbortController | null>(null);
-
+  const threadListKey = ["copilot-threads"] as const;
   const threads = useQuery({
-    queryKey: ["copilot-threads"],
-    queryFn: () => api<{ threads: Thread[] }>("/copilot/threads"),
+    queryKey: threadListKey,
+    queryFn: ({ signal }) =>
+      api<{ threads: Thread[] }>("/copilot/threads", { signal }),
+  });
+  const transcript = useQuery({
+    queryKey: ["copilot-thread", threadId],
+    queryFn: ({ signal }) =>
+      api<Transcript>(`/copilot/threads/${threadId}`, { signal }),
+    enabled: threadId !== null,
   });
 
-  async function ask() {
-    const q = question.trim();
-    if (!q || busy) return;
-    setBusy(true);
-    setError(null);
+  useEffect(() => () => abort.current?.abort(), []);
+
+  function selectThread(id: string | null) {
+    setThreadId(id);
     setQuestion("");
-    const index = turns.length;
-    setTurns((t) => [
-      ...t,
-      { question: q, answer: "", sources: [], citationValid: true, invalid: [], steps: [] },
-    ]);
+    setError(null);
+    setStatus("");
+  }
+
+  async function ask() {
+    const text = question.trim();
+    if (text.length < 3 || abort.current || (threadId && !transcript.data))
+      return;
     const controller = new AbortController();
     abort.current = controller;
-
-    const patch = (fn: (turn: Turn) => Turn) =>
-      setTurns((all) => all.map((t, i) => (i === index ? fn(t) : t)));
-
+    const user: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+    };
+    setQuestion("");
+    setTurn(user);
+    setError(null);
+    setStatus("Checking workspace evidence");
+    let complete = false;
     try {
       await streamEvents(
         "/copilot/chat",
-        { method: "POST", body: JSON.stringify({ question: q, thread_id: threadId }) },
+        {
+          method: "POST",
+          body: JSON.stringify({ question: text, thread_id: threadId }),
+        },
         (type, data) => {
-          if (type === "copilot.step") {
-            patch((t) => ({
-              ...t,
-              steps: [...t.steps, { label: `step ${data.step}: ${data.action}`, tone: "neutral" }],
-            }));
-          } else if (type === "tool.called") {
-            patch((t) => ({
-              ...t,
-              steps: [...t.steps, { label: `tool ${String(data.tool)}`, tone: "accent" }],
-            }));
+          if (type === "tool.called") {
+            setStatus(toolStatus[String(data.tool)] ?? "Gathering evidence");
           } else if (type === "tool.result") {
-            patch((t) => ({
-              ...t,
-              steps: [...t.steps, { label: `evidence ${String(data.evidence_id)}`, tone: "ok" }],
-            }));
-          } else if (type === "chat.completed") {
-            setThreadId(String(data.thread_id));
-            patch((t) => ({
-              ...t,
-              answer: String(data.answer ?? ""),
-              sources: (data.sources as Source[]) ?? [],
-              citationValid: Boolean(data.citation_valid),
-              invalid: (data.invalid_citations as string[]) ?? [],
-            }));
-            qc.invalidateQueries({ queryKey: ["copilot-threads"] });
+            setStatus("Reviewing the evidence");
           } else if (type === "chat.failed") {
-            patch((t) => ({ ...t, failed: String(data.error ?? "error") }));
+            throw new Error(
+              String(data.error ?? "Copilot could not complete this answer."),
+            );
+          } else if (type === "chat.completed") {
+            const id = String(data.thread_id);
+            const assistant: Message = {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: String(data.answer ?? ""),
+              citations: (data.sources as Source[]) ?? [],
+              llm: { citation_valid: Boolean(data.citation_valid) },
+            };
+            qc.setQueryData<Transcript>(["copilot-thread", id], {
+              id,
+              messages: [...(transcript.data?.messages ?? []), user, assistant],
+            });
+            qc.setQueryData<{ threads: Thread[] }>(
+              threadListKey,
+              (previous) => ({
+                threads: [
+                  previous?.threads.find((item) => item.id === id) ?? {
+                    id,
+                    title: text.slice(0, 80),
+                  },
+                  ...(previous?.threads.filter((item) => item.id !== id) ?? []),
+                ],
+              }),
+            );
+            setThreadId(id);
+            setTurn(null);
+            complete = true;
+            void qc.invalidateQueries({ queryKey: threadListKey });
+            void qc.invalidateQueries({ queryKey: ["copilot-thread", id] });
           }
         },
         controller.signal,
       );
-    } catch (e) {
-      setError(e);
+      if (!complete)
+        throw new Error(
+          "The response was interrupted. Send your question again.",
+        );
+    } catch (err) {
+      if (!complete) {
+        setQuestion(text);
+        if (!controller.signal.aborted) setError(err);
+        else setStatus("Response stopped.");
+      }
     } finally {
-      setBusy(false);
+      setTurn(null);
+      if (!controller.signal.aborted) setStatus("");
       abort.current = null;
     }
   }
 
+  const loading = threadId !== null && transcript.isPending;
+  const messages = transcript.data?.messages ?? [];
+  const busy = turn !== null;
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Copilot</h1>
-        <p className="mt-1 text-sm text-muted">
-          Asks are answered from evidence the copilot gathers with read-only tools: policy search,
-          the knowledge graph, SQL templates, invoices and audit lineage. Every sentence cites the
-          evidence it used; an answer whose citations do not resolve is withheld, not shown.
+    <div className="mx-auto max-w-4xl space-y-5">
+      <header>
+        <Link
+          className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+          href="/app/copilot"
+        >
+          <ArrowLeft className="size-4" aria-hidden /> Finance Copilot
+        </Link>
+        <h1 className="font-semibold">Workspace chat</h1>
+        <p className="mt-2 text-sm text-muted">
+          Ask about invoices, policies, supplier relationships, or a past
+          decision.
         </p>
-      </div>
-
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">Conversation</h2>
-          <div className="flex items-center gap-2">
-            {threads.data && threads.data.threads.length > 0 && (
-              <select
-                value={threadId ?? ""}
-                onChange={(e) => {
-                  setThreadId(e.target.value || null);
-                  setTurns([]);
-                }}
-                className="min-h-10 rounded-lg border border-border bg-surface px-2 py-1 text-sm"
-              >
-                <option value="">New conversation</option>
-                {threads.data.threads.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title || t.id.slice(0, 8)}
-                  </option>
-                ))}
-              </select>
-            )}
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setThreadId(null);
-                setTurns([]);
-              }}
+      </header>
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3 border-b border-border pb-4">
+          <div className="grow">
+            <Label htmlFor="copilot-conversation">Conversation</Label>
+            <select
+              id="copilot-conversation"
+              value={threadId ?? ""}
+              disabled={busy || threads.isPending}
+              onChange={(event) => selectThread(event.target.value || null)}
+              className="mt-1 block min-h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm"
             >
-              Clear
+              <option value="">
+                {threads.isPending
+                  ? "Loading conversations…"
+                  : "New conversation"}
+              </option>
+              {threads.data?.threads.map((thread) => (
+                <option key={thread.id} value={thread.id}>
+                  {thread.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            variant="secondary"
+            disabled={busy || threadId === null}
+            onClick={() => selectThread(null)}
+          >
+            <Plus className="size-4" aria-hidden /> New chat
+          </Button>
+        </div>
+        {threads.error && (
+          <div className="space-y-2">
+            <ErrorNote error={threads.error} />
+            <Button variant="secondary" onClick={() => void threads.refetch()}>
+              Retry conversations
             </Button>
           </div>
-        </div>
-
-        {threads.isPending && <Skeleton className="mt-3 h-8" />}
-
-        <div className="mt-4 space-y-5">
-          {turns.length === 0 && (
-            <p className="text-sm text-muted">
-              Try: &ldquo;Why is INV-1042 on hold?&rdquo;, &ldquo;Which vendors share a bank
-              account?&rdquo; or &ldquo;What does policy say about missing purchase orders?&rdquo;
-            </p>
-          )}
-          {turns.map((turn, i) => (
-            <div key={i} className="space-y-2 border-t border-border pt-4 first:border-0 first:pt-0">
-              <p className="font-medium">{turn.question}</p>
-              {turn.steps.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {turn.steps.map((s, j) => (
-                    <Badge key={j} tone={s.tone}>
-                      {s.label}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {turn.failed && (
-                <p className="text-sm text-danger">
-                  The copilot failed with {turn.failed}. Nothing was answered.
-                </p>
-              )}
-              {turn.answer && (
-                <>
-                  <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
-                    <SafeMarkdown>{turn.answer}</SafeMarkdown>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <Badge tone={turn.citationValid ? "ok" : "danger"}>
-                      {turn.citationValid ? "citations verified" : "citations unverified"}
-                    </Badge>
-                    {turn.invalid.length > 0 && (
-                      <span className="text-danger">unresolved: {turn.invalid.join(", ")}</span>
-                    )}
-                  </div>
-                  {turn.sources.length > 0 && (
-                    <ul className="space-y-1 text-xs text-muted">
-                      {turn.sources.map((s) => (
-                        <li key={s.id}>
-                          <code>[{s.id}]</code> {s.summary}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              )}
-              {!turn.answer && !turn.failed && busy && i === turns.length - 1 && (
-                <Skeleton className="h-16" />
-              )}
-            </div>
+        )}
+        {loading && (
+          <div
+            role="status"
+            aria-label="Loading messages"
+            className="space-y-3"
+          >
+            <Skeleton className="ml-auto h-10 w-2/5" />
+            <Skeleton className="h-20 w-4/5" />
+          </div>
+        )}
+        {transcript.error && (
+          <div className="space-y-2">
+            <ErrorNote error={transcript.error} />
+            <Button
+              variant="secondary"
+              onClick={() => void transcript.refetch()}
+            >
+              Reload messages
+            </Button>
+          </div>
+        )}
+        <div
+          className="space-y-3"
+          role="log"
+          aria-label="Conversation messages"
+        >
+          {messages.map((message) => (
+            <ChatMessage key={message.id} message={message} />
           ))}
+          {turn && <ChatMessage message={turn} />}
         </div>
-
+        {status && (
+          <p
+            className="flex items-center gap-2 text-sm text-muted"
+            role="status"
+          >
+            {busy && (
+              <LoaderCircle
+                className="size-4 motion-safe:animate-spin"
+                aria-hidden
+              />
+            )}
+            {status}
+            {busy ? "…" : ""}
+          </p>
+        )}
         <form
-          className="mt-5 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
             void ask();
           }}
         >
+          <Label htmlFor="workspace-question">Question</Label>
           <Textarea
+            id="workspace-question"
             rows={3}
             value={question}
+            disabled={busy}
             maxLength={1000}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask about invoices, policy, vendors or a decision…"
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="Which invoices are waiting for review?"
           />
           <div className="flex items-center gap-2">
-            <Button type="submit" disabled={busy || question.trim().length < 3}>
-              {busy ? "Thinking…" : "Ask"}
+            <Button
+              type="submit"
+              disabled={
+                busy ||
+                loading ||
+                Boolean(transcript.error) ||
+                question.trim().length < 3
+              }
+            >
+              <Send className="size-4" aria-hidden /> Send
             </Button>
             {busy && (
-              <Button variant="secondary" type="button" onClick={() => abort.current?.abort()}>
-                Stop
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => abort.current?.abort()}
+              >
+                <Square className="size-4" aria-hidden /> Stop
               </Button>
             )}
           </div>

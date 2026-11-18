@@ -88,6 +88,7 @@ tasks:
   rag_answer:
     chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, ollama/qwen2.5:0.5b]
     max_tokens: 700
+    timeout_s: 7
     prompt: {name: rag_answer, label: production}
   copilot:
     chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
@@ -123,19 +124,19 @@ tasks:
   extract_procurement:
     chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, groq/openai/gpt-oss-20b]
     max_tokens: 3000
-    timeout_s: 45
+    timeout_s: 13
     output_schema: app.domain.procurement:EvidenceDocument
     prompt: {name: extract_procurement, label: production}
   extract_procurement_vision:
-    chain: [gemini/gemini-3.6-flash, gemini/gemini-3.5-flash-lite]
+    chain: [gemini/gemini-3.5-flash-lite, gemini/gemini-3.6-flash]
     max_tokens: 3000
-    timeout_s: 60
+    timeout_s: 14
     output_schema: app.domain.procurement:EvidenceDocument
     prompt: {name: extract_procurement, label: production}
   copilot_case:
     chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash]
     max_tokens: 1200
-    timeout_s: 30
+    timeout_s: 7
     output_schema: app.api.v1.copilot:CaseAnswer
     prompt: {name: copilot_case, label: production}
   marketing_draft:
@@ -148,7 +149,7 @@ tasks:
     chain: [groq/openai/gpt-oss-120b, gemini/gemini-3.6-flash, groq/openai/gpt-oss-20b]
     temperature: 0
     max_tokens: 1200
-    timeout_s: 30
+    timeout_s: 10
     cache: none
     output_schema: app.schemas.llm_outputs:CopilotStep
     prompt: {name: copilot_step, label: production}

@@ -83,7 +83,7 @@ def create_app() -> FastAPI:
     ):
         limited.include_router(r)
     v1.include_router(limited)
-    v1.include_router(challenge.router)  # public, Turnstile + its own rate limit
+    v1.include_router(challenge.router)  # public, its own rate limit
     app.include_router(v1)
     app.mount("/mcp", mcp.streamable_http_app())
 

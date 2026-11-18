@@ -25,6 +25,7 @@ from sqlalchemy import (
     Table,
     Text,
     UniqueConstraint,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, TSVECTOR, UUID
@@ -661,6 +662,19 @@ procurement_cases = Table(
     UniqueConstraint("org_id", "po_number"),
     schema="ap",
 )
+Index(
+    "ix_procurement_cases_org_recent",
+    procurement_cases.c.org_id,
+    procurement_cases.c.created_at.desc(),
+    procurement_cases.c.id.desc(),
+)
+Index(
+    "ix_procurement_cases_org_vendor_recent",
+    procurement_cases.c.org_id,
+    func.lower(func.btrim(procurement_cases.c.vendor_id)),
+    procurement_cases.c.created_at.desc(),
+    procurement_cases.c.id.desc(),
+)
 
 procurement_members = Table(
     "procurement_members",
@@ -671,7 +685,27 @@ procurement_members = Table(
     Column("vendor_id", Text),
     schema="ap",
 )
-TENANT_TABLES.extend(["ap.procurement_cases", "ap.procurement_members"])
+procurement_uploads = Table(
+    "procurement_uploads",
+    metadata,
+    _org(),
+    Column(
+        "case_id",
+        UUID(as_uuid=True),
+        ForeignKey("ap.procurement_cases.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column("kind", Text, primary_key=True),
+    Column("user_id", Text, primary_key=True),
+    Column(
+        "document_id",
+        UUID(as_uuid=True),
+        ForeignKey("ap.documents.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    schema="ap",
+)
+TENANT_TABLES.extend(["ap.procurement_cases", "ap.procurement_members", "ap.procurement_uploads"])
 
 judge_labels = Table(
     "judge_labels",

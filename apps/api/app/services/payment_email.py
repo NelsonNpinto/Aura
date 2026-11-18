@@ -13,15 +13,19 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.db import system_tx, tenant_tx
+from app.domain.procurement import PURCHASING_DEMO_ORG
 
 
 def payment_message(payload: dict[str, Any]) -> tuple[str, str]:
     invoice_number = str(payload["invoice_number"]).replace("\r", " ").replace("\n", " ")
-    subject = f"Payment confirmation for invoice {invoice_number}"
     payment = payload["payment"]
+    simulated = payment.get("simulated") is True
+    prefix = "Demo payment" if simulated else "Payment"
+    payment_type = "a simulated payment" if simulated else "payment"
+    subject = f"{prefix} confirmation for invoice {invoice_number}"
     body = (
         f"Hello,\n\n"
-        f"We have recorded payment for invoice {invoice_number}.\n\n"
+        f"We have recorded {payment_type} for invoice {invoice_number}.\n\n"
         f"Purchase order: {payload['po_number']}\n"
         f"Amount: {payment.get('currency', '')} {payment['amount_minor'] // 100}.{payment['amount_minor'] % 100:02d}\n"
         f"Payment date: {payment['date']}\n"
@@ -29,6 +33,36 @@ def payment_message(payload: dict[str, Any]) -> tuple[str, str]:
         f"Thank you,\nAccounts Payable\n"
     )
     return subject, body
+
+
+def allowed_recipients() -> set[str]:
+    return {
+        address.strip().lower()
+        for address in get_settings().mail_allowed_recipients.split(",")
+        if address.strip()
+    }
+
+
+def gmail_configured() -> bool:
+    s = get_settings()
+    return s.mail_mode == "gmail" and all(
+        (s.mail_from, s.gmail_client_id, s.gmail_client_secret, s.gmail_refresh_token)
+    )
+
+
+def delivery_blocker(org_id: str) -> str | None:
+    settings = get_settings()
+    demo = org_id == PURCHASING_DEMO_ORG
+    if demo and settings.app_env != "local":
+        return "The shared demo uses email previews."
+    if not gmail_configured():
+        return "Gmail is not configured. You can preview the email here."
+    allowed = allowed_recipients()
+    if not allowed:
+        return "Add a recipient to the Gmail allowlist to enable sending."
+    if demo and settings.mail_demo_recipient.strip().lower() not in allowed:
+        return "Configure an allowlisted recipient for the local demo."
+    return None
 
 
 async def send(
@@ -45,17 +79,10 @@ async def send(
             if preview_only
             else "Sender not enabled; no email sent",
         }
-    allowed = {x.strip().lower() for x in settings.mail_allowed_recipients.split(",") if x.strip()}
+    allowed = allowed_recipients()
     if not recipients or any(x.lower() not in allowed for x in recipients):
         return {"status": "failed", "error": "recipient_not_allowlisted"}
-    if not all(
-        (
-            settings.mail_from,
-            settings.gmail_client_id,
-            settings.gmail_client_secret,
-            settings.gmail_refresh_token,
-        )
-    ):
+    if not gmail_configured():
         return {"status": "failed", "error": "sender_not_configured"}
     async with httpx.AsyncClient(timeout=15) as client:
         try:
@@ -92,12 +119,17 @@ async def send(
                 return {"status": "delivery_unknown", "error": "provider_response_ambiguous"}
             if response.status_code >= 400:
                 return {"status": "failed", "error": "provider_rejected"}
-            return {"status": "accepted", "provider_id": response.json().get("id")}
-        except (httpx.HTTPError, ValueError):
+            provider_id = response.json()["id"]
+            if not isinstance(provider_id, str) or not provider_id:
+                return {"status": "delivery_unknown", "error": "provider_response_ambiguous"}
+            return {"status": "accepted", "provider_id": provider_id}
+        except (httpx.HTTPError, KeyError, TypeError, ValueError):
             return {"status": "delivery_unknown", "error": "provider_response_ambiguous"}
 
 
 async def dispatch(org_id: str, case_id: uuid.UUID) -> dict[str, Any]:
+    if blocker := delivery_blocker(org_id):
+        return {"status": "preview", "notice": blocker}
     async with tenant_tx(org_id) as session:
         row = (
             await session.execute(
@@ -118,16 +150,18 @@ async def dispatch(org_id: str, case_id: uuid.UUID) -> dict[str, Any]:
             text("UPDATE ops.outbox SET payload=payload || CAST(:claim AS jsonb) WHERE id=:i"),
             {"claim": json.dumps({"delivery_unknown": True}), "i": event_id},
         )
-    async with system_tx() as owner:
-        users = (
-            await owner.execute(
-                text('SELECT email FROM auth."user" WHERE id = ANY(:ids)'),
-                {"ids": payload["recipients"]},
-            )
-        ).all()
-    outcome = await send(
-        payload, [u.email for u in users], preview_only=org_id == "purchasing-demo"
-    )
+    if org_id == PURCHASING_DEMO_ORG:
+        recipients = [get_settings().mail_demo_recipient.strip()]
+    else:
+        async with system_tx() as owner:
+            users = (
+                await owner.execute(
+                    text('SELECT DISTINCT email FROM auth."user" WHERE id = ANY(:ids)'),
+                    {"ids": payload["recipients"]},
+                )
+            ).all()
+        recipients = [user.email for user in users]
+    outcome = await send(payload, recipients)
     async with tenant_tx(org_id) as session:
         # Lock the case only after sending; paid/edit paths never acquire the outbox lock.
         case = (
@@ -139,7 +173,8 @@ async def dispatch(org_id: str, case_id: uuid.UUID) -> dict[str, Any]:
         if not case:
             return {"status": "delivery_unknown", "error": "case_unavailable"}
         state = case.state
-        state["notification"] = {**state.get("notification", {}), **outcome}
+        previous = state.get("notification", {})
+        state["notification"] = {"event_id": previous.get("event_id"), **outcome}
         await session.execute(
             text("UPDATE ap.procurement_cases SET state=CAST(:s AS jsonb) WHERE id=:c"),
             {"s": json.dumps(state), "c": case_id},

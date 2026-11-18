@@ -1,12 +1,13 @@
 import type { BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
-import { anonymous, captcha, jwt, organization } from "better-auth/plugins";
+import { anonymous, jwt, organization } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
 import { defaultStatements } from "better-auth/plugins/organization/access";
 import { Kysely, PostgresDialect } from "kysely";
 import type { Pool } from "pg";
-import { DEMO_ORG_ID, parseRoles } from "./roles";
-import { isPurchasingDemoUser, PURCHASING_DEMO_DOMAIN, PURCHASING_DEMO_ORG } from "./purchasing-demo";
+import { DEMO_ORG_ID } from "./roles";
+import { isPurchasingDemoUser, PURCHASING_DEMO_DOMAIN } from "./purchasing-demo";
+import { resolveWorkspace } from "./workspace-membership";
 
 const ac = createAccessControl({ ...defaultStatements });
 const none = ac.newRole({ organization: [], member: [], invitation: [] });
@@ -18,21 +19,6 @@ const orgAdmin = ac.newRole({
 
 export function buildAuthOptions(pool: Pool): BetterAuthOptions {
   const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
-
-  /** Active org membership, falling back to the user's first membership (the session can be
-   *  created before the sign-up hook has inserted it). */
-  async function membership(userId: string, orgId: string | null | undefined) {
-    const demoOrg = isPurchasingDemoUser(userId) ? PURCHASING_DEMO_ORG : null;
-    const r = await pool.query<{ organizationId: string; role: string }>(
-      `SELECT "organizationId", role FROM auth.member WHERE "userId" = $1
-       AND ($3::text IS NULL OR "organizationId" = $3)
-       ORDER BY ("organizationId" = $2) DESC NULLS LAST, "createdAt" LIMIT 1`,
-      [userId, orgId ?? null, demoOrg],
-    );
-    const row = r.rows[0];
-    return row ? { orgId: row.organizationId, roles: parseRoles(row.role) } : { orgId: null, roles: [] };
-  }
 
   return {
     appName: "AURA",
@@ -100,12 +86,8 @@ export function buildAuthOptions(pool: Pool): BetterAuthOptions {
         create: {
           before: async (session) => {
             const s = session as typeof session & { activeOrganizationId?: string | null };
-            if (s.activeOrganizationId) return { data: session };
-            const r = await pool.query<{ organizationId: string }>(
-              'SELECT "organizationId" FROM auth.member WHERE "userId" = $1 ORDER BY "createdAt" LIMIT 1',
-              [session.userId],
-            );
-            return { data: { ...session, activeOrganizationId: r.rows[0]?.organizationId ?? null } };
+            const { selected } = await resolveWorkspace(pool, session.userId, s.activeOrganizationId);
+            return { data: { ...session, activeOrganizationId: selected?.id ?? null } };
           },
         },
       },
@@ -120,32 +102,24 @@ export function buildAuthOptions(pool: Pool): BetterAuthOptions {
       }),
       anonymous({ emailDomainName: "guest.aura.invalid" }),
       jwt({
+        disableSettingJwtHeader: true,
         jwt: {
           issuer: baseURL,
           audience: "aura-api",
           expirationTime: "15m",
           definePayload: async ({ user, session }) => {
             const active = (session as { activeOrganizationId?: string | null }).activeOrganizationId;
-            const m = await membership(user.id, active);
+            const { selected } = await resolveWorkspace(pool, user.id, active);
             return {
               email: user.email,
               name: user.name,
-              org_id: m.orgId,
-              roles: m.roles,
+              org_id: selected?.id ?? null,
+              roles: selected?.roles ?? [],
               guest: Boolean((user as { isAnonymous?: boolean }).isAnonymous),
             };
           },
         },
       }),
-      ...(turnstileSecret
-        ? [
-            captcha({
-              provider: "cloudflare-turnstile",
-              secretKey: turnstileSecret,
-              endpoints: ["/sign-up/email", "/sign-in/email", "/sign-in/anonymous"],
-            }),
-          ]
-        : []),
     ],
   };
 }

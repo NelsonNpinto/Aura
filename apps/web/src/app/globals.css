@@ -86,3 +86,14 @@ html.dark { color-scheme: dark; }
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-enter {
+    animation: workspace-enter 180ms ease-out both;
+  }
+}
+
+@keyframes workspace-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}

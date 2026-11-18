@@ -141,7 +141,7 @@ def _render_evidence(items: list[Evidence]) -> str:
 
 def check_citations(answer: str, evidence: list[Evidence], claimed: list[str]) -> list[str]:
     """Return the citation ids that do not resolve to gathered evidence."""
-    known = {e.id for e in evidence}
+    known = {e.id for e in evidence if not e.payload.get("error") or e.tool == "start_invoice_run"}
     used = set(re.findall(r"\[([A-Za-z0-9_.:-]{1,40})\]", answer)) | set(claimed)
     return sorted(c for c in used if c not in known)
 
@@ -225,12 +225,16 @@ async def run_copilot(
             run.answer = answer
             run.evidence = evidence
             run.invalid_citations = invalid
-            run.citation_valid = not invalid
+            run.citation_valid = not invalid and (
+                answer == NOT_IN_DATA or bool(re.search(r"\[[A-Za-z0-9_.:-]{1,40}\]", answer))
+            )
             if invalid:
                 run.answer = (
                     "I could not verify every citation in that answer, so I am not showing it. "
                     f"Unresolved reference(s): {', '.join(invalid)}. Ask a narrower question."
                 )
+            elif not run.citation_valid:
+                run.answer = NOT_IN_DATA
             return run.public()
 
         if parsed.tool not in COPILOT_TOOLS:

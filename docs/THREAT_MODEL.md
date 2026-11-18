@@ -20,7 +20,7 @@ risks, and then states what is **not** covered.
 
 ## Trust boundaries
 
-1. **Visitor → web app.** Anonymous, Turnstile-gated for the guest demo and the challenge page.
+1. **Visitor → web app.** Anonymous access to the guest demo and challenge page is rate limited.
 2. **Web app → API.** Better Auth JWT verified via JWKS, or a hashed API key.
 3. **API → database.** RLS as role `aura_app`, `app.org_id` set per transaction.
 4. **Agent → tools.** Everything through the gateway; the ERP is reached only over MCP.
@@ -132,7 +132,7 @@ waits more than ~3 s on an empty bucket; it falls back or enqueues.
 - **Audit tampering.** Append-only trigger plus an app role without UPDATE/DELETE; one chain per
   org with the head row locked on append; daily anchoring of each chain head to the public repo.
 - **Public endpoints used as a free LLM proxy.** Fixed prompts, structured outputs, no free-text
-  echo, Turnstile and rate limits on public surfaces.
+  echo and rate limits on public surfaces.
 
 ## Residual risks (accepted)
 

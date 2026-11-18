@@ -15,8 +15,7 @@ from app.core.auth import Principal
 from app.core.db import tenant_tx
 from app.graph import service as graph_service
 from app.graph.client import GraphUnavailable
-from app.rag.embeddings import get_embedder, get_reranker
-from app.rag.service import search as rag_search
+from app.rag.service import search_for_copilot
 from app.tools.gateway import register_local
 
 # ---------------------------------------------------------------- SQL templates (read-only)
@@ -105,11 +104,9 @@ def _is_uuid(v: Any) -> bool:
 # ---------------------------------------------------------------- executors
 async def _search_policies(org_id: str, args: dict[str, Any]) -> dict[str, Any]:
     principal = Principal(args.get("_user_id") or "copilot", org_id, frozenset({"auditor"}))
-    hits = await rag_search(
+    hits = await search_for_copilot(
         principal,
         args["query"],
-        embedder=get_embedder(),
-        reranker=get_reranker(),
         doc_types=args.get("doc_types"),
     )
     return {

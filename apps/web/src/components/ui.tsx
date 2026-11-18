@@ -74,7 +74,7 @@ export function Badge({
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div aria-hidden className={clsx("animate-pulse rounded bg-surface-2", className)} />;
+  return <div aria-hidden className={clsx("rounded bg-surface-2 motion-safe:animate-pulse", className)} />;
 }
 
 /** Renders a number with its source, or "not measured" when null (§B16). */

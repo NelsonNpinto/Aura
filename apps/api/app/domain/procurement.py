@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.core.errors import Conflict, Forbidden
 
+PURCHASING_DEMO_ORG = "purchasing-demo"
+
 
 class Line(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -96,31 +98,27 @@ def transition(
 ) -> dict[str, Any]:
     """Called under a row lock. Every approval binds to the current document revision."""
     status = state["status"]
-    if action in ("l1", "finance"):
-        expected = "awaiting_l1" if action == "l1" else "awaiting_finance"
-        required = {"approver"} if action == "l1" else {"finance", "controller"}
-        if status != expected:
-            raise Conflict("Approval stage is not ready", code="stage_not_ready")
-        if not roles & required:
-            raise Forbidden("This approval requires a designated reviewer")
-        uploaders = {d["actor"] for d in state.get("evidence", {}).values()}
-        if state.get("created_by"):
-            uploaders.add(state["created_by"])
-        if actor in uploaders or any(a["actor"] == actor for a in state["approvals"]):
-            raise Forbidden(
-                "Uploader and reviewers must be distinct people", code="segregation_of_duties"
-            )
-        if not compare(state["documents"])["matched"]:
-            raise Conflict("Resolve document discrepancies first")
-        state["approvals"].append(
-            {"stage": action, "actor": actor, "comment": comment, "revision": state["revision"]}
+    stage = {"awaiting_l1": "l1", "awaiting_finance": "finance"}.get(status)
+    if not stage or action not in (stage, "reject"):
+        raise Conflict("Approval stage is not ready", code="stage_not_ready")
+    required = {"approver"} if stage == "l1" else {"finance", "controller"}
+    if not roles & required:
+        raise Forbidden("This review requires a designated reviewer")
+    uploaders = {d["actor"] for d in state.get("evidence", {}).values()}
+    if state.get("created_by"):
+        uploaders.add(state["created_by"])
+    if actor in uploaders or any(a["actor"] == actor for a in state["approvals"]):
+        raise Forbidden(
+            "Uploader and reviewers must be distinct people", code="segregation_of_duties"
         )
-        state["status"] = "awaiting_finance" if action == "l1" else "approved_for_payment"
-    elif action == "reject":
-        required = {"approver"} if status == "awaiting_l1" else {"finance", "controller"}
-        if status not in ("awaiting_l1", "awaiting_finance") or not roles & required:
-            raise Forbidden("No approval is assigned to this role")
+    decision = {"stage": stage, "actor": actor, "comment": comment, "revision": state["revision"]}
+    if action == "reject":
+        state["correction"] = decision
+        state["approvals"] = []
         state["status"] = "needs_correction"
     else:
-        raise Conflict("Unknown action")
+        if not compare(state["documents"])["matched"]:
+            raise Conflict("Resolve document discrepancies first")
+        state["approvals"].append(decision)
+        state["status"] = "awaiting_finance" if action == "l1" else "approved_for_payment"
     return state

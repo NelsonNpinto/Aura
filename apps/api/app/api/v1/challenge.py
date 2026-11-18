@@ -21,7 +21,6 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.core.db import tenant_tx
 from app.core.errors import AppError
-from app.core.limits import verify_turnstile
 from app.core.logging import get_logger
 from app.core.store import Window, get_store
 from app.guardrails import screen
@@ -46,7 +45,6 @@ CATEGORIES = (
 class Attempt(BaseModel):
     category: str = Field(max_length=40)
     attempt: str = Field(min_length=5, max_length=2000)
-    turnstile_token: str | None = Field(default=None, max_length=4000)
 
 
 def _visitor_hash(request: Request) -> str:
@@ -126,7 +124,6 @@ async def attempt(body: Attempt, request: Request) -> dict[str, Any]:
                 status_code=429,
                 headers={"Retry-After": str(allowed.retry_after_s or 3600)},
             )
-    await verify_turnstile(body.turnstile_token, request)
 
     text_in = redact(body.attempt)
     findings = screen.heuristics(text_in)

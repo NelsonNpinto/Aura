@@ -10,10 +10,6 @@ export BETTER_AUTH_URL=http://localhost:3000
 export WEB_ORIGIN=http://localhost:3000
 export AURA_JWKS_URL=http://localhost:3000/api/auth/jwks
 export AURA_JWT_ISSUER=http://localhost:3000
-# Cloudflare's documented always-pass test keys
-export TURNSTILE_SITE_KEY=1x00000000000000000000AA
-export NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
-export TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 export LANGFUSE_PUBLIC_KEY= LANGFUSE_SECRET_KEY= BLOB_READ_WRITE_TOKEN=
 export NEO4J_URI=bolt://localhost:7687 NEO4J_USERNAME=neo4j NEO4J_PASSWORD=aura-local-only NEO4J_DATABASE=neo4j
 export AURA_API_DEV_ORIGIN=http://localhost:8010

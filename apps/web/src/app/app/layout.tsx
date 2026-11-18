@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppNav } from "@/components/app-nav";
 import { getViewer } from "@/lib/viewer";
+import { WorkspaceProvider } from "@/lib/workspace-context";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,15 @@ export default async function AppLayout({
         tabIndex={-1}
         className="workspace-content mx-auto w-full min-w-0 max-w-7xl px-4 py-7 sm:px-7 lg:px-9 lg:py-10"
       >
-        {children}
+        <WorkspaceProvider
+          value={{
+            id: viewer.orgId,
+            name: viewer.orgName,
+            workspaces: viewer.workspaces,
+          }}
+        >
+          {children}
+        </WorkspaceProvider>
       </main>
     </div>
   );

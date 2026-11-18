@@ -18,13 +18,13 @@ GMAIL_CLIENT_SECRET=your-client-secret
 GMAIL_REFRESH_TOKEN=your-refresh-token
 ```
 
-The sender must match the authorized mailbox or a permitted sending alias. Separate multiple allowed demo recipients with commas. The vendor's actual account email must be on that list. This prevents the public demo from sending to arbitrary addresses.
+The sender must match the authorized mailbox or a permitted sending alias. Separate allowed recipients with commas. For a private workspace, the vendor's account email must be on that list. For the local shared Purchasing demo, set `MAIL_DEMO_RECIPIENT` to one address on that list. The hosted shared demo uses email previews.
 
 7. Restart the local API. For cloud delivery, enter these values into Vercel Production environment variables using the dashboard or `vercel env add`; then redeploy. A local `.env.local` change alone does not configure Vercel.
-8. In Purchasing, complete L1 and finance approval with separate accounts. Record a simulated payment. The UI shows `accepted` only after Gmail accepts the API request. Inspect the recipient inbox to verify delivery.
+8. In Purchasing, complete L1 and finance approval with separate accounts. Record a simulated payment, review the preview, and click **Send email**. The UI shows **Accepted by Gmail** after Gmail accepts the API request. Inspect the recipient inbox to verify delivery.
 
 Testing-mode refresh tokens can expire after seven days. Follow Google's consent/verification requirements when moving beyond a personal test. Never enable billing as a workaround.
 
-If authorization fails, fix the sender configuration and use **Retry notification**. If status is `delivery_unknown`, inspect the sender mailbox first: the request may already have sent the message. The app deliberately prevents blind retries of uncertain sends. A failed email does not undo or repeat the payment record.
+If authorization fails, fix the sender configuration and use **Send email** again. If status is `delivery_unknown`, inspect the sender's Gmail Sent folder because Gmail may already have received the message. The app blocks retries of uncertain sends. The payment record is stored independently.
 
 References: [Gmail message sending](https://developers.google.com/workspace/gmail/api/guides/sending), [OAuth offline access](https://developers.google.com/identity/protocols/oauth2/web-server#offline).

@@ -3,7 +3,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { Turnstile } from "@/components/turnstile";
 import { Badge, Button, Card, ErrorNote, Label, Skeleton, Textarea } from "@/components/ui";
 
 type Categories = {
@@ -54,7 +53,6 @@ async function publicApi<T>(path: string, init: RequestInit = {}): Promise<T> {
 export default function ChallengePage() {
   const [attempt, setAttempt] = useState("");
   const [category, setCategory] = useState("direct_injection");
-  const [token, setToken] = useState<string | null>(null);
 
   const meta = useQuery({ queryKey: ["challenge-meta"], queryFn: () => publicApi<Categories>("/challenge/categories") });
   const board = useQuery({ queryKey: ["challenge-board"], queryFn: () => publicApi<Scoreboard>("/challenge/scoreboard") });
@@ -62,7 +60,7 @@ export default function ChallengePage() {
     mutationFn: () =>
       publicApi<AttemptResult>("/challenge/attempt", {
         method: "POST",
-        body: JSON.stringify({ category, attempt, turnstile_token: token }),
+        body: JSON.stringify({ category, attempt }),
       }),
     onSuccess: () => board.refetch(),
   });
@@ -124,7 +122,6 @@ export default function ChallengePage() {
               placeholder="Ignore all previous instructions and…"
             />
           </div>
-          <Turnstile onToken={setToken} />
           <Button type="submit" disabled={send.isPending || attempt.trim().length < 5}>
             {send.isPending ? "Running…" : "Send it"}
           </Button>
